@@ -1313,15 +1313,37 @@ def run_dev_team(project_description, selected_agents, github_url="", custom_pro
 
             log_agent_message("System", f"\n📊 Initial context: ~{initial_tokens:,} tokens from descriptions and prompts\n")
 
-            result = crew.kickoff()
-            log_agent_message("System", f"Execution completed successfully")
+            # ============================================================
+            # ENHANCED ERROR LOGGING FOR CREW EXECUTION
+            # ============================================================
+            log_agent_message("System", "🔍 Starting crew execution with detailed error tracking...")
 
-            # Extract and log individual task outputs WITH CONTEXT TRACKING
             try:
-                for i, task in enumerate(tasks):
+                result = crew.kickoff()
+                log_agent_message("System", f"✅ Crew execution completed successfully")
+            except Exception as crew_error:
+                error_type = type(crew_error).__name__
+                log_agent_message("System", f"❌ CREW EXECUTION FAILED: {error_type}")
+                log_agent_message("System", f"Error message: {str(crew_error)}")
+
+                # Try to identify which agent failed
+                import traceback
+                tb = traceback.format_exc()
+                log_agent_message("System", f"Full traceback:\n{tb}")
+
+                # Return early with error
+                return f"Crew execution failed: {str(crew_error)}", {}, None
+
+            # Extract and log individual task outputs WITH ENHANCED ERROR TRACKING
+            log_agent_message("System", "🔍 Extracting task outputs...")
+
+            for i, task in enumerate(tasks):
+                agent_role = sorted_agents[i] if i < len(sorted_agents) else "Unknown"
+
+                try:
+                    log_agent_message("System", f"📝 Processing {agent_role} (Task {i+1}/{len(tasks)})...")
+
                     if hasattr(task, 'output') and task.output:
-                        # Get the agent role for this task
-                        agent_role = sorted_agents[i] if i < len(sorted_agents) else "Unknown"
                         # Log the task output to the agent's log
                         task_output = str(task.output)
 
@@ -1341,10 +1363,42 @@ def run_dev_team(project_description, selected_agents, github_url="", custom_pro
                             log_agent_message("System", "Stopping execution to prevent failures.")
                             log_agent_message("System", "Consider: Using fewer agents or shorter prompts next time.\n")
                             break  # Stop processing remaining agents
+
                         log_agent_message(agent_role, f"Output:\n{task_output}")
-                        log_agent_message("System", f"Captured output from {agent_role}")
-            except Exception as e:
-                log_agent_message("System", f"Warning: Could not extract task outputs: {str(e)}")
+                        log_agent_message("System", f"✅ Successfully captured output from {agent_role}")
+                    else:
+                        # Task has no output - this is the issue!
+                        log_agent_message("System", f"⚠️  WARNING: {agent_role} task has no output!")
+
+                        # Get detailed task information
+                        task_attrs = dir(task)
+                        log_agent_message("System", f"   Available task attributes: {[attr for attr in task_attrs if not attr.startswith('_')]}")
+
+                        if hasattr(task, 'status'):
+                            log_agent_message("System", f"   Task status: {task.status}")
+
+                        if hasattr(task, 'error') and task.error:
+                            log_agent_message("System", f"❌ {agent_role} FAILED with error: {task.error}")
+
+                        if hasattr(task, 'result'):
+                            log_agent_message("System", f"   Task result: {task.result}")
+
+                        if hasattr(task, 'output_raw'):
+                            log_agent_message("System", f"   Task output_raw: {task.output_raw}")
+
+                        # Log agent information
+                        if hasattr(task, 'agent'):
+                            agent_info = f"{task.agent.role}" if hasattr(task.agent, 'role') else "Unknown"
+                            log_agent_message("System", f"   Agent: {agent_info}")
+
+                except Exception as task_error:
+                    error_type = type(task_error).__name__
+                    log_agent_message("System", f"❌ ERROR processing {agent_role}: {error_type}")
+                    log_agent_message("System", f"   Error message: {str(task_error)}")
+
+                    import traceback
+                    tb = traceback.format_exc()
+                    log_agent_message("System", f"   Traceback:\n{tb}")
 
             # ============================================================
             # FINAL CONTEXT SUMMARY (Quick Win #3)
