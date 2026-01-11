@@ -1121,7 +1121,11 @@ def run_dev_team(project_description, selected_agents, github_url="", custom_pro
         previous_priority_tasks = []  # Tasks from previous priority level
 
         for role in sorted_agents:
-            if role not in AGENT_CONFIGS:
+            # Check if agent exists in dynamic configs or hardcoded configs
+            if AGENT_CONFIGS_DYNAMIC and role not in AGENT_CONFIGS_DYNAMIC and role not in AGENT_CONFIGS:
+                log_agent_message("System", f"Warning: Unknown agent role '{role}', skipping")
+                continue
+            elif not AGENT_CONFIGS_DYNAMIC and role not in AGENT_CONFIGS:
                 log_agent_message("System", f"Warning: Unknown agent role '{role}', skipping")
                 continue
 
