@@ -1,0 +1,21 @@
+name: Sample Workflow for Testing
+agents:
+  - type: PM
+    prompt: Manage this project effectively
+    model: claude-3-sonnet-20240229
+  - type: Research
+    prompt: ''
+    model: claude-3-haiku-20240307
+  - type: Ideas
+    prompt: Generate creative solutions
+    model: claude-3-haiku-20240307
+  - type: Senior
+    prompt: ''
+    model: claude-3-opus-20240229
+connections:
+  - source: PM-1641860000000
+    target: Research-1641860100000
+  - source: Research-1641860100000
+    target: Ideas-1641860200000
+  - source: Ideas-1641860200000
+    target: Senior-1641860300000

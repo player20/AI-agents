@@ -18,6 +18,47 @@ The Visual Workflow Builder is a React-based drag-and-drop interface for creatin
 ✅ **Real-time workflow visualization**
 ✅ **REST API** for dynamic agent management (3 endpoints)
 ✅ **Backward compatible** with existing 12 YAML templates
+✅ **Gradio Platform integration** - import workflows directly into execution platform 🆕
+
+---
+
+## Integration with Gradio Platform
+
+The Workflow Builder and Gradio Platform work together seamlessly:
+
+1. **Design** → Use Workflow Builder (localhost:3000) to visually design your workflow
+2. **Export** → Export workflow as YAML file
+3. **Execute** → Import YAML into Gradio Platform (localhost:7860) and run it
+
+### Using YAML Import in Gradio Platform
+
+After designing your workflow in the Visual Builder:
+
+1. **Export YAML**: Click "Export" in Workflow Builder to download `your-workflow.yaml`
+
+2. **Open Gradio Platform**: Start the Gradio Platform if not running:
+   ```bash
+   cd C:\Users\jacob\MultiAgentTeam
+   python multi_agent_team.py
+   ```
+
+3. **Import Workflow**:
+   - Open http://localhost:7860 in your browser
+   - Expand the **"📥 Import Workflow from YAML"** accordion (under Project Configuration)
+   - Click "Select YAML Workflow File" and choose your exported workflow
+   - Click **"📥 Import Workflow"** button
+
+4. **Review Import**:
+   - Import status will show:
+     - Workflow name and statistics
+     - Any validation warnings (circular dependencies, disconnected nodes)
+     - Custom agents that are not available in Gradio Platform
+   - Agent selection checkboxes will be automatically populated
+   - Project name will be set to your workflow name
+
+5. **Execute**: Click **"▶️ Run Team"** to execute your workflow!
+
+**Note**: Custom agents created in the Workflow Builder are not yet supported in the Gradio Platform. They will be skipped during import.
 
 ---
 

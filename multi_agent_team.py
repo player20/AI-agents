@@ -17,6 +17,18 @@ except ImportError:
     CODE_APPLICATOR_AVAILABLE = False
     print("⚠️  Code applicator not available. Install code_applicator.py for auto-apply features.")
 
+# Import YAML workflow parser
+try:
+    from workflow_yaml_parser import (
+        parse_workflow_yaml,
+        validate_workflow,
+        format_import_summary
+    )
+    YAML_PARSER_AVAILABLE = True
+except ImportError:
+    YAML_PARSER_AVAILABLE = False
+    print("⚠️  YAML parser not available. Install workflow_yaml_parser.py for workflow import.")
+
 # ==============================
 # CONFIGURATION
 # ==============================
@@ -985,6 +997,116 @@ def export_individual_handler(role, project_desc):
     except Exception as e:
         return f"Export failed: {str(e)}"
 
+# ==============================
+# YAML Workflow Import Handlers
+# ==============================
+
+def handle_yaml_import(yaml_file_path):
+    """
+    Handle YAML workflow import and populate Gradio fields
+
+    Returns:
+        Tuple of (status_message, workflow_preview, agents_update, project_name_update, preview_visible)
+    """
+    if not YAML_PARSER_AVAILABLE:
+        return (
+            "❌ YAML parser not available. Install workflow_yaml_parser.py",
+            None,
+            gr.update(),
+            gr.update(),
+            gr.update()
+        )
+
+    try:
+        if not yaml_file_path:
+            return (
+                "⚠️ No file selected. Please select a YAML workflow file.",
+                None,
+                gr.update(),
+                gr.update(),
+                gr.update()
+            )
+
+        # Parse YAML workflow
+        workflow = parse_workflow_yaml(yaml_file_path)
+
+        # Validate workflow
+        is_valid, errors, warnings = validate_workflow(workflow)
+
+        # Build status message
+        status_msg = format_import_summary(workflow)
+
+        # Add validation results
+        if errors:
+            status_msg += "\n\n❌ Validation Errors:\n"
+            for error in errors:
+                status_msg += f"  • {error}\n"
+
+        if warnings:
+            status_msg += "\n\n⚠️ Warnings:\n"
+            for warning in warnings:
+                status_msg += f"  • {warning}\n"
+
+        # Filter agents to only include those in AGENT_ROLES
+        valid_agents = [
+            agent_id for agent_id in workflow['agents']
+            if agent_id in AGENT_ROLES
+        ]
+
+        skipped_agents = [
+            agent_id for agent_id in workflow['agents']
+            if agent_id not in AGENT_ROLES
+        ]
+
+        if skipped_agents:
+            status_msg += f"\n\n⚠️ Skipped unknown agents: {', '.join(skipped_agents)}"
+            status_msg += "\n(Custom agents from Workflow Builder are not yet supported in Gradio Platform)"
+
+        # Prepare workflow preview data
+        preview_data = {
+            "name": workflow['name'],
+            "agents": workflow['agents'],
+            "agent_count": len(workflow['agents']),
+            "custom_prompts": list(workflow['custom_prompts'].keys()),
+            "model_overrides": list(workflow['models'].keys()),
+            "priorities": workflow['priorities']
+        }
+
+        return (
+            status_msg,
+            preview_data,
+            gr.update(value=valid_agents),  # Update agent selector
+            gr.update(value=workflow['name']),  # Update project name
+            gr.update(visible=True)  # Show preview
+        )
+
+    except ValueError as e:
+        return (
+            f"❌ Import failed: {str(e)}\n\nPlease check that the YAML file is valid and exported from the Workflow Builder.",
+            None,
+            gr.update(),
+            gr.update(),
+            gr.update()
+        )
+    except Exception as e:
+        return (
+            f"❌ Unexpected error during import: {str(e)}",
+            None,
+            gr.update(),
+            gr.update(),
+            gr.update()
+        )
+
+
+def clear_yaml_import():
+    """Clear YAML import status and preview"""
+    return (
+        "Import cleared. You can import a new workflow.",
+        None,
+        gr.update(visible=False)
+    )
+
+
 # Build the enhanced Gradio interface
 with gr.Blocks(title="Super Dev Team") as demo:
     gr.Markdown("# 🚀 Super Multi-Agent Dev Team")
@@ -1006,6 +1128,37 @@ with gr.Blocks(title="Super Dev Team") as demo:
                 placeholder="https://github.com/username/repository (for direct code analysis from GitHub)",
                 info="Provide a GitHub URL to clone and analyze. Leave blank for text-only project descriptions."
             )
+
+            # YAML Workflow Import Section
+            if YAML_PARSER_AVAILABLE:
+                with gr.Accordion("📥 Import Workflow from YAML", open=False):
+                    gr.Markdown("""
+**Import workflows designed in the Visual Workflow Builder**
+
+Upload a `.yaml` file exported from the Workflow Builder to automatically configure agents, prompts, models, and execution order.
+                    """)
+
+                    yaml_file_input = gr.File(
+                        label="Select YAML Workflow File",
+                        file_types=[".yaml", ".yml"],
+                        type="filepath"
+                    )
+
+                    with gr.Row():
+                        import_button = gr.Button("📥 Import Workflow", variant="primary", size="sm")
+                        clear_import_button = gr.Button("🗑️ Clear Import", variant="secondary", size="sm")
+
+                    import_status = gr.Textbox(
+                        label="Import Status",
+                        lines=4,
+                        interactive=False,
+                        placeholder="No workflow imported yet..."
+                    )
+
+                    workflow_preview = gr.JSON(
+                        label="Workflow Preview",
+                        visible=False
+                    )
 
             # Agent selection
             gr.Markdown("## 🤖 Select Agents to Execute")
@@ -1283,6 +1436,20 @@ with gr.Blocks(title="Super Dev Team") as demo:
         inputs=[agent_preset_dropdown],
         outputs=[agent_selector]
     )
+
+    # YAML Import button handlers
+    if YAML_PARSER_AVAILABLE:
+        import_button.click(
+            handle_yaml_import,
+            inputs=[yaml_file_input],
+            outputs=[import_status, workflow_preview, agent_selector, project_input, workflow_preview]
+        )
+
+        clear_import_button.click(
+            clear_yaml_import,
+            inputs=[],
+            outputs=[import_status, workflow_preview, workflow_preview]
+        )
 
     # Export button handlers
     export_json_btn.click(
