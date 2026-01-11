@@ -1146,7 +1146,7 @@ def load_custom_css():
 
 
 # Build the enhanced Gradio interface
-with gr.Blocks(title="Super Dev Team", css=load_custom_css()) as demo:
+with gr.Blocks(title="Super Dev Team") as demo:
     gr.Markdown("# 🚀 Super Multi-Agent Dev Team")
     gr.Markdown("**Market-Smart • Lean • Hallucination-Resistant • Fully Customizable**")
 
@@ -1360,8 +1360,7 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                     label=f"{role} Output",
                     lines=20,
                     interactive=False,
-                    placeholder=f"No output yet for {role}...",
-                    show_copy_button=True
+                    placeholder=f"No output yet for {role}..."
                 )
                 log_outputs.append(log_output)
 
@@ -1528,4 +1527,4 @@ if __name__ == "__main__":
     print("🚀 Launching Super Multi-Agent Dev Team...")
     print(f"📁 Exports will be saved to: {os.path.abspath(EXPORTS_DIR)}")
     print(f"📁 Projects will be saved to: {os.path.abspath(PROJECTS_DIR)}")
-    demo.launch(share=False, server_name="127.0.0.1", server_port=7860, theme=gr.themes.Soft())
+    demo.launch(share=False, server_name="127.0.0.1", server_port=7860, theme=gr.themes.Soft(), css=load_custom_css())
