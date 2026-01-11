@@ -14,6 +14,9 @@ from projects_store import (
     ProjectsStore,
     get_template_names,
     get_template,
+    get_team_preset_names,
+    get_team_preset,
+    get_team_presets_by_category,
     render_team_card_safe,
     escape_html
 )
@@ -1790,6 +1793,14 @@ with gr.Blocks(title="Super Dev Team") as demo:
             with gr.Group(visible=False) as team_builder_form:
                 gr.Markdown("### Add Team to Project")
 
+                # Team preset selector
+                team_preset_selector = gr.Dropdown(
+                    choices=["Custom Team (Blank)"] + get_team_preset_names(),
+                    value="Custom Team (Blank)",
+                    label="Team Preset",
+                    info="Select a pre-configured team or start from scratch"
+                )
+
                 new_team_name = gr.Textbox(label="Team Name", placeholder="Backend Squad")
                 new_team_desc = gr.Textbox(label="Description", lines=2, placeholder="What will this team do?")
 
@@ -2372,6 +2383,32 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
     cancel_team_btn.click(
         lambda: gr.update(visible=False),
         outputs=[team_builder_form]
+    )
+
+    def load_team_preset(preset_name):
+        """Auto-populate team fields when preset is selected"""
+        if preset_name == "Custom Team (Blank)":
+            # Reset to blank
+            return (
+                gr.update(value=""),  # team name
+                gr.update(value=""),  # team description
+                gr.update(value=[])   # team agents
+            )
+
+        preset = get_team_preset(preset_name)
+        if not preset:
+            return gr.update(), gr.update(), gr.update()
+
+        return (
+            gr.update(value=preset_name),  # Use preset name as team name
+            gr.update(value=preset.get("description", "")),
+            gr.update(value=preset.get("agents", []))
+        )
+
+    team_preset_selector.change(
+        load_team_preset,
+        inputs=[team_preset_selector],
+        outputs=[new_team_name, new_team_desc, new_team_agents]
     )
 
     def add_new_team(project_id, team_name, team_desc, team_agents):

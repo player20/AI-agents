@@ -349,6 +349,101 @@ class ProjectsStore:
         return previous_outputs
 
 
+# Team Presets - Pre-configured teams for common specializations
+TEAM_PRESETS = {
+    "Market Analysis Team": {
+        "description": "Analyze market opportunities, competitors, and business strategy",
+        "agents": ["Research", "BusinessAnalyst", "DataAnalyst", "ProductOwner", "FinancialAnalyst"],
+        "category": "Business & Strategy"
+    },
+    "Design Evaluation Team": {
+        "description": "Review and evaluate design quality, UX, and accessibility",
+        "agents": ["ProductDesigner", "UXResearcher", "UIDesigner", "AccessibilitySpecialist", "Designs"],
+        "category": "Product & Design"
+    },
+    "Backend Development Team": {
+        "description": "Build server-side APIs, databases, and backend systems",
+        "agents": ["Senior", "BackendEngineer", "DatabaseAdmin", "APIDesigner", "Architect"],
+        "category": "Engineering"
+    },
+    "Frontend Development Team": {
+        "description": "Build responsive web interfaces and user experiences",
+        "agents": ["FrontendEngineer", "Web", "UIDesigner", "Designs", "AccessibilitySpecialist"],
+        "category": "Engineering"
+    },
+    "Mobile Development Team": {
+        "description": "Build native iOS and Android mobile applications",
+        "agents": ["iOS", "Android", "MobileEngineer", "UIDesigner", "ProductDesigner"],
+        "category": "Engineering"
+    },
+    "QA & Testing Team": {
+        "description": "Comprehensive testing, quality assurance, and verification",
+        "agents": ["QA", "TestAutomation", "Verifier", "PerformanceEngineer"],
+        "category": "Quality Assurance"
+    },
+    "Security Team": {
+        "description": "Security audits, penetration testing, and compliance",
+        "agents": ["SecurityEngineer", "PenetrationTester", "ComplianceOfficer", "Verifier"],
+        "category": "Security & Compliance"
+    },
+    "Data & AI Team": {
+        "description": "Data science, machine learning, and AI implementation",
+        "agents": ["DataScientist", "MLEngineer", "AIResearcher", "DataEngineer", "DataAnalyst"],
+        "category": "Data & AI"
+    },
+    "Content & Marketing Team": {
+        "description": "Content creation, marketing strategy, and growth",
+        "agents": ["ContentWriter", "SocialMediaManager", "GrowthEngineer", "TechnicalWriter"],
+        "category": "Content & Communication"
+    },
+    "Research Team": {
+        "description": "Deep research, ideation, and strategic planning",
+        "agents": ["Research", "AIResearcher", "Ideas", "TechLead"],
+        "category": "Research & Strategy"
+    },
+    "DevOps & Infrastructure Team": {
+        "description": "Infrastructure, deployment, monitoring, and site reliability",
+        "agents": ["DevOps", "SRE", "InfrastructureEngineer", "CloudArchitect"],
+        "category": "Engineering"
+    },
+    "Product Management Team": {
+        "description": "Product strategy, roadmap planning, and team coordination",
+        "agents": ["PM", "ProductOwner", "BusinessAnalyst", "Memory"],
+        "category": "Management"
+    },
+    "Full-Stack Team": {
+        "description": "End-to-end development with frontend, backend, and deployment",
+        "agents": ["FullStackEngineer", "Senior", "Web", "DatabaseAdmin", "DevOps"],
+        "category": "Engineering"
+    },
+    "Architecture Team": {
+        "description": "System architecture, technical leadership, and design patterns",
+        "agents": ["Architect", "TechLead", "Senior", "CloudArchitect"],
+        "category": "Engineering"
+    },
+    "Documentation Team": {
+        "description": "Technical writing, API docs, and developer advocacy",
+        "agents": ["TechnicalWriter", "DocumentationEngineer", "DeveloperAdvocate"],
+        "category": "Content & Communication"
+    },
+    "Performance & Optimization Team": {
+        "description": "Performance tuning, optimization, and scalability",
+        "agents": ["PerformanceEngineer", "SRE", "Architect", "Senior"],
+        "category": "Engineering"
+    },
+    "Blockchain Team": {
+        "description": "Blockchain development, smart contracts, and Web3",
+        "agents": ["BlockchainEngineer", "SecurityEngineer", "FullStackEngineer"],
+        "category": "Engineering"
+    },
+    "Legal & Compliance Team": {
+        "description": "Legal review, compliance, and regulatory requirements",
+        "agents": ["ComplianceOfficer", "LegalAdvisor", "SecurityEngineer"],
+        "category": "Security & Compliance"
+    }
+}
+
+
 # Project Templates
 PROJECT_TEMPLATES = {
     "E-commerce Platform": {
@@ -482,6 +577,37 @@ def get_template_names() -> List[str]:
 def get_template(template_name: str) -> Optional[Dict]:
     """Get a template by name"""
     return PROJECT_TEMPLATES.get(template_name)
+
+
+def get_team_preset_names() -> List[str]:
+    """Get list of available team preset names"""
+    return list(TEAM_PRESETS.keys())
+
+
+def get_team_preset(preset_name: str) -> Optional[Dict]:
+    """Get a team preset by name
+
+    Returns:
+        Dict with keys: description, agents, category
+    """
+    return TEAM_PRESETS.get(preset_name)
+
+
+def get_team_presets_by_category() -> Dict[str, List[str]]:
+    """Group team presets by category for organized display
+
+    Returns:
+        Dict mapping category names to lists of preset names
+    """
+    categories = {}
+    for preset_name, preset_data in TEAM_PRESETS.items():
+        category = preset_data.get("category", "Other")
+        if category not in categories:
+            categories[category] = []
+        categories[category].append(preset_name)
+
+    # Sort categories and preset names
+    return {cat: sorted(presets) for cat, presets in sorted(categories.items())}
 
 
 def get_all_agent_ids() -> List[str]:
