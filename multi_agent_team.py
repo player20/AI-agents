@@ -21,6 +21,8 @@ from projects_store import (
     escape_html
 )
 
+# Note: toggle_team_enabled is a method on ProjectsStore instance
+
 # Import code application system
 try:
     from code_applicator import apply_agent_changes_workflow, apply_agent_changes_from_github
@@ -1767,8 +1769,42 @@ with gr.Blocks(title="Super Dev Team") as demo:
 
                     teams_list_html = gr.HTML(value="<p>No teams added yet</p>")
 
+                    # Team Toggle Controls
+                    with gr.Accordion("🔀 Enable/Disable Teams", open=True):
+                        gr.Markdown("*Toggle teams on/off for execution*")
+                        team_toggles = gr.CheckboxGroup(
+                            choices=[],
+                            value=[],
+                            label="Enabled Teams",
+                            info="Only checked teams will run"
+                        )
+                        with gr.Row():
+                            update_toggles_btn = gr.Button("💾 Save Team Settings", variant="primary", size="sm")
+                            enable_all_btn = gr.Button("✓ Enable All", size="sm")
+                            disable_all_btn = gr.Button("✗ Disable All", size="sm")
+
+                    # Quick Team Selection
+                    with gr.Accordion("⚡ Quick Add Team Presets", open=False):
+                        gr.Markdown("*Select team presets to add to your project*")
+
+                        # Group presets by category
+                        presets_by_category = get_team_presets_by_category()
+                        team_preset_checkboxes = {}
+
+                        for category, preset_names in presets_by_category.items():
+                            with gr.Accordion(f"{category} ({len(preset_names)} teams)", open=False):
+                                team_preset_checkboxes[category] = gr.CheckboxGroup(
+                                    choices=preset_names,
+                                    label=f"{category} Teams",
+                                    info=f"Select teams from {category}"
+                                )
+
+                        with gr.Row():
+                            add_selected_teams_btn = gr.Button("➕ Add Selected Teams", variant="primary")
+                            clear_selection_btn = gr.Button("Clear Selection", variant="secondary")
+
                     with gr.Row():
-                        add_team_btn_show = gr.Button("➕ Add Team", variant="secondary", size="sm")
+                        add_team_btn_show = gr.Button("➕ Custom Team", variant="secondary", size="sm")
                         run_project_btn = gr.Button("▶️ Run Project", variant="primary", size="lg")
 
             # New Project Form (hidden by default)
@@ -2294,11 +2330,21 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
     def load_project_details(project_id):
         """Load and display project details"""
         if not project_id:
-            return "<p>Select a project</p>", "<p>No teams</p>", ""
+            return (
+                "<p>Select a project</p>",
+                "<p>No teams</p>",
+                "",
+                gr.update(choices=[], value=[])
+            )
 
         project = projects_store.get_project(project_id)
         if not project:
-            return "<p>Project not found</p>", "<p>No teams</p>", ""
+            return (
+                "<p>Project not found</p>",
+                "<p>No teams</p>",
+                "",
+                gr.update(choices=[], value=[])
+            )
 
         # Format project details
         details_html = f"""
@@ -2316,12 +2362,23 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
         teams = project.get('teams', [])
         if not teams:
             teams_html = "<p>No teams added yet. Click 'Add Team' to create one.</p>"
+            team_toggle_choices = []
+            team_toggle_values = []
         else:
             teams_html = "".join([
                 render_team_card_safe(team, i) for i, team in enumerate(teams)
             ])
 
-        return details_html, teams_html, f"Project '{project['name']}' loaded"
+            # Prepare team toggle checkboxes
+            team_toggle_choices = [team['name'] for team in teams]
+            team_toggle_values = [team['name'] for team in teams if team.get('enabled', True)]
+
+        return (
+            details_html,
+            teams_html,
+            f"Project '{project['name']}' loaded",
+            gr.update(choices=team_toggle_choices, value=team_toggle_values)
+        )
 
     def delete_current_project(project_id):
         """Delete the selected project"""
@@ -2365,7 +2422,7 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
     project_list.change(
         load_project_details,
         inputs=[project_list],
-        outputs=[project_details_html, teams_list_html, project_status_msg]
+        outputs=[project_details_html, teams_list_html, project_status_msg, team_toggles]
     )
 
     delete_project_btn.click(
@@ -2455,6 +2512,150 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
         add_new_team,
         inputs=[project_list, new_team_name, new_team_desc, new_team_agents],
         outputs=[project_status_msg, teams_list_html, team_builder_form]
+    )
+
+    # Quick Add Selected Teams handler
+    def add_selected_team_presets(project_id, *selected_teams_by_category):
+        """Add multiple team presets at once"""
+        try:
+            if not project_id:
+                return "Error: No project selected", gr.update()
+
+            # Flatten all selected teams from all categories
+            all_selected_teams = []
+            for category_teams in selected_teams_by_category:
+                if category_teams:
+                    all_selected_teams.extend(category_teams)
+
+            if not all_selected_teams:
+                return "Error: No teams selected", gr.update()
+
+            # Add each selected team preset
+            added_count = 0
+            for preset_name in all_selected_teams:
+                preset = get_team_preset(preset_name)
+                if preset:
+                    team_id = projects_store.add_team(
+                        project_id,
+                        preset_name,  # Use preset name as team name
+                        preset.get("agents", []),
+                        preset.get("description", ""),
+                        validate_agents=False
+                    )
+                    if team_id:
+                        added_count += 1
+
+            # Refresh teams display
+            project = projects_store.get_project(project_id)
+            teams = project.get('teams', [])
+            teams_html = "".join([
+                render_team_card_safe(team, i) for i, team in enumerate(teams)
+            ])
+
+            return (
+                f"✅ Added {added_count} teams to project!",
+                teams_html
+            )
+
+        except Exception as e:
+            return f"Error: {str(e)}", gr.update()
+
+    # Collect all checkbox group inputs for the event handler
+    all_checkbox_inputs = [project_list] + list(team_preset_checkboxes.values())
+
+    add_selected_teams_btn.click(
+        add_selected_team_presets,
+        inputs=all_checkbox_inputs,
+        outputs=[project_status_msg, teams_list_html]
+    )
+
+    # Clear selection handler
+    def clear_team_selections():
+        """Clear all team preset selections"""
+        # Return empty list for each checkbox group
+        return [gr.update(value=[]) for _ in team_preset_checkboxes]
+
+    clear_selection_btn.click(
+        clear_team_selections,
+        outputs=list(team_preset_checkboxes.values())
+    )
+
+    # Team toggle event handlers
+    def update_team_toggles(project_id, enabled_team_names):
+        """Update which teams are enabled/disabled"""
+        try:
+            if not project_id:
+                return "Error: No project selected", gr.update()
+
+            project = projects_store.get_project(project_id)
+            if not project:
+                return "Error: Project not found", gr.update()
+
+            # Update each team's enabled status
+            for team in project['teams']:
+                should_be_enabled = team['name'] in enabled_team_names
+                current_enabled = team.get('enabled', True)
+
+                # Only toggle if status changed
+                if should_be_enabled != current_enabled:
+                    projects_store.toggle_team_enabled(project_id, team['id'])
+
+            # Refresh teams display
+            teams = project.get('teams', [])
+            teams_html = "".join([
+                render_team_card_safe(team, i) for i, team in enumerate(teams)
+            ])
+
+            enabled_count = len(enabled_team_names)
+            total_count = len(teams)
+
+            return (
+                f"✅ Team settings saved! {enabled_count}/{total_count} teams enabled",
+                teams_html
+            )
+
+        except Exception as e:
+            return f"Error: {str(e)}", gr.update()
+
+    update_toggles_btn.click(
+        update_team_toggles,
+        inputs=[project_list, team_toggles],
+        outputs=[project_status_msg, teams_list_html]
+    )
+
+    def enable_all_teams(project_id):
+        """Enable all teams in the project"""
+        try:
+            project = projects_store.get_project(project_id)
+            if not project:
+                return gr.update()
+
+            # Return all team names to enable them all
+            team_names = [team['name'] for team in project.get('teams', [])]
+            return gr.update(value=team_names)
+
+        except Exception as e:
+            return gr.update()
+
+    enable_all_btn.click(
+        enable_all_teams,
+        inputs=[project_list],
+        outputs=[team_toggles]
+    )
+
+    def disable_all_teams(project_id):
+        """Disable all teams in the project"""
+        try:
+            # Return empty list to disable all teams
+            return gr.update(value=[])
+
+        except Exception as e:
+            return gr.update()
+
+    disable_all_btn.click(
+        disable_all_teams,
+        inputs=[project_list],
+        outputs=[team_toggles]
     )
 
 # Launch the application

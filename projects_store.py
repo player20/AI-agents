@@ -288,6 +288,7 @@ class ProjectsStore:
             "agents": agents,
             "status": "pending",
             "output": None,
+            "enabled": True,  # Teams are enabled by default
             "createdAt": datetime.now().isoformat()
         }
 
@@ -330,6 +331,28 @@ class ProjectsStore:
                 self._save()
                 return True
         return False
+
+    def toggle_team_enabled(self, project_id: str, team_id: str) -> bool:
+        """Toggle a team's enabled/disabled status
+
+        Args:
+            project_id: ID of the project
+            team_id: ID of the team to toggle
+
+        Returns:
+            New enabled status (True/False), or None if team not found
+        """
+        team = self.get_team(project_id, team_id)
+        if team:
+            # Toggle the enabled status
+            new_status = not team.get("enabled", True)
+            team["enabled"] = new_status
+
+            # Update project
+            self.projects[project_id]["updatedAt"] = datetime.now().isoformat()
+            self._save()
+            return new_status
+        return None
 
     def get_previous_teams_output(self, project_id: str, current_team_index: int) -> List[Dict]:
         """Get outputs from all previous teams for context"""
@@ -651,7 +674,7 @@ def render_team_card_safe(team: Dict, index: int = 0) -> str:
     """Render a team card with HTML escaping for XSS prevention
 
     Args:
-        team: Team dictionary with id, name, description, agents, status
+        team: Team dictionary with id, name, description, agents, status, enabled
         index: Team index number (for display)
 
     Returns:
@@ -665,6 +688,12 @@ def render_team_card_safe(team: Dict, index: int = 0) -> str:
     }
     color = status_colors.get(team.get("status", "pending"), "#gray")
 
+    # Check if team is enabled/disabled
+    is_enabled = team.get("enabled", True)
+    enabled_badge = "ENABLED" if is_enabled else "DISABLED"
+    enabled_color = "#27ae60" if is_enabled else "#95a5a6"
+    opacity = "1.0" if is_enabled else "0.6"
+
     # Escape all user-provided content
     safe_name = escape_html(team.get("name", "Unnamed Team"))
     safe_desc = escape_html(team.get("description", ""))
@@ -672,7 +701,7 @@ def render_team_card_safe(team: Dict, index: int = 0) -> str:
     safe_status = escape_html(team.get("status", "pending").upper())
 
     return f"""
-    <div style="border-left: 4px solid {color}; padding: 12px; margin: 8px 0; background: #f9f9f9; border-radius: 4px;">
+    <div style="border-left: 4px solid {color}; padding: 12px; margin: 8px 0; background: #f9f9f9; border-radius: 4px; opacity: {opacity};">
         <h4 style="margin: 0 0 8px 0;">
             {index + 1}. {safe_name}
             <span style="float: right; font-size: 12px; color: {color};">{safe_status}</span>
@@ -680,6 +709,11 @@ def render_team_card_safe(team: Dict, index: int = 0) -> str:
         <p style="margin: 4px 0; font-size: 13px; color: #666;">{safe_desc}</p>
         <p style="margin: 4px 0; font-size: 12px;">
             <strong>Agents:</strong> {safe_agents}
+        </p>
+        <p style="margin: 4px 0; font-size: 11px;">
+            <span style="background: {enabled_color}; color: white; padding: 2px 8px; border-radius: 10px; font-weight: bold;">
+                {enabled_badge}
+            </span>
         </p>
     </div>
     """
