@@ -266,6 +266,7 @@ def execute_with_fallback(func, agent_role, current_model, *args, **kwargs):
 # Shared Logs for Dashboard
 # ==============================
 agent_logs = {
+    "System": [],  # System logs for execution status
     "PM": [], "Memory": [], "Research": [], "Ideas": [], "Designs": [],
     "Senior": [], "iOS": [], "Android": [], "Web": [],
     "QA": [], "Verifier": []
