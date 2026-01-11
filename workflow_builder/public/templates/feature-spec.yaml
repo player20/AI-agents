@@ -1,0 +1,9 @@
+name: Feature Specification
+description: Create detailed feature specifications with acceptance criteria
+agents:
+  - Research
+  - Ideas
+  - Designs
+  - QA
+model: balanced
+code_review_mode: false

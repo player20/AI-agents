@@ -1,0 +1,39 @@
+name: "🚀 SaaS App Planner"
+description: "Research market, generate ideas, validate architecture, and design UI for a new SaaS application"
+category: "Product Development"
+difficulty: "Beginner"
+estimated_time: "8-12 minutes"
+estimated_cost: "$0.45-$0.65"
+
+agents:
+  - Research
+  - Ideas
+  - Senior
+  - Designs
+
+model_preset: "Balanced (All Sonnet)"
+
+project_description: |
+  I want to build a SaaS application in the [INDUSTRY] space.
+
+  Target users: [DESCRIBE YOUR TARGET CUSTOMERS]
+  Core problem to solve: [WHAT PROBLEM DOES YOUR APP SOLVE?]
+  Key differentiators: [WHAT MAKES IT UNIQUE?]
+
+  Please:
+  1. Research the competitive landscape
+  2. Generate innovative feature ideas
+  3. Validate the technical architecture
+  4. Design the user interface and experience
+
+expected_outputs:
+  - "Competitive analysis of 5-10 similar products"
+  - "15-20 feature ideas prioritized by impact/effort"
+  - "Technical architecture recommendations (stack, database, hosting)"
+  - "UI/UX wireframes and design specifications"
+
+tags:
+  - saas
+  - product-development
+  - startup
+  - market-research

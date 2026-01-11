@@ -1,0 +1,8 @@
+name: Bug Analysis & Root Cause
+description: Analyze bugs, identify root causes, and recommend fixes
+agents:
+  - Senior
+  - QA
+  - Verifier
+model: quality
+code_review_mode: true

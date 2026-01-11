@@ -1,0 +1,11 @@
+name: SaaS App Planner
+description: Plan a complete SaaS application with market research, features, and architecture
+agents:
+  - Memory
+  - Research
+  - Ideas
+  - Designs
+  - Senior
+  - QA
+model: balanced
+code_review_mode: false

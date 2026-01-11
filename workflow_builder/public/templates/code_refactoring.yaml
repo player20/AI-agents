@@ -1,0 +1,40 @@
+name: "♻️ Code Refactoring & Optimization"
+description: "Analyze code quality, suggest improvements, and optimize performance"
+category: "Code Quality"
+difficulty: "Intermediate"
+estimated_time: "8-12 minutes"
+estimated_cost: "$0.50-$0.75"
+
+agents:
+  - Senior
+  - Web
+  - QA
+  - Verifier
+
+model_preset: "Quality (Critical=Opus, Rest=Sonnet)"
+code_review_mode: true
+
+project_description: |
+  Refactor and optimize my codebase for better quality and performance.
+
+  Repository: [GITHUB_URL]
+  Primary language: [e.g., JavaScript, Python, Swift]
+  Focus areas: [e.g., performance, readability, testing]
+
+  Please:
+  1. Review current code architecture
+  2. Implement refactoring improvements
+  3. Validate changes with tests
+  4. Verify refactoring doesn't introduce bugs
+
+expected_outputs:
+  - "Code quality report and architecture review"
+  - "Refactored code with improvements"
+  - "Test coverage report"
+  - "Verification that refactoring is correct"
+
+tags:
+  - refactoring
+  - code-quality
+  - performance
+  - optimization

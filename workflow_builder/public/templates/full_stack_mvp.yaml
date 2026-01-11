@@ -1,0 +1,50 @@
+name: "⚡ Full-Stack MVP Development"
+description: "End-to-end MVP: research, design, backend, frontend, mobile, and testing"
+category: "Product Development"
+difficulty: "Advanced"
+estimated_time: "15-25 minutes"
+estimated_cost: "$1.20-$1.80"
+
+agents:
+  - PM
+  - Research
+  - Ideas
+  - Designs
+  - Senior
+  - Web
+  - QA
+
+model_preset: "Quality (Critical=Opus, Rest=Sonnet)"
+
+project_description: |
+  Build a complete MVP for [YOUR PRODUCT IDEA].
+
+  Description: [DETAILED PRODUCT DESCRIPTION]
+  Target users: [WHO IS IT FOR?]
+  Core features (top 3): [MUST-HAVE FEATURES]
+  Tech preferences: [e.g., React, Node.js, PostgreSQL]
+
+  Please create:
+  1. Project plan and sprint schedule
+  2. Market research and validation
+  3. Feature roadmap
+  4. UI/UX designs
+  5. Technical architecture
+  6. Backend and frontend code
+  7. Test plan
+
+expected_outputs:
+  - "Sprint plan with timeline and milestones"
+  - "Market validation and competitor analysis"
+  - "Prioritized feature roadmap"
+  - "Complete UI/UX design system"
+  - "Technical architecture and stack recommendations"
+  - "Backend API code"
+  - "Frontend web application code"
+  - "Comprehensive test suite"
+
+tags:
+  - mvp
+  - full-stack
+  - startup
+  - end-to-end

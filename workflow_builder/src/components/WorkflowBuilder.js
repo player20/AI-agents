@@ -9,15 +9,18 @@ import ReactFlow, {
   Panel,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import yaml from 'js-yaml';
 import AgentNode from './AgentNode';
 import AgentPalette from './AgentPalette';
 import PropertiesPanel from './PropertiesPanel';
 import ToolBar from './ToolBar';
 import CustomAgentDialog from './CustomAgentDialog';
 import ValidationPanel from './ValidationPanel';
+import TemplatesModal from './TemplatesModal';
 import { exportToYAML, importFromYAML } from '../utils/yamlConverter';
 import { loadAllAgents } from '../utils/agentLoader';
 import { validateWorkflow } from '../utils/workflowValidator';
+import { ExecutionState, simulateWorkflowExecution } from '../utils/executionState';
 import './WorkflowBuilder.css';
 
 const nodeTypes = {
@@ -31,6 +34,7 @@ const WorkflowBuilder = () => {
   const [workflowName, setWorkflowName] = useState('Untitled Workflow');
   const [agentTypes, setAgentTypes] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
   const [highlightedNodes, setHighlightedNodes] = useState([]);
   const reactFlowWrapper = useRef(null);
@@ -179,6 +183,132 @@ const WorkflowBuilder = () => {
     console.log('Custom agent created:', newAgent);
   }, [refreshAgents]);
 
+  // Open templates modal
+  const handleOpenTemplatesModal = useCallback(() => {
+    setIsTemplatesModalOpen(true);
+  }, []);
+
+  // Close templates modal
+  const handleCloseTemplatesModal = useCallback(() => {
+    setIsTemplatesModalOpen(false);
+  }, []);
+
+  // Auto-positioning algorithm for template nodes
+  const calculateNodePositions = useCallback((agentIds) => {
+    const positions = [];
+    const HORIZONTAL_SPACING = 300;
+    const VERTICAL_SPACING = 150;
+    const NODES_PER_ROW = 3;
+
+    agentIds.forEach((agentId, index) => {
+      const row = Math.floor(index / NODES_PER_ROW);
+      const col = index % NODES_PER_ROW;
+
+      positions.push({
+        x: col * HORIZONTAL_SPACING + 100,
+        y: row * VERTICAL_SPACING + 100,
+      });
+    });
+
+    return positions;
+  }, []);
+
+  // Handle template selection and load into canvas
+  const handleLoadTemplate = useCallback((yamlContent, templateData) => {
+    console.log('🔷 handleLoadTemplate called');
+    console.log('  yamlContent:', yamlContent ? 'provided' : 'null');
+    console.log('  templateData:', templateData);
+    console.log('  agentTypes available:', agentTypes.length);
+
+    try {
+      let parsedData;
+
+      // If YAML content provided, parse it
+      if (yamlContent) {
+        console.log('  Parsing YAML content...');
+        parsedData = yaml.load(yamlContent);
+      } else if (templateData) {
+        console.log('  Using template data directly...');
+        // Use template data directly
+        parsedData = {
+          name: templateData.name,
+          agents: templateData.agents,
+          description: templateData.description,
+        };
+      } else {
+        console.error('❌ No template data provided');
+        return;
+      }
+
+      console.log('  Parsed data:', parsedData);
+
+      // Set workflow name
+      const templateName = parsedData.name || 'Untitled Workflow';
+      console.log('  Setting workflow name:', templateName);
+      setWorkflowName(templateName);
+
+      // Get agent IDs from template
+      const agentIds = parsedData.agents || [];
+      console.log('  Agent IDs from template:', agentIds);
+
+      // Calculate positions for nodes
+      const positions = calculateNodePositions(agentIds);
+      console.log('  Calculated positions:', positions);
+
+      // Create nodes for each agent
+      const newNodes = agentIds.map((agentId, index) => {
+        const agentInfo = agentTypes.find(a => a.id === agentId);
+        console.log(`  Looking for agent "${agentId}":`, agentInfo ? 'FOUND' : 'NOT FOUND');
+
+        if (!agentInfo) {
+          console.warn(`⚠️ Agent type "${agentId}" not found in agent registry`);
+          console.warn('  Available agent IDs:', agentTypes.map(a => a.id));
+          return null;
+        }
+
+        const node = {
+          id: `${agentId}-${Date.now()}-${index}`,
+          type: 'agent',
+          position: positions[index],
+          data: {
+            label: agentInfo.label,
+            agentType: agentInfo.id,
+            icon: agentInfo.icon,
+            color: agentInfo.color,
+            prompt: parsedData.custom_prompts?.[agentId] || parsedData.project_description || '',
+            model: 'claude-3-5-sonnet-20241022',
+          },
+        };
+        console.log(`  Created node:`, node);
+        return node;
+      }).filter(node => node !== null);
+
+      console.log('  Total nodes created:', newNodes.length);
+
+      // Create edges connecting nodes in sequence
+      const newEdges = [];
+      for (let i = 0; i < newNodes.length - 1; i++) {
+        newEdges.push({
+          id: `edge-${i}`,
+          source: newNodes[i].id,
+          target: newNodes[i + 1].id,
+          animated: true,
+        });
+      }
+      console.log('  Total edges created:', newEdges.length);
+
+      // Update workflow with template nodes and edges
+      console.log('  Calling setNodes and setEdges...');
+      setNodes(newNodes);
+      setEdges(newEdges);
+
+      console.log('✅ Template loaded successfully:', templateName, newNodes.length, 'agents');
+    } catch (error) {
+      console.error('❌ Error loading template:', error);
+      alert('Failed to load template. Please check the template format.');
+    }
+  }, [agentTypes, setNodes, setEdges, calculateNodePositions]);
+
   // Handle validation error click (highlight affected nodes)
   const handleValidationErrorClick = useCallback((nodeIds) => {
     setHighlightedNodes(nodeIds);
@@ -198,6 +328,41 @@ const WorkflowBuilder = () => {
     }
   }, [reactFlowInstance]);
 
+  // Update execution state for a specific node
+  const updateNodeExecutionState = useCallback((nodeId, executionState) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              executionState,
+            },
+          };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
+
+  // Simulate workflow execution (for demonstration/testing)
+  const handleSimulateExecution = useCallback(async () => {
+    if (nodes.length === 0) {
+      alert('Please add agents to the workflow before running simulation');
+      return;
+    }
+
+    console.log('Starting workflow execution simulation...');
+
+    // Simulate execution with 2-second delay per agent
+    await simulateWorkflowExecution(
+      nodes,
+      (nodeId, state) => updateNodeExecutionState(nodeId, state),
+      2000
+    );
+  }, [nodes, updateNodeExecutionState]);
+
   return (
     <div className="workflow-builder">
       <ToolBar
@@ -206,6 +371,8 @@ const WorkflowBuilder = () => {
         onExport={handleExport}
         onImport={handleImport}
         onClear={handleClear}
+        onOpenTemplates={handleOpenTemplatesModal}
+        onRun={handleSimulateExecution}
       />
 
       <div className="workflow-content">
@@ -266,6 +433,14 @@ const WorkflowBuilder = () => {
         isOpen={isDialogOpen}
         onClose={handleCloseDialog}
         onAgentCreated={handleAgentCreated}
+      />
+
+      {/* Templates Modal */}
+      <TemplatesModal
+        isOpen={isTemplatesModalOpen}
+        onClose={handleCloseTemplatesModal}
+        onSelectTemplate={handleLoadTemplate}
+        agentTypes={agentTypes}
       />
     </div>
   );

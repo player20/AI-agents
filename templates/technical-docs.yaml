@@ -1,0 +1,8 @@
+name: Technical Documentation
+description: Generate comprehensive technical documentation
+agents:
+  - Research
+  - Senior
+  - Designs
+model: balanced
+code_review_mode: false

@@ -1,8 +1,8 @@
 import React, { useRef } from 'react';
-import { Save, Upload, Download, Trash2, Play } from 'lucide-react';
+import { Save, Upload, Download, Trash2, Play, BookOpen } from 'lucide-react';
 import './ToolBar.css';
 
-const ToolBar = ({ workflowName, onNameChange, onExport, onImport, onClear }) => {
+const ToolBar = ({ workflowName, onNameChange, onExport, onImport, onClear, onOpenTemplates, onRun }) => {
   const fileInputRef = useRef(null);
 
   const handleImportClick = () => {
@@ -23,6 +23,15 @@ const ToolBar = ({ workflowName, onNameChange, onExport, onImport, onClear }) =>
       </div>
 
       <div className="toolbar-right">
+        <button
+          className="toolbar-button"
+          onClick={onOpenTemplates}
+          title="Load from template library"
+        >
+          <BookOpen size={18} />
+          <span>Templates</span>
+        </button>
+
         <button
           className="toolbar-button"
           onClick={handleImportClick}
@@ -61,8 +70,8 @@ const ToolBar = ({ workflowName, onNameChange, onExport, onImport, onClear }) =>
 
         <button
           className="toolbar-button primary"
-          title="Run workflow (coming soon)"
-          disabled
+          onClick={onRun}
+          title="Simulate workflow execution"
         >
           <Play size={18} />
           <span>Run</span>

@@ -1,0 +1,9 @@
+name: Market Research & Validation
+description: Analyze market opportunity, competitors, and strategic positioning
+agents:
+  - Memory
+  - Research
+  - Ideas
+  - Senior
+model: balanced
+code_review_mode: false

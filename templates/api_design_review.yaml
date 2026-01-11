@@ -1,0 +1,37 @@
+name: "🌐 API Design & Documentation"
+description: "Design RESTful API, validate architecture, generate web implementation, and create tests"
+category: "Backend Development"
+difficulty: "Intermediate"
+estimated_time: "8-12 minutes"
+estimated_cost: "$0.50-$0.70"
+
+agents:
+  - Senior
+  - Web
+  - QA
+
+model_preset: "Balanced (All Sonnet)"
+
+project_description: |
+  Design a RESTful API for [DESCRIBE YOUR SERVICE].
+
+  Resources: [e.g., users, posts, comments]
+  Authentication: [e.g., JWT, OAuth2]
+  Database: [e.g., PostgreSQL, MongoDB]
+
+  Please:
+  1. Design the API architecture and endpoints
+  2. Implement web routes and controllers
+  3. Create comprehensive tests
+
+expected_outputs:
+  - "API architecture recommendations (REST/GraphQL, versioning, rate limiting)"
+  - "Endpoint specifications (routes, methods, request/response schemas)"
+  - "Web implementation code (Express.js, FastAPI, or similar)"
+  - "API test suite (integration tests, edge cases)"
+
+tags:
+  - api
+  - backend
+  - rest
+  - testing

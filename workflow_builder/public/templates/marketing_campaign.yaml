@@ -1,0 +1,37 @@
+name: "📣 Marketing Campaign Strategy"
+description: "Research audience, generate campaign ideas, and create marketing content"
+category: "Marketing"
+difficulty: "Beginner"
+estimated_time: "6-10 minutes"
+estimated_cost: "$0.35-$0.55"
+
+agents:
+  - Research
+  - Ideas
+  - Designs
+
+model_preset: "Balanced (All Sonnet)"
+
+project_description: |
+  Create a marketing campaign for [PRODUCT/SERVICE].
+
+  Target audience: [DESCRIBE YOUR IDEAL CUSTOMERS]
+  Campaign goals: [e.g., brand awareness, lead generation, sales]
+  Channels: [e.g., social media, email, content marketing]
+  Budget: [OPTIONAL]
+
+  Please:
+  1. Research target audience and competitors
+  2. Generate campaign ideas and messaging
+  3. Design visual assets and content
+
+expected_outputs:
+  - "Audience research and buyer personas"
+  - "10-15 campaign ideas with tactics and channels"
+  - "Visual designs for ads, social posts, landing pages"
+
+tags:
+  - marketing
+  - campaign
+  - content
+  - growth

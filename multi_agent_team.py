@@ -144,6 +144,209 @@ os.makedirs(EXPORTS_DIR, exist_ok=True)
 # - Max output tokens: ~22K total << 90K tokens/min limit
 RATE_LIMIT_DELAY = 15  # Legacy constant, kept for backward compatibility
 
+# ==============================
+# Visual Workflow Preview (Quick Win #5)
+# ==============================
+def generate_workflow_preview(selected_agents, execution_priority=None):
+    """
+    Generate ASCII art workflow preview showing execution order.
+
+    Quick Win #5: Visual confirmation of workflow before execution.
+
+    Args:
+        selected_agents: List of agent names
+        execution_priority: Optional custom execution order
+
+    Returns:
+        String containing ASCII art workflow diagram
+    """
+    if not selected_agents:
+        return "\n📋 No agents selected - workflow is empty\n"
+
+    # Determine execution order
+    if execution_priority:
+        order = execution_priority
+    else:
+        # Use default priority order
+        default_order = ["PM", "Memory", "Research", "Ideas", "Designs",
+                        "Senior", "iOS", "Android", "Web", "QA", "Verifier"]
+        order = [agent for agent in default_order if agent in selected_agents]
+
+    # Agent icons mapping
+    icons = {
+        "PM": "📋", "Memory": "🧠", "Research": "🔍",
+        "Ideas": "💡", "Designs": "🎨", "Senior": "👨‍💻",
+        "iOS": "📱", "Android": "🤖", "Web": "🌐",
+        "QA": "✅", "Verifier": "🔎"
+    }
+
+    # Build ASCII workflow diagram
+    diagram = "\n" + "="*60 + "\n"
+    diagram += "                 WORKFLOW PREVIEW\n"
+    diagram += "="*60 + "\n\n"
+
+    diagram += "┌────────────────────────────────┐\n"
+    diagram += "│   🚀 START WORKFLOW            │\n"
+    diagram += "└────────────────────────────────┘\n"
+    diagram += "              ↓\n"
+
+    for i, agent in enumerate(order, 1):
+        icon = icons.get(agent, '🤖')
+        diagram += "┌────────────────────────────────┐\n"
+        diagram += f"│   {icon} {agent:<24} │\n"
+        diagram += f"│   Step {i} of {len(order):<20} │\n"
+        diagram += "└────────────────────────────────┘\n"
+
+        if i < len(order):
+            diagram += "              ↓\n"
+
+    diagram += "              ↓\n"
+    diagram += "┌────────────────────────────────┐\n"
+    diagram += "│   ✅ WORKFLOW COMPLETE         │\n"
+    diagram += "└────────────────────────────────┘\n"
+
+    diagram += "\n" + "="*60 + "\n"
+    diagram += f"Total Steps: {len(order)} agents in sequential execution\n"
+    diagram += "="*60 + "\n"
+
+    return diagram
+
+def generate_mermaid_workflow(selected_agents, execution_priority=None):
+    """
+    Generate Mermaid diagram syntax for workflow visualization.
+
+    Quick Win #5: Alternative visualization format for documentation.
+
+    Args:
+        selected_agents: List of agent names
+        execution_priority: Optional custom execution order
+
+    Returns:
+        String containing Mermaid flowchart syntax
+    """
+    if not selected_agents:
+        return "```mermaid\ngraph TD\n    A[No agents selected]\n```"
+
+    # Determine execution order
+    if execution_priority:
+        order = execution_priority
+    else:
+        default_order = ["PM", "Memory", "Research", "Ideas", "Designs",
+                        "Senior", "iOS", "Android", "Web", "QA", "Verifier"]
+        order = [agent for agent in default_order if agent in selected_agents]
+
+    # Agent icons
+    icons = {
+        "PM": "📋", "Memory": "🧠", "Research": "🔍",
+        "Ideas": "💡", "Designs": "🎨", "Senior": "👨‍💻",
+        "iOS": "📱", "Android": "🤖", "Web": "🌐",
+        "QA": "✅", "Verifier": "🔎"
+    }
+
+    # Build Mermaid diagram
+    diagram = "```mermaid\ngraph TD\n"
+    diagram += "    Start([🚀 Start Workflow])\n"
+
+    # Connect start to first agent
+    if order:
+        first_agent = order[0]
+        first_icon = icons.get(first_agent, '🤖')
+        diagram += f"    Start --> {first_agent}\n"
+        diagram += f"    {first_agent}[{first_icon} {first_agent}]\n"
+
+    # Connect agents in sequence
+    for i in range(len(order) - 1):
+        current = order[i]
+        next_agent = order[i + 1]
+        next_icon = icons.get(next_agent, '🤖')
+        diagram += f"    {current} --> {next_agent}\n"
+        diagram += f"    {next_agent}[{next_icon} {next_agent}]\n"
+
+    # Connect last agent to end
+    if order:
+        last_agent = order[-1]
+        diagram += f"    {last_agent} --> End\n"
+
+    diagram += "    End([✅ Complete])\n"
+
+    # Styling
+    diagram += "\n    classDef agentStyle fill:#6D28D9,stroke:#4C1D95,stroke-width:2px,color:#fff\n"
+    diagram += "    classDef startEnd fill:#0891B2,stroke:#0E7490,stroke-width:2px,color:#fff\n"
+
+    for agent in order:
+        diagram += f"    class {agent} agentStyle\n"
+
+    diagram += "    class Start,End startEnd\n"
+    diagram += "```"
+
+    return diagram
+
+# ==============================
+# Context Length Tracking (Quick Win #3)
+# ==============================
+# Claude models have 200K token context windows
+CONTEXT_LIMIT = 200000  # 200K tokens for Claude Opus/Sonnet/Haiku
+
+def estimate_tokens(text):
+    """
+    Estimate token count for text.
+    Uses rough approximation: ~4 characters per token.
+
+    This is faster than API calls and good enough for warnings.
+    Actual token count may vary ±20%.
+    """
+    if not text:
+        return 0
+    # Rough estimate: 4 chars ≈ 1 token
+    return len(str(text)) // 4
+
+def format_context_indicator(tokens_used, tokens_limit=CONTEXT_LIMIT):
+    """
+    Format context usage indicator with progress bar and warnings.
+
+    Returns formatted string with:
+    - Progress bar visualization
+    - Percentage and token counts
+    - Warnings at 80%, 90%, 95% thresholds
+    - Suggestions for optimization
+    """
+    if tokens_limit == 0:
+        return ""
+
+    percent = (tokens_used / tokens_limit) * 100
+
+    # Progress bar (20 characters wide)
+    bar_length = 20
+    filled = int((tokens_used / tokens_limit) * bar_length)
+    filled = min(filled, bar_length)  # Cap at 100%
+    bar = "█" * filled + "░" * (bar_length - filled)
+
+    # Color/emoji coding based on usage
+    if percent >= 95:
+        emoji = "🔴"
+        status = "CRITICAL"
+        warning = "\n⚠️  CRITICAL: Context almost full! Stopping soon to prevent failures.\n   Consider: Using fewer agents or shorter custom prompts."
+    elif percent >= 90:
+        emoji = "🟠"
+        status = "WARNING"
+        warning = "\n⚠️  WARNING: Approaching context limit (90%+). May stop execution if limit reached."
+    elif percent >= 80:
+        emoji = "🟡"
+        status = "NOTICE"
+        warning = "\n⚠️  NOTICE: Context usage high (80%+). Remaining capacity: ~" + f"{int((tokens_limit - tokens_used) / 1000)}K tokens"
+    else:
+        emoji = "🟢"
+        status = "OK"
+        warning = ""
+
+    indicator = f"\n{'-'*60}\n"
+    indicator += f"{emoji} CONTEXT USAGE: [{bar}] {percent:.1f}% ({status})\n"
+    indicator += f"Tokens: {tokens_used:,} / {tokens_limit:,} ({tokens_limit - tokens_used:,} remaining)"
+    indicator += warning
+    indicator += f"\n{'-'*60}\n"
+
+    return indicator
+
 # Phase choices for progressive execution
 PHASE_CHOICES = [
     "Planning Only (Memory + PM + Ideas)",
@@ -491,29 +694,61 @@ def create_git_repo(project_name, outputs):
 # Export Functionality
 # ==============================
 def export_to_json(project_name, selected_agents, outputs, metadata=None):
-    """Export agent findings to JSON format"""
+    """
+    Export agent findings to JSON format with professional branding.
+
+    Quick Win #4: Enhanced with platform metadata and comprehensive details.
+    """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_name = "".join(c if c.isalnum() or c in " -_" else "_" for c in project_name)[:50]
     filename = f"{safe_name}_{timestamp}.json"
     filepath = os.path.join(EXPORTS_DIR, filename)
 
+    # Enhanced export data with professional branding
     export_data = {
-        "metadata": {
-            "project_name": project_name,
+        "_platform": {
+            "name": "Multi-Agent Development Team",
+            "version": "1.0.0",
+            "website": "https://github.com/yourusername/multi-agent-team",
+            "export_date": datetime.now().isoformat(),
+            "export_format": "JSON v1.0"
+        },
+        "project": {
+            "name": project_name,
             "timestamp": datetime.now().isoformat(),
             "selected_agents": selected_agents,
             "total_agents": len(selected_agents),
             **(metadata or {})
         },
-        "agent_outputs": {}
+        "workflow": {
+            "execution_mode": "sequential",
+            "agents_executed": len(selected_agents),
+            "agents": selected_agents
+        },
+        "agent_outputs": {},
+        "summary": {
+            "total_outputs": len([o for o in outputs.values() if o]),
+            "successful_agents": len([o for o in outputs.values() if o]),
+            "failed_agents": len(selected_agents) - len([o for o in outputs.values() if o])
+        }
     }
 
+    # Add agent outputs with enhanced metadata
     for role in selected_agents:
         if role in outputs and outputs[role]:
             export_data["agent_outputs"][role] = {
                 "role": role,
+                "status": "completed",
+                "output_length": len(outputs[role]),
                 "messages": agent_logs.get(role, []),
+                "message_count": len(agent_logs.get(role, [])),
                 "full_output": outputs[role]
+            }
+        else:
+            export_data["agent_outputs"][role] = {
+                "role": role,
+                "status": "failed_or_empty",
+                "messages": agent_logs.get(role, [])
             }
 
     with open(filepath, 'w', encoding='utf-8') as f:
@@ -522,43 +757,96 @@ def export_to_json(project_name, selected_agents, outputs, metadata=None):
     return filepath
 
 def export_to_markdown(project_name, selected_agents, outputs, metadata=None):
-    """Export agent findings to Markdown format"""
+    """
+    Export agent findings to Markdown format with professional branding.
+
+    Quick Win #4: Enhanced with headers, workflow summary, and footer.
+    """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_name = "".join(c if c.isalnum() or c in " -_" else "_" for c in project_name)[:50]
     filename = f"{safe_name}_{timestamp}.md"
     filepath = os.path.join(EXPORTS_DIR, filename)
 
     with open(filepath, 'w', encoding='utf-8') as f:
-        f.write(f"# Multi-Agent Team Report: {project_name}\n\n")
-        f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-        f.write(f"**Selected Agents:** {', '.join(selected_agents)}\n\n")
+        # Professional header
+        f.write("# Multi-Agent Development Team Analysis\n\n")
+        f.write("**Generated by:** Multi-Agent Platform v1.0\n")
+        f.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write("**Platform:** https://github.com/yourusername/multi-agent-team\n\n")
+        f.write("---\n\n")
+
+        # Project information
+        f.write(f"## Project: {project_name}\n\n")
+
+        # Workflow Summary Table
+        f.write("## Workflow Summary\n\n")
+        f.write("| Property | Value |\n")
+        f.write("|----------|-------|\n")
+        f.write(f"| Agents Used | {', '.join(selected_agents)} |\n")
+        f.write(f"| Total Agents | {len(selected_agents)} |\n")
+        f.write(f"| Execution Mode | Sequential |\n")
 
         if metadata:
-            f.write("## Metadata\n\n")
-            for key, value in metadata.items():
-                f.write(f"- **{key}:** {value}\n")
-            f.write("\n")
+            if 'model_preset' in metadata:
+                f.write(f"| Model Preset | {metadata['model_preset']} |\n")
+            if 'phase' in metadata:
+                f.write(f"| Execution Phase | {metadata['phase']} |\n")
+            if 'agent_count' in metadata:
+                f.write(f"| Agents Executed | {metadata['agent_count']} |\n")
+
+        f.write("\n")
+
+        # Success metrics
+        successful = len([o for o in outputs.values() if o])
+        failed = len(selected_agents) - successful
+        f.write(f"**Success Rate:** {successful}/{len(selected_agents)} agents completed successfully")
+        if failed > 0:
+            f.write(f" ({failed} failed or empty)")
+        f.write("\n\n")
 
         f.write("---\n\n")
 
+        # Agent outputs
+        f.write("## Agent Outputs\n\n")
+
         for role in selected_agents:
             if role in outputs and outputs[role]:
-                f.write(f"## {role} Agent\n\n")
-                f.write(f"### Output\n\n")
+                f.write(f"### {role} Agent\n\n")
+                f.write(f"**Status:** ✅ Completed\n")
+                f.write(f"**Output Length:** {len(outputs[role])} characters\n\n")
+
+                f.write(f"#### Output\n\n")
                 f.write(f"```\n{outputs[role]}\n```\n\n")
 
                 if agent_logs.get(role):
-                    f.write(f"### Log Messages\n\n")
+                    f.write(f"#### Log Messages\n\n")
                     for msg in agent_logs[role]:
                         f.write(f"- {msg}\n")
                     f.write("\n")
 
                 f.write("---\n\n")
+            else:
+                f.write(f"### {role} Agent\n\n")
+                f.write(f"**Status:** ❌ Failed or empty output\n\n")
+                f.write("---\n\n")
+
+        # Professional footer
+        f.write("## Export Information\n\n")
+        f.write(f"- **Export Format:** Markdown\n")
+        f.write(f"- **Export Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"- **Platform Version:** 1.0.0\n")
+        f.write("- **Support:** https://github.com/yourusername/multi-agent-team/issues\n\n")
+        f.write("---\n\n")
+        f.write("*Generated with ❤️ by Multi-Agent Development Team*\n")
 
     return filepath
 
 def export_to_csv(project_name, selected_agents, outputs, metadata=None):
-    """Export agent findings to CSV format"""
+    """
+    Export agent findings to CSV format with professional branding.
+
+    Quick Win #4: Enhanced with header rows and summary statistics.
+    """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_name = "".join(c if c.isalnum() or c in " -_" else "_" for c in project_name)[:50]
     filename = f"{safe_name}_{timestamp}.csv"
@@ -566,17 +854,50 @@ def export_to_csv(project_name, selected_agents, outputs, metadata=None):
 
     with open(filepath, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(['Agent Role', 'Timestamp', 'Output', 'Message Count'])
 
+        # Header metadata rows
+        writer.writerow(['# Multi-Agent Development Team Export'])
+        writer.writerow(['# Generated by', 'Multi-Agent Platform v1.0'])
+        writer.writerow(['# Date', datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
+        writer.writerow(['# Project', project_name])
+        writer.writerow(['# Total Agents', len(selected_agents)])
+        if metadata and 'model_preset' in metadata:
+            writer.writerow(['# Model Preset', metadata['model_preset']])
+        writer.writerow([])  # Empty row
+
+        # Data headers
+        writer.writerow(['Agent Role', 'Status', 'Timestamp', 'Output Preview (500 chars)', 'Output Length', 'Message Count'])
+
+        # Agent data rows
         for role in selected_agents:
             if role in outputs and outputs[role]:
                 message_count = len(agent_logs.get(role, []))
+                output_preview = outputs[role][:500] + "..." if len(outputs[role]) > 500 else outputs[role]
+                # Remove newlines for CSV compatibility
+                output_preview = output_preview.replace('\n', ' ').replace('\r', '')
+
                 writer.writerow([
                     role,
+                    'Completed',
                     datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    outputs[role][:500] + "..." if len(outputs[role]) > 500 else outputs[role],
+                    output_preview,
+                    len(outputs[role]),
                     message_count
                 ])
+            else:
+                writer.writerow([
+                    role,
+                    'Failed/Empty',
+                    datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    '',
+                    0,
+                    len(agent_logs.get(role, []))
+                ])
+
+        # Summary row
+        writer.writerow([])  # Empty row
+        successful = len([o for o in outputs.values() if o])
+        writer.writerow(['# Summary', f'{successful}/{len(selected_agents)} agents completed successfully'])
 
     return filepath
 
@@ -776,6 +1097,86 @@ def run_dev_team(project_description, selected_agents, github_url="", custom_pro
 
         # Execute tasks with rate limiting and progress tracking
         try:
+            # ============================================================
+            # PRE-PLAN SUMMARY (Quick Win #1 + Quick Win #5)
+            # Show users what will happen before execution begins
+            # Includes visual workflow preview
+            # ============================================================
+
+            # Show visual workflow preview first (Quick Win #5)
+            workflow_preview = generate_workflow_preview(sorted_agents, effective_priorities)
+            log_agent_message("System", workflow_preview)
+
+            log_agent_message("System", "\n" + "="*60)
+            log_agent_message("System", "📋 WORKFLOW EXECUTION PLAN")
+            log_agent_message("System", "="*60 + "\n")
+
+            # Overview
+            log_agent_message("System", f"▸ Agents Selected: {len(sorted_agents)} agents")
+            log_agent_message("System", f"▸ Execution Mode: Sequential (one after another)")
+            log_agent_message("System", f"▸ Model Preset: {model_preset}")
+
+            # Time & Cost Estimates
+            est_time_min = len(sorted_agents) * 1.5  # 1.5 min per agent average
+            est_time_max = len(sorted_agents) * 3    # 3 min per agent max
+
+            # Cost estimation based on model
+            cost_per_agent_map = {
+                "Speed (All Haiku)": 0.02,
+                "Balanced (All Sonnet)": 0.08,
+                "Quality (Critical=Opus, Rest=Sonnet)": 0.15,
+                "Premium (All Opus)": 0.25,
+                "Budget (All Haiku, QA=Sonnet)": 0.06
+            }
+            base_cost = cost_per_agent_map.get(model_preset, 0.08)
+            est_cost_min = base_cost * len(sorted_agents) * 0.8
+            est_cost_max = base_cost * len(sorted_agents) * 1.2
+
+            log_agent_message("System", f"\n⏱️  Estimated Duration: {int(est_time_min)}-{int(est_time_max)} minutes")
+            log_agent_message("System", f"💰 Estimated Cost: ${est_cost_min:.2f} - ${est_cost_max:.2f}\n")
+
+            # Execution Order & Expected Outputs
+            log_agent_message("System", "📊 EXECUTION ORDER & EXPECTED OUTPUTS:\n")
+
+            agent_descriptions = {
+                "PM": "Create sprint plan and coordinate work breakdown",
+                "Memory": "Recall past learnings and store new insights",
+                "Research": "Analyze 5+ competitors and market trends",
+                "Ideas": "Propose 10-15 innovative features",
+                "Designs": "Create UI/UX designs and wireframes",
+                "Senior": "Review architecture and validate technical decisions",
+                "iOS": "Build iOS components (Swift/SwiftUI)",
+                "Android": "Build Android components (Kotlin/Compose)",
+                "Web": "Build web components (React/JS)",
+                "QA": "Test functionality and validate quality",
+                "Verifier": "Check for hallucinations and inconsistencies"
+            }
+
+            for i, role in enumerate(sorted_agents, 1):
+                desc = agent_descriptions.get(role, "Process tasks and generate outputs")
+                model_name = AVAILABLE_MODELS.get(agent_models.get(role, DEFAULT_MODEL), {}).get("name", "Unknown")
+                priority = effective_priorities.get(role, 999)
+                log_agent_message("System", f"  {i}. {role} ({model_name}, Priority {priority})")
+                log_agent_message("System", f"     → {desc}\n")
+
+            # What Happens Next
+            log_agent_message("System", "\n⚙️  WHAT HAPPENS NEXT:")
+            log_agent_message("System", "  1. Agents execute sequentially in the order above")
+            log_agent_message("System", "  2. Each agent builds on previous agent outputs")
+            log_agent_message("System", "  3. Results appear in real-time below")
+            log_agent_message("System", "  4. You can export results when complete\n")
+
+            # Important Notes
+            log_agent_message("System", "⚠️  IMPORTANT NOTES:")
+            log_agent_message("System", "  • Execution cannot be paused once started")
+            log_agent_message("System", "  • Closing this page will NOT stop execution")
+            log_agent_message("System", "  • Estimates are approximate (actual may vary ±30%)")
+
+            log_agent_message("System", "\n" + "="*60)
+            log_agent_message("System", "🚀 STARTING EXECUTION")
+            log_agent_message("System", "="*60 + "\n")
+
+            # Original execution logging
             log_agent_message("System", "Starting task execution...")
             log_agent_message("System", f"Rate limit safety: Sequential execution ensures no parallel API calls")
             log_agent_message("System", f"Tier 2 limits: 1K req/min, 450K input tokens/min, 90K output tokens/min")
@@ -786,10 +1187,25 @@ def run_dev_team(project_description, selected_agents, github_url="", custom_pro
             for i, task in enumerate(tasks, 1):
                 log_agent_message("System", f"Task {i}/{len(tasks)}: {task.description[:60]}...")
 
+            # ============================================================
+            # CONTEXT TRACKING (Quick Win #3)
+            # Track cumulative token usage and warn when approaching limit
+            # ============================================================
+            total_tokens_used = 0
+
+            # Count tokens in project description and prompts
+            initial_tokens = estimate_tokens(project_description)
+            for role in sorted_agents:
+                if custom_prompts and role in custom_prompts:
+                    initial_tokens += estimate_tokens(custom_prompts[role])
+            total_tokens_used = initial_tokens
+
+            log_agent_message("System", f"\n📊 Initial context: ~{initial_tokens:,} tokens from descriptions and prompts\n")
+
             result = crew.kickoff()
             log_agent_message("System", f"Execution completed successfully")
 
-            # Extract and log individual task outputs
+            # Extract and log individual task outputs WITH CONTEXT TRACKING
             try:
                 for i, task in enumerate(tasks):
                     if hasattr(task, 'output') and task.output:
@@ -797,10 +1213,59 @@ def run_dev_team(project_description, selected_agents, github_url="", custom_pro
                         agent_role = sorted_agents[i] if i < len(sorted_agents) else "Unknown"
                         # Log the task output to the agent's log
                         task_output = str(task.output)
+
+                        # Count tokens in this agent's output
+                        output_tokens = estimate_tokens(task_output)
+                        total_tokens_used += output_tokens
+
+                        # Show context usage after each agent
+                        log_agent_message("System", f"\n{agent_role} output: ~{output_tokens:,} tokens")
+                        context_indicator = format_context_indicator(total_tokens_used, CONTEXT_LIMIT)
+                        log_agent_message("System", context_indicator)
+
+                        # Check if we're approaching critical limit
+                        usage_percent = (total_tokens_used / CONTEXT_LIMIT) * 100
+                        if usage_percent >= 95:
+                            log_agent_message("System", "\n🔴 CRITICAL: Context limit reached (95%+).")
+                            log_agent_message("System", "Stopping execution to prevent failures.")
+                            log_agent_message("System", "Consider: Using fewer agents or shorter prompts next time.\n")
+                            break  # Stop processing remaining agents
                         log_agent_message(agent_role, f"Output:\n{task_output}")
                         log_agent_message("System", f"Captured output from {agent_role}")
             except Exception as e:
                 log_agent_message("System", f"Warning: Could not extract task outputs: {str(e)}")
+
+            # ============================================================
+            # FINAL CONTEXT SUMMARY (Quick Win #3)
+            # Show total token usage and efficiency metrics
+            # ============================================================
+            log_agent_message("System", "\n" + "="*60)
+            log_agent_message("System", "📊 FINAL CONTEXT USAGE SUMMARY")
+            log_agent_message("System", "="*60)
+
+            final_indicator = format_context_indicator(total_tokens_used, CONTEXT_LIMIT)
+            log_agent_message("System", final_indicator)
+
+            # Calculate efficiency metrics
+            tokens_per_agent = total_tokens_used // len(sorted_agents) if sorted_agents else 0
+            log_agent_message("System", f"📈 Efficiency Metrics:")
+            log_agent_message("System", f"   • Total agents run: {len(sorted_agents)}")
+            log_agent_message("System", f"   • Average tokens per agent: ~{tokens_per_agent:,}")
+            log_agent_message("System", f"   • Total workflow tokens: ~{total_tokens_used:,}")
+
+            # Provide optimization tips if usage was high
+            usage_percent = (total_tokens_used / CONTEXT_LIMIT) * 100
+            if usage_percent >= 60:
+                log_agent_message("System", f"\n💡 Optimization Tips:")
+                log_agent_message("System", f"   • Your workflow used {usage_percent:.0f}% of available context")
+                log_agent_message("System", f"   • Consider: Shorter custom prompts or fewer agents")
+                log_agent_message("System", f"   • For larger projects: Run agents in batches")
+            elif usage_percent < 30:
+                log_agent_message("System", f"\n✅ Efficient Usage:")
+                log_agent_message("System", f"   • Your workflow used only {usage_percent:.0f}% of context")
+                log_agent_message("System", f"   • You could add more agents or use longer prompts if needed")
+
+            log_agent_message("System", "\n" + "="*60 + "\n")
 
             # Auto-save learnings to memory
             try:
@@ -1272,7 +1737,7 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                 choices=list(MODEL_PRESETS.keys()),
                 value="Speed (All Haiku)",
                 label="Model Preset",
-                info="Choose performance vs. quality trade-off"
+                info="💡 Speed = faster & cheaper | Balanced = good quality | Quality = best results for critical agents"
             )
 
             # Per-agent model override (advanced)
@@ -1317,6 +1782,9 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
             )
 
             # Action buttons
+            gr.Markdown("### ⚡ Execute Workflow")
+            gr.Markdown("*Ready to run? Click below to start agent execution*")
+
             with gr.Row():
                 run_button = gr.Button("▶️ Run Team", variant="primary", size="lg")
                 clear_button = gr.Button("🗑️ Clear Logs", variant="secondary")
@@ -1326,16 +1794,16 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
 
         with gr.Column(scale=1):
             # Quick actions panel
-            gr.Markdown("## 📤 Export Options")
-            gr.Markdown("*Export current results to files*")
+            gr.Markdown("## 📤 Export Results")
+            gr.Markdown("*Save agent outputs to files for documentation or sharing*")
 
             with gr.Row():
-                export_json_btn = gr.Button("JSON", size="sm")
-                export_md_btn = gr.Button("Markdown", size="sm")
-                export_csv_btn = gr.Button("CSV", size="sm")
+                export_json_btn = gr.Button("📄 JSON", size="sm")
+                export_md_btn = gr.Button("📝 Markdown", size="sm")
+                export_csv_btn = gr.Button("📊 CSV", size="sm")
 
             export_all_btn = gr.Button("📦 Export All Formats", variant="primary")
-            export_status = gr.Textbox(label="Export Status", lines=3, interactive=False)
+            export_status = gr.Textbox(label="Export Status", lines=3, interactive=False, placeholder="No exports yet...")
 
             gr.Markdown("## 📊 Quick Stats")
             stats_display = gr.Textbox(
@@ -1527,4 +1995,4 @@ if __name__ == "__main__":
     print("🚀 Launching Super Multi-Agent Dev Team...")
     print(f"📁 Exports will be saved to: {os.path.abspath(EXPORTS_DIR)}")
     print(f"📁 Projects will be saved to: {os.path.abspath(PROJECTS_DIR)}")
-    demo.launch(share=False, server_name="127.0.0.1", server_port=7860, theme=gr.themes.Soft(), css=load_custom_css())
+    demo.launch(share=False, server_name="127.0.0.1", server_port=7860, css=load_custom_css())

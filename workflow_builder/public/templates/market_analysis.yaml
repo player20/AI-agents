@@ -1,0 +1,35 @@
+name: "📊 Market Research & Competitive Analysis"
+description: "Deep dive into market landscape, competitors, and opportunities"
+category: "Business Strategy"
+difficulty: "Beginner"
+estimated_time: "5-8 minutes"
+estimated_cost: "$0.30-$0.50"
+
+agents:
+  - Memory
+  - Research
+  - Ideas
+
+model_preset: "Balanced (All Sonnet)"
+
+project_description: |
+  Conduct comprehensive market research for [PRODUCT/SERVICE IDEA].
+
+  Industry: [e.g., SaaS, fintech, healthcare]
+  Target market: [e.g., SMBs, enterprises, consumers]
+  Geography: [e.g., US, global, Europe]
+
+  Please:
+  1. Recall any previous market research
+  2. Analyze current market landscape and competitors
+  3. Generate strategic insights and opportunities
+
+expected_outputs:
+  - "Relevant past learnings and market insights"
+  - "Competitive analysis (15+ competitors, SWOT analysis)"
+  - "Market gaps and strategic recommendations"
+
+tags:
+  - market-research
+  - strategy
+  - competitive-analysis

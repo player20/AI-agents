@@ -1,0 +1,10 @@
+name: API Design
+description: Design RESTful or GraphQL APIs with best practices
+agents:
+  - Research
+  - Ideas
+  - Senior
+  - Designs
+  - QA
+model: balanced
+code_review_mode: false

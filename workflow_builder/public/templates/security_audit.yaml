@@ -1,0 +1,40 @@
+name: "🔒 Security Audit & Code Review"
+description: "Comprehensive security review, vulnerability scanning, and compliance check"
+category: "Security & Compliance"
+difficulty: "Intermediate"
+estimated_time: "6-10 minutes"
+estimated_cost: "$0.35-$0.55"
+
+agents:
+  - Senior
+  - QA
+  - Verifier
+
+model_preset: "Quality (Critical=Opus, Rest=Sonnet)"
+code_review_mode: true
+
+project_description: |
+  Perform a comprehensive security audit of my codebase.
+
+  Repository URL: [GITHUB_URL]
+  Tech stack: [e.g., React, Node.js, PostgreSQL]
+  Compliance requirements: [e.g., GDPR, SOC2, HIPAA]
+
+  Please review for:
+  - OWASP Top 10 vulnerabilities
+  - Authentication/authorization flaws
+  - Data privacy issues
+  - Dependency vulnerabilities
+  - Code quality and best practices
+
+expected_outputs:
+  - "Security vulnerability report with severity ratings"
+  - "Code quality analysis and recommendations"
+  - "Compliance checklist for required standards"
+  - "Verification that findings are accurate (no hallucinations)"
+
+tags:
+  - security
+  - code-review
+  - compliance
+  - owasp

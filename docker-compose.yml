@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  multi-agent-team:
+    build: .
+    container_name: multi-agent-platform
+    ports:
+      - "7860:7860"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GRADIO_SERVER_NAME=0.0.0.0
+    volumes:
+      - ./exports:/app/exports
+      - ./projects:/app/projects
+      - ./templates:/app/templates
+      - ./team_memory.json:/app/team_memory.json
+    restart: unless-stopped
+
+  # Optional: PostgreSQL for future enterprise features
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: multi-agent-db
+  #   environment:
+  #     - POSTGRES_DB=multiagent
+  #     - POSTGRES_USER=admin
+  #     - POSTGRES_PASSWORD=${DB_PASSWORD}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+# volumes:
+#   postgres_data:

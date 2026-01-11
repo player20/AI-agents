@@ -1,0 +1,11 @@
+name: Mobile App Planning
+description: Plan iOS and Android mobile applications
+agents:
+  - Research
+  - Ideas
+  - Designs
+  - iOS
+  - Android
+  - QA
+model: balanced
+code_review_mode: false

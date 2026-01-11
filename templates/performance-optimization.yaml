@@ -1,0 +1,7 @@
+name: Performance Optimization
+description: Identify performance bottlenecks and optimization strategies
+agents:
+  - Senior
+  - QA
+model: balanced
+code_review_mode: true

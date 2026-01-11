@@ -1,0 +1,16 @@
+name: Full Stack Development
+description: Complete development lifecycle from planning to deployment
+agents:
+  - PM
+  - Memory
+  - Research
+  - Ideas
+  - Designs
+  - iOS
+  - Android
+  - Web
+  - Senior
+  - QA
+  - Verifier
+model: balanced
+code_review_mode: false

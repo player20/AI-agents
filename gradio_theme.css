@@ -1,109 +1,43 @@
 /*
- * Gradio Platform - Futuristic Theme
- * Auto Dark/Light Mode with Neon Accents
- * Fun, Polished, Simple, Futuristic
+ * Gradio Platform - Professional Theme (Gradio 6.0 Compatible)
+ * Muted colors, subtle effects, enterprise-ready
  */
 
 /* =======================
-   Light Mode (Default)
+   CSS Variables
    ======================= */
 
 :root {
-  /* Vibrant Neon Colors */
-  --neon-cyan: #00F5FF;
-  --neon-pink: #FF006E;
-  --neon-purple: #8B5CF6;
+  /* Professional Accent Colors (Muted for Enterprise) */
+  --neon-cyan: #0891B2;
+  --neon-pink: #C026D3;
+  --neon-purple: #6D28D9;
   --neon-blue: #3B82F6;
   --neon-green: #10B981;
-  --electric-orange: #FF6B35;
 
-  /* Light Mode Colors */
-  --bg-primary: #FAFAFA;
-  --bg-secondary: #FFFFFF;
-  --bg-accent: rgba(139, 92, 246, 0.05);
-  --text-primary: #1F2937;
-  --text-secondary: #6B7280;
-  --border-color: #E5E7EB;
-
-  /* Gradients */
-  --gradient-hero: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #F093FB 100%);
+  /* Gradients for buttons */
   --gradient-button: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --gradient-card: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-  --gradient-border: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple), var(--neon-pink));
-  --gradient-text: linear-gradient(135deg, #667eea, #764ba2, #F093FB);
 
-  /* Glows */
-  --glow-cyan: 0 0 20px rgba(0, 245, 255, 0.3);
-  --glow-purple: 0 0 20px rgba(139, 92, 246, 0.3);
-  --glow-pink: 0 0 20px rgba(255, 0, 110, 0.3);
+  /* Subtle Glows */
+  --glow-purple: 0 0 12px rgba(109, 40, 217, 0.2);
 
-  /* Shadows */
+  /* Professional shadows */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.15);
-
-  /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-
-  /* Border Radius */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-
-  /* Fonts */
-  --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Display", "Segoe UI", sans-serif;
-  --font-mono: "SF Mono", "Monaco", "Consolas", monospace;
 }
-
-/* =======================
-   Dark Mode
-   ======================= */
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Dark Mode Space Theme */
-    --bg-primary: #0F0F1E;
-    --bg-secondary: #1A1A2E;
-    --bg-accent: rgba(139, 92, 246, 0.15);
-    --text-primary: #F3F4F6;
-    --text-secondary: #9CA3AF;
-    --border-color: #2D2D44;
-
-    /* Enhanced Glows for Dark Mode */
-    --glow-cyan: 0 0 30px rgba(0, 245, 255, 0.5), 0 0 60px rgba(0, 245, 255, 0.2);
-    --glow-purple: 0 0 30px rgba(139, 92, 246, 0.5), 0 0 60px rgba(139, 92, 246, 0.2);
-    --glow-pink: 0 0 30px rgba(255, 0, 110, 0.5), 0 0 60px rgba(255, 0, 110, 0.2);
-
-    /* Darker shadows */
+    --glow-purple: 0 0 15px rgba(109, 40, 217, 0.25);
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-    --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
   }
 }
 
 /* =======================
-   Global Styles
+   Global Subtle Background
    ======================= */
 
-* {
-  font-family: var(--font-sans) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-body, .gradio-container {
-  background: var(--bg-primary) !important;
-  color: var(--text-primary) !important;
-}
-
-/* Animated gradient background */
 body::before {
   content: '';
   position: fixed;
@@ -111,596 +45,97 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-              radial-gradient(circle at 80% 80%, rgba(0, 245, 255, 0.1) 0%, transparent 50%),
-              radial-gradient(circle at 40% 20%, rgba(255, 0, 110, 0.1) 0%, transparent 50%);
-  animation: float 20s ease-in-out infinite;
+  background: radial-gradient(circle at 20% 50%, rgba(109, 40, 217, 0.02) 0%, transparent 50%),
+              radial-gradient(circle at 80% 80%, rgba(8, 145, 178, 0.02) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
 }
 
-@keyframes float {
-  0%, 100% { transform: translate(0, 0); }
-  33% { transform: translate(30px, -30px); }
-  66% { transform: translate(-20px, 20px); }
-}
-
-.gradio-container {
-  position: relative;
-  z-index: 1;
-}
-
 /* =======================
-   Typography
+   Primary Buttons (Gradio 6.0)
    ======================= */
 
-h1 {
-  font-size: 36px !important;
-  font-weight: 800 !important;
-  background: var(--gradient-text);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: var(--space-md) !important;
-  animation: gradient-shift 3s ease infinite;
-}
-
-@keyframes gradient-shift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-
-h2, h3 {
-  font-weight: 700 !important;
-  color: var(--text-primary) !important;
-  margin-top: var(--space-lg) !important;
-}
-
-h2 {
-  font-size: 24px !important;
-}
-
-h3 {
-  font-size: 18px !important;
-}
-
-p, span, label {
-  color: var(--text-secondary) !important;
-  font-size: 14px !important;
-  line-height: 1.6 !important;
-}
-
-/* =======================
-   Buttons
-   ======================= */
-
-/* Primary Button */
-button[variant="primary"], .primary-button {
+/* Target primary variant buttons */
+button.primary {
   background: var(--gradient-button) !important;
-  color: white !important;
   border: none !important;
-  border-radius: var(--radius-md) !important;
-  padding: 14px 28px !important;
-  font-weight: 600 !important;
-  font-size: 15px !important;
-  box-shadow: var(--glow-purple) !important;
-  cursor: pointer !important;
-  position: relative !important;
-  overflow: hidden !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(109, 40, 217, 0.25) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease !important;
 }
 
-button[variant="primary"]::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  transform: translate(-50%, -50%);
-  transition: width 0.6s, height 0.6s;
+button.primary:hover {
+  transform: translateY(-1px) scale(1.01) !important;
+  box-shadow: 0 6px 16px rgba(109, 40, 217, 0.3) !important;
+  opacity: 0.95 !important;
 }
 
-button[variant="primary"]:hover::before {
-  width: 300px;
-  height: 300px;
+button.primary:active {
+  transform: translateY(0) scale(0.99) !important;
 }
 
-button[variant="primary"]:hover {
-  transform: translateY(-2px) scale(1.02) !important;
-  box-shadow: var(--glow-purple), 0 8px 24px rgba(102, 126, 234, 0.3) !important;
-}
-
-button[variant="primary"]:active {
-  transform: translateY(0) scale(0.98) !important;
-}
-
-/* Large Primary Button (Run Workflow) */
-button[size="lg"][variant="primary"] {
-  padding: 18px 36px !important;
-  font-size: 18px !important;
-  font-weight: 700 !important;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--glow-purple), 0 8px 24px rgba(102, 126, 234, 0.4) !important;
-}
-
-/* Secondary Buttons */
-button[variant="secondary"], button:not([variant]) {
-  background: var(--bg-secondary) !important;
-  color: var(--text-primary) !important;
-  border: 2px solid var(--border-color) !important;
-  border-radius: var(--radius-md) !important;
-  padding: 10px 20px !important;
-  font-weight: 500 !important;
-}
-
-button[variant="secondary"]:hover {
-  background: var(--bg-accent) !important;
-  border-color: var(--neon-purple) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: var(--shadow-md) !important;
-}
-
-/* Small Buttons */
-button[size="sm"] {
-  padding: 8px 16px !important;
-  font-size: 13px !important;
-  border-radius: var(--radius-sm) !important;
+/* Also target by data attribute if used */
+button[data-variant="primary"] {
+  background: var(--gradient-button) !important;
+  border: none !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(109, 40, 217, 0.25) !important;
 }
 
 /* =======================
-   Cards & Containers
+   Orange Checkboxes Fix
    ======================= */
 
-/* Futuristic Glassmorphism Cards */
-.gr-box, .gr-form, .gr-panel, .gr-group {
-  background: var(--bg-secondary) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border: 1px solid var(--border-color) !important;
-  border-radius: var(--radius-xl) !important;
-  padding: var(--space-lg) !important;
-  box-shadow: var(--shadow-md) !important;
-  position: relative !important;
-}
-
-.gr-box::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--gradient-border);
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.gr-box:hover::before {
-  opacity: 1;
-}
-
-.gr-box:hover {
-  box-shadow: var(--shadow-lg), var(--glow-purple) !important;
-  transform: translateY(-2px) !important;
-}
-
-/* Accordions */
-.gr-accordion {
-  border: 1px solid var(--border-color) !important;
-  border-radius: var(--radius-lg) !important;
-  margin-bottom: var(--space-md) !important;
-  overflow: hidden !important;
-  background: var(--bg-secondary) !important;
-}
-
-.gr-accordion summary {
-  background: var(--bg-secondary) !important;
-  padding: var(--space-md) var(--space-lg) !important;
-  font-weight: 600 !important;
-  font-size: 15px !important;
-  color: var(--text-primary) !important;
-  cursor: pointer !important;
-}
-
-.gr-accordion summary:hover {
-  background: var(--bg-accent) !important;
-}
-
-.gr-accordion[open] summary {
-  background: var(--gradient-card) !important;
-  border-bottom: 2px solid var(--neon-purple) !important;
-}
-
-/* =======================
-   Form Elements
-   ======================= */
-
-/* Textboxes & Textareas */
-textarea, input[type="text"], .gr-textbox, .gr-input {
-  background: var(--bg-secondary) !important;
-  border: 2px solid var(--border-color) !important;
-  border-radius: var(--radius-md) !important;
-  padding: var(--space-md) !important;
-  color: var(--text-primary) !important;
-  font-size: 14px !important;
-}
-
-textarea:focus, input[type="text"]:focus, .gr-textbox:focus {
-  border-color: var(--neon-purple) !important;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2), var(--glow-purple) !important;
-  outline: none !important;
-}
-
-/* Dropdowns */
-select, .gr-dropdown {
-  background: var(--bg-secondary) !important;
-  border: 2px solid var(--border-color) !important;
-  border-radius: var(--radius-md) !important;
-  padding: var(--space-sm) var(--space-md) !important;
-  color: var(--text-primary) !important;
-  font-size: 14px !important;
-}
-
-select:hover, .gr-dropdown:hover {
+/* Override Gradio's default orange checkboxes */
+input[type="checkbox"]:checked {
+  accent-color: var(--neon-purple) !important;
+  background-color: var(--neon-purple) !important;
   border-color: var(--neon-purple) !important;
 }
 
-/* Checkboxes */
 input[type="checkbox"] {
-  width: 20px !important;
-  height: 20px !important;
-  border: 2px solid var(--border-color) !important;
-  border-radius: var(--radius-sm) !important;
-  cursor: pointer !important;
   accent-color: var(--neon-purple) !important;
 }
 
 /* =======================
-   Tabs
+   Tab Styling
    ======================= */
 
-.gr-tab-nav {
-  border-bottom: 2px solid var(--border-color) !important;
-  padding-bottom: 0 !important;
-  margin-bottom: var(--space-lg) !important;
-  background: var(--bg-secondary) !important;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
-}
-
-.gr-tab {
-  padding: var(--space-md) var(--space-lg) !important;
-  font-weight: 500 !important;
-  font-size: 14px !important;
-  color: var(--text-secondary) !important;
-  border-bottom: 3px solid transparent !important;
-  cursor: pointer !important;
-  position: relative !important;
-}
-
-.gr-tab:hover {
+/* Active tab indicator */
+button[role="tab"][aria-selected="true"] {
+  border-bottom: 3px solid var(--neon-purple) !important;
   color: var(--neon-purple) !important;
-  background: var(--bg-accent) !important;
 }
 
-.gr-tab[selected="true"], .gr-tab.selected {
+button[role="tab"]:hover {
   color: var(--neon-purple) !important;
-  border-bottom-color: var(--neon-purple) !important;
-  font-weight: 600 !important;
-  box-shadow: 0 3px 12px rgba(139, 92, 246, 0.3) !important;
-}
-
-.gr-tab[selected="true"]::after {
-  content: '';
-  position: absolute;
-  bottom: -3px;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--gradient-border);
-  animation: glow-pulse 2s ease-in-out infinite;
-}
-
-@keyframes glow-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  opacity: 0.8;
 }
 
 /* =======================
-   File Upload
+   Accordion Styling
    ======================= */
 
-.gr-file {
-  border: 3px dashed var(--border-color) !important;
-  border-radius: var(--radius-lg) !important;
-  padding: var(--space-xl) !important;
-  background: var(--bg-accent) !important;
-  text-align: center !important;
-}
-
-.gr-file:hover {
-  border-color: var(--neon-purple) !important;
-  background: var(--gradient-card) !important;
-  box-shadow: var(--glow-purple) !important;
+details[open] > summary {
+  border-bottom: 2px solid var(--neon-purple) !important;
 }
 
 /* =======================
-   Status Badges
+   Universal Improvements
    ======================= */
 
-.badge {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: var(--shadow-sm);
+/* Smooth transitions on all interactive elements */
+button, input, select, textarea {
+  transition: all 0.2s ease !important;
 }
 
-.badge-running {
-  background: linear-gradient(135deg, #F59E0B, #EF4444);
-  color: white;
-  animation: badge-pulse 2s ease-in-out infinite;
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.6);
-}
-
-@keyframes badge-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.05); opacity: 0.9; }
-}
-
-.badge-completed {
-  background: linear-gradient(135deg, #10B981, #059669);
-  color: white;
-  box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
-}
-
-.badge-failed {
-  background: linear-gradient(135deg, #EF4444, #DC2626);
-  color: white;
-  box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
-}
-
-.badge-pending {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  border: 2px solid var(--border-color);
-}
-
-/* =======================
-   Animations
-   ======================= */
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slide-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.fade-in {
-  animation: fade-in 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.slide-in {
-  animation: slide-in-right 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.scale-in {
-  animation: scale-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* =======================
-   Loading States
-   ======================= */
-
-.loading {
-  position: relative;
-}
-
-.loading::after {
-  content: '';
-  animation: loading-dots 1.5s steps(4, end) infinite;
-}
-
-@keyframes loading-dots {
-  0%, 20% { content: ''; }
-  40% { content: '.'; }
-  60% { content: '..'; }
-  80%, 100% { content: '...'; }
-}
-
-/* Spinner */
-.spinner {
-  border: 4px solid var(--border-color);
-  border-top: 4px solid var(--neon-purple);
-  border-radius: 50%;
-  width: 48px;
-  height: 48px;
-  animation: spin 1s linear infinite;
-  margin: var(--space-lg) auto;
-  box-shadow: var(--glow-purple);
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* =======================
-   Markdown Styling
-   ======================= */
-
-.markdown {
-  color: var(--text-primary) !important;
-}
-
-.markdown h1, .markdown h2, .markdown h3 {
-  color: var(--text-primary) !important;
-  margin-top: var(--space-lg) !important;
-  margin-bottom: var(--space-md) !important;
-}
-
-.markdown p {
-  line-height: 1.7 !important;
-  margin-bottom: var(--space-md) !important;
-  color: var(--text-secondary) !important;
-}
-
-.markdown code {
-  background: var(--bg-accent) !important;
-  color: var(--neon-cyan) !important;
-  padding: 3px 8px !important;
-  border-radius: var(--radius-sm) !important;
-  font-family: var(--font-mono) !important;
-  font-size: 13px !important;
-  border: 1px solid var(--border-color) !important;
-}
-
-.markdown pre {
-  background: var(--bg-secondary) !important;
-  color: var(--text-primary) !important;
-  padding: var(--space-lg) !important;
-  border-radius: var(--radius-md) !important;
-  overflow-x: auto !important;
-  margin: var(--space-md) 0 !important;
-  border: 1px solid var(--border-color) !important;
-  box-shadow: var(--shadow-md) !important;
-}
-
-.markdown pre code {
-  background: none !important;
-  border: none !important;
-  padding: 0 !important;
-  color: var(--text-primary) !important;
-}
-
-/* =======================
-   Utility Classes
-   ======================= */
-
-.text-center {
-  text-align: center !important;
-}
-
-.glow-cyan {
-  box-shadow: var(--glow-cyan) !important;
-}
-
-.glow-purple {
-  box-shadow: var(--glow-purple) !important;
-}
-
-.glow-pink {
-  box-shadow: var(--glow-pink) !important;
-}
-
-/* =======================
-   Responsive Design
-   ======================= */
-
-@media (max-width: 768px) {
-  :root {
-    --text-4xl: 28px;
-    --text-3xl: 22px;
-    --text-2xl: 18px;
-  }
-
-  h1 {
-    font-size: 28px !important;
-  }
-
-  button[size="lg"] {
-    padding: 14px 24px !important;
-    font-size: 16px !important;
-  }
-
-  .gr-box, .gr-form, .gr-panel {
-    padding: var(--space-md) !important;
-  }
-}
-
-/* =======================
-   Scrollbar Styling
-   ======================= */
-
-::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--bg-primary);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--gradient-button);
-  border-radius: 6px;
-  border: 2px solid var(--bg-primary);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  box-shadow: var(--glow-purple);
-}
-
-/* =======================
-   Fun Interactive Elements
-   ======================= */
-
-/* Hover lift effect for interactive elements */
-.hover-lift {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s !important;
-}
-
-.hover-lift:hover {
-  transform: translateY(-4px) !important;
-  box-shadow: var(--shadow-xl) !important;
-}
-
-/* Glow on focus */
+/* Focus states for accessibility */
 *:focus-visible {
-  outline: 3px solid var(--neon-purple) !important;
+  outline: 2px solid var(--neon-purple) !important;
   outline-offset: 2px !important;
-  box-shadow: var(--glow-purple) !important;
 }
 
 /* Selection color */
 ::selection {
-  background: rgba(139, 92, 246, 0.3);
-  color: var(--text-primary);
-}
-
-::-moz-selection {
-  background: rgba(139, 92, 246, 0.3);
-  color: var(--text-primary);
+  background: rgba(109, 40, 217, 0.3);
 }

@@ -1,0 +1,8 @@
+name: Code Review Automation
+description: Comprehensive code review with architecture, security, and testing analysis
+agents:
+  - Senior
+  - QA
+  - Verifier
+model: quality
+code_review_mode: true

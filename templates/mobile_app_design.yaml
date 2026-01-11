@@ -1,0 +1,43 @@
+name: "📱 Mobile App Design (iOS + Android)"
+description: "Research competitors, design UI/UX, and generate native mobile components"
+category: "Mobile Development"
+difficulty: "Advanced"
+estimated_time: "12-18 minutes"
+estimated_cost: "$0.70-$1.10"
+
+agents:
+  - Research
+  - Designs
+  - iOS
+  - Android
+  - QA
+
+model_preset: "Balanced (All Sonnet)"
+
+project_description: |
+  Design and prototype a mobile app for [APP CONCEPT].
+
+  Platform: iOS and Android
+  Target audience: [DESCRIBE USERS]
+  Key features: [LIST 3-5 CORE FEATURES]
+  Design style: [e.g., minimalist, colorful, professional]
+
+  Please:
+  1. Research similar mobile apps
+  2. Design the UI/UX
+  3. Generate iOS components (SwiftUI)
+  4. Generate Android components (Jetpack Compose)
+  5. Test the designs for usability
+
+expected_outputs:
+  - "Competitive analysis of mobile apps in this category"
+  - "UI/UX designs with screenshots/wireframes"
+  - "iOS SwiftUI component code"
+  - "Android Jetpack Compose component code"
+  - "QA test plan and usability review"
+
+tags:
+  - mobile
+  - ios
+  - android
+  - design

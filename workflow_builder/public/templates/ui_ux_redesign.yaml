@@ -1,0 +1,37 @@
+name: "🎨 UI/UX Redesign & Modernization"
+description: "Research design trends, propose improvements, and create new visual designs"
+category: "Design"
+difficulty: "Beginner"
+estimated_time: "6-10 minutes"
+estimated_cost: "$0.40-$0.60"
+
+agents:
+  - Research
+  - Ideas
+  - Designs
+
+model_preset: "Balanced (All Sonnet)"
+
+project_description: |
+  Redesign the UI/UX of my [WEBSITE/APP].
+
+  Current state: [DESCRIBE CURRENT DESIGN/PAIN POINTS]
+  Target users: [WHO USES IT?]
+  Design goals: [e.g., more modern, better accessibility, higher conversion]
+  Brand colors: [HEX CODES OR "suggest new palette"]
+
+  Please:
+  1. Research current UI/UX trends in this industry
+  2. Generate improvement ideas
+  3. Create new visual designs
+
+expected_outputs:
+  - "UI/UX trend analysis and competitor designs"
+  - "10-15 specific improvement recommendations"
+  - "New design mockups (color palette, typography, layout)"
+
+tags:
+  - design
+  - ui-ux
+  - redesign
+  - branding

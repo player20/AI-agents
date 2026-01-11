@@ -1,0 +1,7 @@
+name: Security Audit
+description: Comprehensive security and compliance review
+agents:
+  - Senior
+  - Verifier
+model: quality
+code_review_mode: true

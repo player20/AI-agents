@@ -1,0 +1,8 @@
+name: Database Schema Design
+description: Design scalable database schemas with optimization recommendations
+agents:
+  - Research
+  - Senior
+  - QA
+model: balanced
+code_review_mode: false

@@ -1,0 +1,39 @@
+name: "🗄️ Database Schema Design & Optimization"
+description: "Design optimal database schema with relationships and indexing"
+category: "Backend Development"
+difficulty: "Intermediate"
+estimated_time: "6-10 minutes"
+estimated_cost: "$0.40-$0.60"
+
+agents:
+  - Senior
+  - Web
+  - QA
+
+model_preset: "Balanced (All Sonnet)"
+
+project_description: |
+  Design a database schema for [YOUR APPLICATION].
+
+  Database type: [e.g., PostgreSQL, MongoDB, MySQL]
+  Data entities: [e.g., users, products, orders]
+  Expected scale: [e.g., 10K users, 1M records]
+  Relationships: [DESCRIBE KEY RELATIONSHIPS]
+
+  Please:
+  1. Design optimal schema
+  2. Implement migrations/setup scripts
+  3. Test schema design
+
+expected_outputs:
+  - "Entity-Relationship Diagram (ERD)"
+  - "Database schema with tables, columns, constraints"
+  - "Indexing strategy for performance"
+  - "Migration scripts"
+  - "Sample queries and test data"
+
+tags:
+  - database
+  - schema
+  - backend
+  - sql

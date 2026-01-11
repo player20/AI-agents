@@ -1,0 +1,147 @@
+name: "Agent Team Reviews Org Chart Architecture"
+description: "Multi-agent review of the proposed Project + Agent Teams org chart architecture"
+category: "Architecture Review"
+difficulty: "Advanced"
+estimated_time: "10-15 minutes"
+estimated_cost: "$0.80-$1.20"
+
+agents:
+  - PM
+  - Senior
+  - Product
+  - Ideas
+  - QA
+  - Verifier
+
+model_preset: "Balanced (All Sonnet)"
+
+project_description: |
+  We're designing a new architecture for our Multi-Agent Development Team platform that allows users to:
+
+  1. **Create Projects** (e.g., "Build E-commerce App", "Marketing Campaign")
+  2. **Organize Agent Teams within Projects** (e.g., "Backend Squad", "Frontend Squad", "QA Squad")
+  3. **Execute teams sequentially** with outputs flowing between teams
+  4. **Visualize as an org chart** showing project → teams → agents hierarchy
+
+  ## Architecture Documents to Review
+
+  Please read and analyze these three documents:
+
+  1. **PROJECT_AGENT_TEAMS_ARCHITECTURE.md**
+  2. **AGENT_ORG_CHART_DESIGN.md**
+  3. **MULTI_PROJECT_ARCHITECTURE.md** (for context)
+
+  ## Your Tasks
+
+  Each agent should provide:
+
+  **PM**: Project planning and execution flow analysis
+  - Is the execution model practical?
+  - How should dependencies between teams work?
+  - What about error handling if a team fails?
+
+  **Senior Engineer**: Technical architecture review
+  - Database schema assessment
+  - API design evaluation
+  - Scalability concerns
+
+  **Product Owner**: User experience and value proposition
+  - Will users understand the org chart concept?
+  - Is this solving a real pain point?
+  - What's the learning curve?
+
+  **Ideas Agent**: Creative improvements and alternatives
+  - What other ways could we visualize this?
+  - How can we make team coordination smarter?
+  - Any novel features to add?
+
+  **QA Engineer**: Edge cases and potential issues
+  - What could go wrong?
+  - How do we test team dependencies?
+  - What validation is needed?
+
+  **Verifier**: Critical analysis and fact-checking
+  - Are there any logical inconsistencies in the design?
+  - Do the documents contradict each other?
+  - What assumptions need validation?
+
+custom_prompts:
+  PM: |
+    Review the execution flow and project management aspects.
+
+    Focus on:
+    - Sequential vs parallel team execution
+    - How outputs pass between teams
+    - Project status tracking
+    - Team dependencies and ordering
+
+    Provide specific recommendations for the execution engine.
+
+  Senior: |
+    Deep dive into the technical architecture.
+
+    Analyze:
+    - Database schema (Prisma models)
+    - API endpoint design
+    - Real-time updates architecture
+    - Scalability for 100+ projects, 1000+ teams
+
+    Flag any technical red flags or bottlenecks.
+
+  Product: |
+    Evaluate from a product/UX perspective.
+
+    Consider:
+    - Is the org chart metaphor clear to users?
+    - What's the ideal onboarding flow?
+    - How do users discover and use this feature?
+    - What metrics should we track?
+
+    Suggest UX improvements.
+
+  Ideas: |
+    Think creatively about enhancements.
+
+    Brainstorm:
+    - Alternative visualization methods beyond org charts
+    - Smart features (AI-suggested team compositions, auto-dependencies)
+    - Collaboration features (comments, @mentions, team chat)
+    - Integration possibilities (GitHub, Jira, Notion)
+
+    Propose 3-5 innovative ideas.
+
+  QA: |
+    Identify edge cases and quality concerns.
+
+    Test scenarios:
+    - What if a team has 0 agents? 20 agents?
+    - What if teams have circular dependencies?
+    - How do we handle partial failures?
+    - What if user deletes a team mid-execution?
+
+    List all test cases needed.
+
+  Verifier: |
+    Critically analyze for consistency and correctness.
+
+    Verify:
+    - Do the three architecture docs align?
+    - Are there gaps in the implementation plan?
+    - Are cost/time estimates realistic?
+    - Are there security/privacy concerns?
+
+    Challenge assumptions and point out risks.
+
+expected_outputs:
+  - "PM: Execution flow analysis and recommendations"
+  - "Senior: Technical architecture review and concerns"
+  - "Product: UX evaluation and improvement suggestions"
+  - "Ideas: 3-5 creative enhancement proposals"
+  - "QA: Comprehensive edge case list and test plan"
+  - "Verifier: Critical analysis highlighting risks and gaps"
+
+tags:
+  - architecture-review
+  - org-chart
+  - multi-agent
+  - product-design

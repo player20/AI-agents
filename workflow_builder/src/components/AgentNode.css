@@ -76,3 +76,73 @@
   border: 2px solid white;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
+
+/* Execution State Styles */
+.execution-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.execution-indicator.running {
+  color: #3b82f6;
+}
+
+.execution-indicator.completed {
+  color: #10b981;
+}
+
+.execution-indicator.failed {
+  color: #ef4444;
+}
+
+/* Spinner animation for running state */
+.execution-indicator .spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Node execution state styles */
+.agent-node.running {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 4px 16px rgba(59, 130, 246, 0.3);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.agent-node.completed {
+  border-color: #10b981 !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+.agent-node.failed {
+  border-color: #ef4444 !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 4px 16px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.15), 0 6px 20px rgba(59, 130, 246, 0.4);
+  }
+}
