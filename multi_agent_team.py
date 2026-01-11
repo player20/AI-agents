@@ -491,12 +491,12 @@ def execute_with_fallback(func, agent_role, current_model, *args, **kwargs):
 # ==============================
 # Shared Logs for Dashboard
 # ==============================
-agent_logs = {
-    "System": [],  # System logs for execution status
-    "PM": [], "Memory": [], "Research": [], "Ideas": [], "Designs": [],
-    "Senior": [], "iOS": [], "Android": [], "Web": [],
-    "QA": [], "Verifier": []
-}
+# Initialize agent_logs dynamically for all agents from agents.config.json
+agent_logs = {"System": []}  # System logs for execution status
+
+# Add all agents from AGENT_ROLES (dynamically loaded from agents.config.json)
+for role in AGENT_ROLES:
+    agent_logs[role] = []
 
 # Store complete run history with metadata
 run_history = []
