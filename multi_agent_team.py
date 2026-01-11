@@ -1764,7 +1764,9 @@ with gr.Blocks(title="Super Dev Team") as demo:
 
                     teams_list_html = gr.HTML(value="<p>No teams added yet</p>")
 
-                    run_project_btn = gr.Button("▶️ Run Project", variant="primary", size="lg")
+                    with gr.Row():
+                        add_team_btn_show = gr.Button("➕ Add Team", variant="secondary", size="sm")
+                        run_project_btn = gr.Button("▶️ Run Project", variant="primary", size="lg")
 
             # New Project Form (hidden by default)
             with gr.Group(visible=False) as new_project_form:
@@ -2359,6 +2361,63 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
         delete_current_project,
         inputs=[project_list],
         outputs=[project_status_msg, project_list]
+    )
+
+    # Team builder event handlers
+    add_team_btn_show.click(
+        lambda: gr.update(visible=True),
+        outputs=[team_builder_form]
+    )
+
+    cancel_team_btn.click(
+        lambda: gr.update(visible=False),
+        outputs=[team_builder_form]
+    )
+
+    def add_new_team(project_id, team_name, team_desc, team_agents):
+        """Add a new team to the selected project"""
+        try:
+            if not project_id:
+                return "Error: No project selected", "<p>No teams</p>", gr.update(visible=True)
+
+            if not team_name:
+                return "Error: Team name required", gr.update(), gr.update(visible=True)
+
+            if not team_agents:
+                return "Error: Select at least one agent", gr.update(), gr.update(visible=True)
+
+            # Add team to project
+            team_id = projects_store.add_team(
+                project_id,
+                team_name,
+                team_agents,
+                team_desc,
+                validate_agents=False  # Allow custom agents
+            )
+
+            if not team_id:
+                return "Error: Project not found", gr.update(), gr.update(visible=True)
+
+            # Refresh teams display
+            project = projects_store.get_project(project_id)
+            teams = project.get('teams', [])
+            teams_html = "".join([
+                render_team_card_safe(team, i) for i, team in enumerate(teams)
+            ])
+
+            return (
+                f"✅ Team '{team_name}' added with {len(team_agents)} agents!",
+                teams_html,
+                gr.update(visible=False)
+            )
+
+        except Exception as e:
+            return f"Error: {str(e)}", gr.update(), gr.update(visible=True)
+
+    add_team_btn.click(
+        add_new_team,
+        inputs=[project_list, new_team_name, new_team_desc, new_team_agents],
+        outputs=[project_status_msg, teams_list_html, team_builder_form]
     )
 
 # Launch the application
