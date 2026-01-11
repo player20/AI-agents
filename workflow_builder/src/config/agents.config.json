@@ -1,0 +1,217 @@
+{
+  "version": "1.0.0",
+  "categories": {
+    "Engineering": {
+      "label": "Engineering",
+      "icon": "👨‍💻",
+      "description": "Software development and technical architecture agents",
+      "agents": ["PM", "Senior", "iOS", "Android", "Web", "Backend"]
+    },
+    "Operations": {
+      "label": "Operations",
+      "icon": "⚙️",
+      "description": "DevOps, testing, and infrastructure agents",
+      "agents": ["DevOps", "QA", "Verifier"]
+    },
+    "Strategy": {
+      "label": "Strategy & Research",
+      "icon": "📊",
+      "description": "Research, planning, and business strategy agents",
+      "agents": ["Research", "Ideas", "Designs", "Marketing", "Product"]
+    },
+    "DataAI": {
+      "label": "Data & AI",
+      "icon": "🤖",
+      "description": "Data, analytics, and AI/ML agents",
+      "agents": ["Memory", "DataArchitect", "DataScience"]
+    },
+    "QualitySecurity": {
+      "label": "Quality & Compliance",
+      "icon": "🔒",
+      "description": "Security, compliance, and quality assurance agents",
+      "agents": ["Security", "Legal", "Support"]
+    }
+  },
+  "agents": [
+    {
+      "id": "PM",
+      "label": "Project Manager",
+      "icon": "📋",
+      "color": "#4A90E2",
+      "category": "Engineering",
+      "defaultPrompt": "Create sprint plans, coordinate work, manage project timelines, and ensure team alignment. Focus on agile methodologies, stakeholder communication, and delivery tracking.",
+      "builtin": true
+    },
+    {
+      "id": "Memory",
+      "label": "Memory",
+      "icon": "🧠",
+      "color": "#F39C12",
+      "category": "DataAI",
+      "defaultPrompt": "Recall past learnings, store knowledge across projects, and maintain context continuity. Provide historical insights and track decisions over time.",
+      "builtin": true
+    },
+    {
+      "id": "Research",
+      "label": "Research",
+      "icon": "🔍",
+      "color": "#27AE60",
+      "category": "Strategy",
+      "defaultPrompt": "Conduct market research, competitive analysis, user research, and trend identification. Gather data-driven insights to inform strategic decisions.",
+      "builtin": true
+    },
+    {
+      "id": "Ideas",
+      "label": "Ideas",
+      "icon": "💡",
+      "color": "#9B59B6",
+      "category": "Strategy",
+      "defaultPrompt": "Generate market-smart feature ideas, innovation strategies, and creative solutions. Prioritize ideas based on impact, feasibility, and market demand.",
+      "builtin": true
+    },
+    {
+      "id": "Designs",
+      "label": "Designs",
+      "icon": "🎨",
+      "color": "#E74C3C",
+      "category": "Strategy",
+      "defaultPrompt": "Create UI/UX designs, wireframes, user flows, and design system specifications. Focus on user-centered design, accessibility, and visual consistency.",
+      "builtin": true
+    },
+    {
+      "id": "Senior",
+      "label": "Senior Engineer",
+      "icon": "👨‍💻",
+      "color": "#34495E",
+      "category": "Engineering",
+      "defaultPrompt": "Review architecture, validate tech stack choices, assess scalability, and provide technical guidance. Focus on best practices, code quality, and system design.",
+      "builtin": true
+    },
+    {
+      "id": "iOS",
+      "label": "iOS Developer",
+      "icon": "📱",
+      "color": "#1ABC9C",
+      "category": "Engineering",
+      "defaultPrompt": "Build iOS applications using Swift and SwiftUI. Implement native features, follow Apple Human Interface Guidelines, and optimize for performance.",
+      "builtin": true
+    },
+    {
+      "id": "Android",
+      "label": "Android Developer",
+      "icon": "🤖",
+      "color": "#3498DB",
+      "category": "Engineering",
+      "defaultPrompt": "Build Android applications using Kotlin and Jetpack Compose. Implement Material Design, follow Android best practices, and ensure device compatibility.",
+      "builtin": true
+    },
+    {
+      "id": "Web",
+      "label": "Web Developer",
+      "icon": "🌐",
+      "color": "#E67E22",
+      "category": "Engineering",
+      "defaultPrompt": "Build web applications using React, JavaScript/TypeScript, and modern web technologies. Focus on responsive design, performance optimization, and cross-browser compatibility.",
+      "builtin": true
+    },
+    {
+      "id": "QA",
+      "label": "QA Engineer",
+      "icon": "✅",
+      "color": "#16A085",
+      "category": "Operations",
+      "defaultPrompt": "Test functionality, validate quality, create test scenarios, and identify edge cases. Focus on test automation, regression testing, and quality metrics.",
+      "builtin": true
+    },
+    {
+      "id": "Verifier",
+      "label": "Verifier",
+      "icon": "🔎",
+      "color": "#8E44AD",
+      "category": "Operations",
+      "defaultPrompt": "Check for hallucinations, validate consistency, verify accuracy, and ensure epistemic rigor. Cross-reference facts and flag unsubstantiated claims.",
+      "builtin": true
+    },
+    {
+      "id": "DevOps",
+      "label": "DevOps Engineer",
+      "icon": "🔧",
+      "color": "#FF6B35",
+      "category": "Operations",
+      "defaultPrompt": "Automate CI/CD pipelines, container orchestration, infrastructure provisioning, deployment strategies, and monitoring setup. Focus on Docker, Kubernetes, Jenkins, GitHub Actions, and Terraform.",
+      "builtin": true
+    },
+    {
+      "id": "Security",
+      "label": "Security Specialist",
+      "icon": "🔒",
+      "color": "#D32F2F",
+      "category": "QualitySecurity",
+      "defaultPrompt": "Perform security audits, vulnerability scanning, penetration testing, compliance checks (GDPR, SOC2, HIPAA), threat modeling, and security best practices. Focus on OWASP Top 10, secure coding, and zero-trust architecture.",
+      "builtin": true
+    },
+    {
+      "id": "DataArchitect",
+      "label": "Data Architect",
+      "icon": "📊",
+      "color": "#1976D2",
+      "category": "DataAI",
+      "defaultPrompt": "Design data models, database schemas, ETL pipelines, data warehousing solutions, and analytics architectures. Focus on PostgreSQL, MongoDB, Redis, BigQuery, Snowflake, and data governance.",
+      "builtin": true
+    },
+    {
+      "id": "Marketing",
+      "label": "Marketing Strategist",
+      "icon": "📢",
+      "color": "#7B1FA2",
+      "category": "Strategy",
+      "defaultPrompt": "Develop go-to-market strategies, content marketing plans, SEO optimization, social media campaigns, email marketing, and customer acquisition funnels. Focus on product launches, positioning, and growth hacking.",
+      "builtin": true
+    },
+    {
+      "id": "Legal",
+      "label": "Legal & Compliance",
+      "icon": "⚖️",
+      "color": "#455A64",
+      "category": "QualitySecurity",
+      "defaultPrompt": "Review terms of service, privacy policies, data handling procedures, compliance requirements (GDPR, CCPA, SOC2), contract analysis, and legal risk assessment. Focus on enterprise compliance and regulatory adherence.",
+      "builtin": true
+    },
+    {
+      "id": "Backend",
+      "label": "Backend Architect",
+      "icon": "🔌",
+      "color": "#607D8B",
+      "category": "Engineering",
+      "defaultPrompt": "Design backend architecture, API design, database optimization, microservices, and scalability patterns. Focus on Node.js, Python, Java, REST/GraphQL APIs, and distributed systems.",
+      "builtin": true
+    },
+    {
+      "id": "Product",
+      "label": "Product Owner",
+      "icon": "📦",
+      "color": "#FF9800",
+      "category": "Strategy",
+      "defaultPrompt": "Define product vision, manage backlog, prioritize features, write user stories, and coordinate with stakeholders. Focus on user needs, roadmap planning, and value delivery.",
+      "builtin": true
+    },
+    {
+      "id": "Support",
+      "label": "Customer Support",
+      "icon": "🎧",
+      "color": "#00BCD4",
+      "category": "QualitySecurity",
+      "defaultPrompt": "Design support workflows, knowledge base articles, troubleshooting guides, and customer success strategies. Focus on user onboarding, documentation, and issue resolution patterns.",
+      "builtin": true
+    },
+    {
+      "id": "DataScience",
+      "label": "Data Scientist",
+      "icon": "📈",
+      "color": "#009688",
+      "category": "DataAI",
+      "defaultPrompt": "Build predictive models, statistical analysis, data visualization, and ML pipeline design. Focus on Python, scikit-learn, TensorFlow, pandas, and data-driven decision making.",
+      "builtin": true
+    }
+  ]
+}

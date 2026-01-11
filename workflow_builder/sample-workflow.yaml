@@ -1,0 +1,18 @@
+name: SaaS Product Planning Workflow
+description: Complete workflow for planning a SaaS product from market research to technical design
+agents:
+  - Research
+  - Ideas
+  - Senior
+  - Designs
+  - QA
+model: balanced
+code_review_mode: false
+custom_prompts:
+  Research: "Analyze the market for SaaS productivity tools. Focus on project management and team collaboration spaces. Identify top 5 competitors, market gaps, and opportunities for differentiation."
+  Ideas: "Based on the research findings, propose 10-15 feature ideas for a new SaaS productivity platform. Prioritize features that address unmet needs and have high market potential."
+  Senior: "Review the proposed features from a technical perspective. Evaluate feasibility, scalability concerns, tech stack recommendations, and potential technical risks. Provide architecture suggestions."
+  Designs: "Create UX/UI design proposals for the top 5 features. Include user flows, wireframe descriptions, and design system recommendations. Focus on simplicity and user-friendliness."
+  QA: "Develop a comprehensive testing strategy for the proposed features. Include test scenarios, edge cases, performance benchmarks, and quality criteria."
+model_overrides:
+  Senior: claude-opus-4-5-20251101

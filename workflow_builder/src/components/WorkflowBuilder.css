@@ -1,0 +1,71 @@
+.workflow-builder {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: #f5f5f5;
+}
+
+.workflow-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.left-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+  max-height: 100%;
+}
+
+.flow-container {
+  flex: 1;
+  height: 100%;
+  background-color: #fafafa;
+}
+
+.info-panel {
+  background: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-size: 14px;
+  display: flex;
+  gap: 16px;
+}
+
+.info-panel > div {
+  color: #666;
+}
+
+/* React Flow Customization */
+.react-flow__node {
+  cursor: grab;
+}
+
+.react-flow__node.selected {
+  box-shadow: 0 0 0 2px #4A90E2;
+}
+
+.react-flow__node.highlighted {
+  animation: pulse-error 1s ease-in-out 3;
+}
+
+@keyframes pulse-error {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+}
+
+.react-flow__edge-path {
+  stroke-width: 2;
+}
+
+.react-flow__minimap {
+  background-color: #f5f5f5;
+}

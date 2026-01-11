@@ -692,6 +692,17 @@ def run_dev_team(project_description, selected_agents, github_url="", custom_pro
             else:
                 prompt = DEFAULT_PROMPTS.get(role, "").format(project_description=project_description)
 
+            # Special handling for Memory agent: inject actual memory content
+            if role == "Memory":
+                memory_data = load_memory()
+                if memory_data:
+                    memory_str = "\n".join([f"- {k}: {v}" for k, v in memory_data.items()])
+                    prompt += f"\n\n**Available Memory:**\n{memory_str}\n\nAnalyze which memories are relevant to the current project and provide them in your output."
+                    log_agent_message("System", f"Memory agent loaded {len(memory_data)} memories")
+                else:
+                    prompt += "\n\n**Available Memory:** No prior knowledge available yet."
+                    log_agent_message("System", "Memory agent has no prior memories")
+
             expected_output = DEFAULT_EXPECTED_OUTPUTS.get(role, "Detailed analysis and recommendations.")
 
             # Create task with dependencies on previous priority level
