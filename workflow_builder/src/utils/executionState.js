@@ -15,14 +15,101 @@ export const ExecutionState = {
 };
 
 /**
- * Simulates workflow execution for demonstration purposes.
- * In production, this would be replaced with actual WebSocket/API integration.
+ * Executes a workflow using the real Gradio backend API.
+ *
+ * @param {Array} nodes - Array of workflow nodes
+ * @param {Function} updateNodeState - Callback to update node state
+ * @param {string} apiBaseUrl - Base URL for API (default: http://localhost:7860)
+ * @returns {Promise} Promise that resolves when execution completes
+ */
+export const executeWorkflow = async (nodes, updateNodeState, apiBaseUrl = 'http://localhost:7860') => {
+  // Reset all nodes to idle state
+  nodes.forEach(node => {
+    updateNodeState(node.id, ExecutionState.IDLE);
+  });
+
+  try {
+    // Extract agent IDs from nodes
+    const agents = nodes.map(node => node.data.label);
+
+    // Start execution
+    const response = await fetch(`${apiBaseUrl}/api/execute-team`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agents: agents,
+        prompt: "Execute workflow"
+      })
+    });
+
+    if (!response.ok) throw new Error('Failed to start execution');
+
+    const { executionId } = await response.json();
+
+    // Poll for status updates
+    let attempts = 0;
+    const maxAttempts = 120;  // 2 minutes
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const statusResponse = await fetch(`${apiBaseUrl}/api/status/${executionId}`);
+      const status = await statusResponse.json();
+
+      // Update node states based on progress
+      if (status.outputs) {
+        status.outputs.forEach(output => {
+          const node = nodes.find(n => n.data.label === output.agentId);
+          if (node) {
+            updateNodeState(node.id, ExecutionState.COMPLETED);
+          }
+        });
+      }
+
+      // Mark currently running agent
+      if (status.status === 'running' && status.progress) {
+        const currentIndex = Math.floor((status.progress / 100) * agents.length);
+        if (currentIndex < agents.length) {
+          const node = nodes[currentIndex];
+          updateNodeState(node.id, ExecutionState.RUNNING);
+        }
+      }
+
+      if (status.status === 'completed') {
+        console.log('Workflow execution complete');
+        return { success: true, outputs: status.outputs };
+      } else if (status.status === 'failed') {
+        console.error('Workflow execution failed:', status.error);
+        // Mark failed node
+        const lastNode = nodes[Math.floor((status.progress / 100) * agents.length)];
+        if (lastNode) {
+          updateNodeState(lastNode.id, ExecutionState.FAILED);
+        }
+        return { success: false, error: status.error };
+      }
+
+      attempts++;
+    }
+
+    throw new Error('Execution timeout');
+
+  } catch (error) {
+    console.error('Execution failed:', error);
+    throw error;
+  }
+};
+
+/**
+ * Simulates workflow execution for demonstration purposes (LEGACY).
+ * Use executeWorkflow() for real backend integration.
  *
  * @param {Array} nodes - Array of workflow nodes
  * @param {Function} updateNodeState - Callback to update node state
  * @param {number} delayPerAgent - Delay in milliseconds between agents (default: 3000)
  */
 export const simulateWorkflowExecution = async (nodes, updateNodeState, delayPerAgent = 3000) => {
+  console.warn('simulateWorkflowExecution is deprecated. Use executeWorkflow() instead.');
+
   // Reset all nodes to idle state
   nodes.forEach(node => {
     updateNodeState(node.id, ExecutionState.IDLE);

@@ -508,7 +508,46 @@ def log_agent_message(role, message):
 # ==============================
 # Agent Mapping and Default Prompts
 # ==============================
-AGENT_ROLES = ["PM", "Memory", "Research", "Ideas", "Designs", "Senior", "iOS", "Android", "Web", "QA", "Verifier"]
+
+# Dynamic agent loading from configuration file
+def load_agent_configs():
+    """Load agent configurations from agents.config.json file."""
+    config_path = Path(__file__).parent / 'agents.config.json'
+
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+
+        # Convert to dictionary keyed by agent ID
+        agent_dict = {}
+        for agent in config.get('agents', []):
+            agent_dict[agent['id']] = {
+                'role': agent['role'],
+                'goal': agent['goal'],
+                'backstory': agent['backstory'],
+                'defaultPrompt': agent.get('defaultPrompt', ''),
+                'priority': agent.get('priority', 99),
+                'category': agent.get('category', 'Uncategorized')
+            }
+
+        print(f"✅ Loaded {len(agent_dict)} agents from agents.config.json")
+        return agent_dict
+
+    except FileNotFoundError:
+        print("⚠️  agents.config.json not found, using hardcoded agent configs")
+        return None
+    except Exception as e:
+        print(f"⚠️  Error loading agents.config.json: {e}, using hardcoded configs")
+        return None
+
+# Load dynamic agent configurations
+AGENT_CONFIGS_DYNAMIC = load_agent_configs()
+
+# Agent roles list (dynamically loaded or fallback to hardcoded)
+if AGENT_CONFIGS_DYNAMIC:
+    AGENT_ROLES = list(AGENT_CONFIGS_DYNAMIC.keys())
+else:
+    AGENT_ROLES = ["PM", "Memory", "Research", "Ideas", "Designs", "Senior", "iOS", "Android", "Web", "QA", "Verifier"]
 
 # Execution priority/dependency order
 # Lower priority number = runs first
@@ -636,15 +675,44 @@ AGENT_CONFIGS = {
     }
 }
 
-def create_agent_with_model(agent_key, model_id):
-    """Dynamically create an agent with a specific model"""
-    config = AGENT_CONFIGS[agent_key]
+def create_agent_with_model(agent_key, model_id, custom_prompt=None):
+    """
+    Dynamically create an agent with a specific model.
+    Supports both built-in agents and custom agents.
+
+    Args:
+        agent_key: Agent ID (e.g., "PM", "Senior", or custom like "DevOps")
+        model_id: Model identifier for LLM
+        custom_prompt: Optional custom backstory/prompt to override default
+
+    Returns:
+        Agent instance configured with specified model and prompts
+    """
+    # Check if agent exists in dynamic configs (loaded from JSON)
+    if AGENT_CONFIGS_DYNAMIC and agent_key in AGENT_CONFIGS_DYNAMIC:
+        config = AGENT_CONFIGS_DYNAMIC[agent_key]
+    # Fallback to hardcoded configs
+    elif agent_key in AGENT_CONFIGS:
+        config = AGENT_CONFIGS[agent_key]
+    # Handle custom agents not in config (create generic agent)
+    else:
+        print(f"⚠️  Unknown agent '{agent_key}', creating generic agent")
+        config = {
+            "role": f"{agent_key} Agent",
+            "goal": "Assist with the project",
+            "backstory": UNIVERSAL_BACKSTORY + f" You are a specialized {agent_key} agent."
+        }
+
+    # Create LLM instance
     llm = create_llm_for_model(model_id)
+
+    # Use custom prompt if provided, otherwise use default backstory
+    backstory = custom_prompt if custom_prompt else config.get("backstory", config.get("goal", ""))
 
     return Agent(
         role=config["role"],
         goal=config["goal"],
-        backstory=config["backstory"],
+        backstory=backstory,
         llm=llm
     )
 
