@@ -755,6 +755,19 @@ def run_dev_team(project_description, selected_agents, github_url="", custom_pro
             result = crew.kickoff()
             log_agent_message("System", f"Execution completed successfully")
 
+            # Extract and log individual task outputs
+            try:
+                for i, task in enumerate(tasks):
+                    if hasattr(task, 'output') and task.output:
+                        # Get the agent role for this task
+                        agent_role = sorted_agents[i] if i < len(sorted_agents) else "Unknown"
+                        # Log the task output to the agent's log
+                        task_output = str(task.output)
+                        log_agent_message(agent_role, f"Output:\n{task_output}")
+                        log_agent_message("System", f"Captured output from {agent_role}")
+            except Exception as e:
+                log_agent_message("System", f"Warning: Could not extract task outputs: {str(e)}")
+
             # Auto-save learnings to memory
             try:
                 result_str = str(result)
@@ -908,7 +921,7 @@ def run_dev_team(project_description, selected_agents, github_url="", custom_pro
 # ==============================
 def update_logs():
     """Update all agent log displays"""
-    return ["\n".join(agent_logs[role]) for role in agent_logs]
+    return ["\n".join(agent_logs[role]) for role in AGENT_ROLES]
 
 def create_custom_prompt_inputs():
     """Create custom prompt inputs for each agent"""
