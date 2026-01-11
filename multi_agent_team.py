@@ -549,6 +549,35 @@ if AGENT_CONFIGS_DYNAMIC:
 else:
     AGENT_ROLES = ["PM", "Memory", "Research", "Ideas", "Designs", "Senior", "iOS", "Android", "Web", "QA", "Verifier"]
 
+def get_agents_by_category():
+    """Group agents by their category for organized UI display
+
+    Returns:
+        Dict[str, List[str]]: Dictionary mapping category names to lists of agent IDs
+    """
+    if not AGENT_CONFIGS_DYNAMIC:
+        # Fallback categorization for hardcoded agents
+        return {
+            "Management": ["PM", "Memory"],
+            "Product & Design": ["Research", "Ideas", "Designs"],
+            "Engineering": ["Senior", "iOS", "Android", "Web"],
+            "Quality Assurance": ["QA", "Verifier"]
+        }
+
+    categories = {}
+    for agent_id, agent_config in AGENT_CONFIGS_DYNAMIC.items():
+        category = agent_config.get('category', 'Other')
+        if category not in categories:
+            categories[category] = []
+        categories[category].append(agent_id)
+
+    # Sort categories and agents within each category
+    sorted_categories = {}
+    for category in sorted(categories.keys()):
+        sorted_categories[category] = sorted(categories[category])
+
+    return sorted_categories
+
 # Execution priority/dependency order
 # Lower priority number = runs first
 # Agents in same priority can run in parallel
@@ -1755,12 +1784,31 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                 info="Quick select common agent combinations"
             )
 
-            agent_selector = gr.CheckboxGroup(
-                choices=AGENT_ROLES,
-                value=["PM", "Memory", "Research", "Ideas", "Designs", "QA"],  # Default selection
-                label="Active Agents",
-                info="Select which agents should work on this project"
-            )
+            # Grouped agent selectors by category
+            agents_by_category = get_agents_by_category()
+            agent_selectors_by_category = {}
+
+            gr.Markdown("### 📂 Agents Organized by Category")
+            gr.Markdown("*Select agents from each category below. Teams are organized by expertise area.*")
+
+            for category, agent_ids in agents_by_category.items():
+                with gr.Accordion(f"{category} ({len(agent_ids)} agents)", open=(category in ["Management", "Engineering", "Product & Design"])):
+                    agent_selectors_by_category[category] = gr.CheckboxGroup(
+                        choices=agent_ids,
+                        value=[aid for aid in agent_ids if aid in ["PM", "Memory", "Research", "Ideas", "Designs", "QA", "Senior"]],  # Default selections
+                        label=f"{category} Agents",
+                        info=f"Select from {len(agent_ids)} {category.lower()} agents"
+                    )
+
+            # Merged selection display (updated dynamically from category selections)
+            with gr.Accordion("✅ Selected Agents Summary", open=False):
+                agent_selector = gr.CheckboxGroup(
+                    choices=AGENT_ROLES,
+                    value=["PM", "Memory", "Research", "Ideas", "Designs", "QA", "Senior"],
+                    label="All Selected Agents",
+                    info="Combined selection from all categories above. You can also manually adjust here.",
+                    interactive=True
+                )
 
             # Code Review Mode toggle
             code_review_checkbox = gr.Checkbox(
@@ -1921,11 +1969,28 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                 export_individual_buttons.append(export_btn)
 
     # Event handlers
-    def update_agent_selection(preset_name):
-        """Update agent selection based on preset"""
+    def merge_category_selections(*category_selections):
+        """Merge all category checkbox selections into a single list"""
+        merged = []
+        for selection in category_selections:
+            if selection:
+                merged.extend(selection)
+        return merged
+
+    def update_agent_selection_grouped(preset_name):
+        """Update agent selection based on preset - returns updates for all category groups"""
         if preset_name == "Custom Selection" or preset_name not in AGENT_PRESETS:
-            return gr.update()  # No change
-        return gr.update(value=AGENT_PRESETS[preset_name])
+            return tuple([gr.update() for _ in agents_by_category])  # No change
+
+        preset_agents = AGENT_PRESETS.get(preset_name, [])
+        updates = []
+
+        for category, agent_ids in agents_by_category.items():
+            # Select agents that are both in this category and in the preset
+            selected = [aid for aid in agent_ids if aid in preset_agents]
+            updates.append(gr.update(value=selected))
+
+        return tuple(updates)
 
     def run_and_update(project, selected, github_url, *args):
         """Main execution handler - receives all individual inputs and builds dictionaries"""
@@ -2021,12 +2086,20 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
         outputs=[status_output, stats_display] + log_outputs
     )
 
-    # Agent preset dropdown handler
+    # Agent preset dropdown handler - updates both category groups and main selector
     agent_preset_dropdown.change(
-        update_agent_selection,
+        update_agent_selection_grouped,
         inputs=[agent_preset_dropdown],
-        outputs=[agent_selector]
+        outputs=list(agent_selectors_by_category.values())
     )
+
+    # Sync category selections to main agent selector
+    for category_selector in agent_selectors_by_category.values():
+        category_selector.change(
+            merge_category_selections,
+            inputs=list(agent_selectors_by_category.values()),
+            outputs=[agent_selector]
+        )
 
     # YAML Import button handlers
     if YAML_PARSER_AVAILABLE:
