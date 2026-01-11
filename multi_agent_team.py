@@ -9,6 +9,15 @@ import time  # Rate limit delay
 import csv
 from pathlib import Path
 
+# Import Projects & Teams storage system
+from projects_store import (
+    ProjectsStore,
+    get_template_names,
+    get_template,
+    render_team_card_safe,
+    escape_html
+)
+
 # Import code application system
 try:
     from code_applicator import apply_agent_changes_workflow, apply_agent_changes_from_github
@@ -1715,16 +1724,93 @@ def load_custom_css():
     return ""
 
 
+# Initialize Projects Store
+projects_store = ProjectsStore()
+
 # Build the enhanced Gradio interface
 with gr.Blocks(title="Super Dev Team") as demo:
     gr.Markdown("# 🚀 Super Multi-Agent Dev Team")
     gr.Markdown("**Market-Smart • Lean • Hallucination-Resistant • Fully Customizable**")
 
-    with gr.Row():
-        with gr.Column(scale=2):
-            # Project configuration section
-            gr.Markdown("## 📋 Project Configuration")
-            project_input = gr.Textbox(
+    with gr.Tabs():
+        # TAB 1: PROJECTS & TEAMS
+        with gr.TabItem("📁 Projects & Teams"):
+            gr.Markdown("## Multi-Team Project Management")
+            gr.Markdown("*Create projects, add sequential teams, execute with checkpoints*")
+
+            with gr.Row():
+                with gr.Column(scale=1):
+                    # Project Management Section
+                    gr.Markdown("### Your Projects")
+
+                    project_list = gr.Dropdown(
+                        choices=[],
+                        label="Select Project",
+                        info="Choose a project to view or manage"
+                    )
+
+                    with gr.Row():
+                        new_project_btn = gr.Button("➕ New Project", size="sm")
+                        delete_project_btn = gr.Button("🗑️ Delete", size="sm", variant="stop")
+                        refresh_projects_btn = gr.Button("🔄 Refresh", size="sm")
+
+                    project_status_msg = gr.Textbox(label="Status", interactive=False, lines=2)
+
+                with gr.Column(scale=2):
+                    # Project Details & Teams
+                    gr.Markdown("### Project Details")
+
+                    project_details_html = gr.HTML(value="<p>Select a project to view details</p>")
+
+                    teams_list_html = gr.HTML(value="<p>No teams added yet</p>")
+
+                    run_project_btn = gr.Button("▶️ Run Project", variant="primary", size="lg")
+
+            # New Project Form (hidden by default)
+            with gr.Group(visible=False) as new_project_form:
+                gr.Markdown("### Create New Project")
+
+                template_selector = gr.Dropdown(
+                    choices=["Blank Project"] + get_template_names(),
+                    value="Blank Project",
+                    label="Template",
+                    info="Start with a pre-built template or blank project"
+                )
+
+                new_project_name = gr.Textbox(label="Project Name", placeholder="My Project")
+                new_project_desc = gr.Textbox(label="Description", lines=3, placeholder="What are you building?")
+
+                with gr.Row():
+                    create_project_btn = gr.Button("Create Project", variant="primary")
+                    cancel_new_project_btn = gr.Button("Cancel")
+
+            # Team Builder (hidden by default)
+            with gr.Group(visible=False) as team_builder_form:
+                gr.Markdown("### Add Team to Project")
+
+                new_team_name = gr.Textbox(label="Team Name", placeholder="Backend Squad")
+                new_team_desc = gr.Textbox(label="Description", lines=2, placeholder="What will this team do?")
+
+                # Reuse the existing agent selector grouping
+                new_team_agents = gr.CheckboxGroup(
+                    choices=AGENT_ROLES,
+                    label="Team Agents",
+                    info="Select agents for this team (execute sequentially)"
+                )
+
+                with gr.Row():
+                    add_team_btn = gr.Button("Add Team", variant="primary")
+                    cancel_team_btn = gr.Button("Cancel")
+
+        # TAB 2: QUICK RUN (existing UI)
+        with gr.TabItem("⚡ Quick Run"):
+            gr.Markdown("*Single execution mode - run agents immediately*")
+
+            with gr.Row():
+                with gr.Column(scale=2):
+                    # Project configuration section
+                    gr.Markdown("## 📋 Project Configuration")
+                    project_input = gr.Textbox(
                 label="Project Description",
                 lines=5,
                 placeholder="Describe your project in detail..."
@@ -2147,6 +2233,133 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
             inputs=[project_input],
             outputs=[export_status]
         )
+
+    # ===== PROJECTS & TEAMS EVENT HANDLERS =====
+
+    def toggle_new_project_form(visible):
+        """Show/hide new project form"""
+        return gr.update(visible=not visible)
+
+    def load_projects_list():
+        """Load all projects into dropdown"""
+        projects = projects_store.list_projects()
+        choices = [(f"{p['name']} ({len(p['teams'])} teams)", p['id']) for p in projects]
+        return gr.update(choices=choices, value=None)
+
+    def create_new_project(template_name, name, description):
+        """Create a new project"""
+        try:
+            if not name:
+                return "Error: Project name required", gr.update(), gr.update(visible=True)
+
+            project_id = projects_store.create_project(name, description)
+
+            # Add teams from template if selected
+            if template_name != "Blank Project":
+                template = get_template(template_name)
+                if template:
+                    for team_data in template.get("teams", []):
+                        projects_store.add_team(
+                            project_id,
+                            team_data["name"],
+                            team_data["agents"],
+                            team_data.get("description", ""),
+                            validate_agents=False
+                        )
+
+            projects = projects_store.list_projects()
+            choices = [(f"{p['name']} ({len(p['teams'])} teams)", p['id']) for p in projects]
+
+            return (
+                f"✅ Project '{name}' created!",
+                gr.update(choices=choices, value=project_id),
+                gr.update(visible=False)
+            )
+        except Exception as e:
+            return f"Error: {str(e)}", gr.update(), gr.update(visible=True)
+
+    def load_project_details(project_id):
+        """Load and display project details"""
+        if not project_id:
+            return "<p>Select a project</p>", "<p>No teams</p>", ""
+
+        project = projects_store.get_project(project_id)
+        if not project:
+            return "<p>Project not found</p>", "<p>No teams</p>", ""
+
+        # Format project details
+        details_html = f"""
+        <div style="padding: 12px; background: #f9f9f9; border-radius: 8px;">
+            <h3>{escape_html(project['name'])}</h3>
+            <p>{escape_html(project.get('description', 'No description'))}</p>
+            <p style="font-size: 12px; color: #666;">
+                Created: {project.get('createdAt', 'Unknown')}<br/>
+                Teams: {len(project.get('teams', []))}
+            </p>
+        </div>
+        """
+
+        # Format teams list
+        teams = project.get('teams', [])
+        if not teams:
+            teams_html = "<p>No teams added yet. Click 'Add Team' to create one.</p>"
+        else:
+            teams_html = "".join([
+                render_team_card_safe(team, i) for i, team in enumerate(teams)
+            ])
+
+        return details_html, teams_html, f"Project '{project['name']}' loaded"
+
+    def delete_current_project(project_id):
+        """Delete the selected project"""
+        if not project_id:
+            return "No project selected", gr.update()
+
+        project = projects_store.get_project(project_id)
+        if not project:
+            return "Project not found", gr.update()
+
+        name = project['name']
+        projects_store.delete_project(project_id)
+
+        projects = projects_store.list_projects()
+        choices = [(f"{p['name']} ({len(p['teams'])} teams)", p['id']) for p in projects]
+
+        return f"✅ Project '{name}' deleted", gr.update(choices=choices, value=None)
+
+    # Wire up Projects & Teams event handlers
+    new_project_btn.click(
+        lambda: gr.update(visible=True),
+        outputs=[new_project_form]
+    )
+
+    cancel_new_project_btn.click(
+        lambda: gr.update(visible=False),
+        outputs=[new_project_form]
+    )
+
+    create_project_btn.click(
+        create_new_project,
+        inputs=[template_selector, new_project_name, new_project_desc],
+        outputs=[project_status_msg, project_list, new_project_form]
+    )
+
+    refresh_projects_btn.click(
+        load_projects_list,
+        outputs=[project_list]
+    )
+
+    project_list.change(
+        load_project_details,
+        inputs=[project_list],
+        outputs=[project_details_html, teams_list_html, project_status_msg]
+    )
+
+    delete_project_btn.click(
+        delete_current_project,
+        inputs=[project_list],
+        outputs=[project_status_msg, project_list]
+    )
 
 # Launch the application
 if __name__ == "__main__":
