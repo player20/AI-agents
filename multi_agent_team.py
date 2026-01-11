@@ -29,6 +29,17 @@ except ImportError:
     YAML_PARSER_AVAILABLE = False
     print("⚠️  YAML parser not available. Install workflow_yaml_parser.py for workflow import.")
 
+# Import workflow visualization
+try:
+    from workflow_visualization import (
+        generate_workflow_graph,
+        generate_execution_status_legend
+    )
+    WORKFLOW_VIZ_AVAILABLE = True
+except ImportError:
+    WORKFLOW_VIZ_AVAILABLE = False
+    print("⚠️  Workflow visualization not available. Install workflow_visualization.py for visual graphs.")
+
 # ==============================
 # CONFIGURATION
 # ==============================
@@ -1006,12 +1017,13 @@ def handle_yaml_import(yaml_file_path):
     Handle YAML workflow import and populate Gradio fields
 
     Returns:
-        Tuple of (status_message, workflow_preview, agents_update, project_name_update, preview_visible)
+        Tuple of (status_message, workflow_preview, agents_update, project_name_update, preview_visible, workflow_viz_html)
     """
     if not YAML_PARSER_AVAILABLE:
         return (
             "❌ YAML parser not available. Install workflow_yaml_parser.py",
             None,
+            gr.update(),
             gr.update(),
             gr.update(),
             gr.update()
@@ -1022,6 +1034,7 @@ def handle_yaml_import(yaml_file_path):
             return (
                 "⚠️ No file selected. Please select a YAML workflow file.",
                 None,
+                gr.update(),
                 gr.update(),
                 gr.update(),
                 gr.update()
@@ -1072,12 +1085,24 @@ def handle_yaml_import(yaml_file_path):
             "priorities": workflow['priorities']
         }
 
+        # Generate workflow visualization if available
+        workflow_viz_html = ""
+        if WORKFLOW_VIZ_AVAILABLE:
+            try:
+                workflow_viz_html = generate_workflow_graph(workflow)
+                workflow_viz_html += generate_execution_status_legend()
+            except Exception as viz_error:
+                workflow_viz_html = f"<div style='padding: 20px; color: #F59E0B;'>⚠️ Could not generate workflow visualization: {str(viz_error)}</div>"
+        else:
+            workflow_viz_html = "<div style='padding: 20px; color: #666;'>⚠️ Workflow visualization not available. Install graphviz: pip install graphviz</div>"
+
         return (
             status_msg,
             preview_data,
             gr.update(value=valid_agents),  # Update agent selector
             gr.update(value=workflow['name']),  # Update project name
-            gr.update(visible=True)  # Show preview
+            gr.update(visible=True),  # Show preview
+            gr.update(value=workflow_viz_html, visible=True)  # Show workflow visualization
         )
 
     except ValueError as e:
@@ -1086,12 +1111,14 @@ def handle_yaml_import(yaml_file_path):
             None,
             gr.update(),
             gr.update(),
+            gr.update(),
             gr.update()
         )
     except Exception as e:
         return (
             f"❌ Unexpected error during import: {str(e)}",
             None,
+            gr.update(),
             gr.update(),
             gr.update(),
             gr.update()
@@ -1103,12 +1130,23 @@ def clear_yaml_import():
     return (
         "Import cleared. You can import a new workflow.",
         None,
-        gr.update(visible=False)
+        gr.update(visible=False),
+        gr.update(value="", visible=False)  # Clear workflow visualization
     )
 
 
+# Load custom CSS theme
+def load_custom_css():
+    """Load custom CSS theme from gradio_theme.css"""
+    css_file = Path(__file__).parent / "gradio_theme.css"
+    if css_file.exists():
+        with open(css_file, 'r', encoding='utf-8') as f:
+            return f.read()
+    return ""
+
+
 # Build the enhanced Gradio interface
-with gr.Blocks(title="Super Dev Team") as demo:
+with gr.Blocks(title="Super Dev Team", css=load_custom_css()) as demo:
     gr.Markdown("# 🚀 Super Multi-Agent Dev Team")
     gr.Markdown("**Market-Smart • Lean • Hallucination-Resistant • Fully Customizable**")
 
@@ -1131,7 +1169,7 @@ with gr.Blocks(title="Super Dev Team") as demo:
 
             # YAML Workflow Import Section
             if YAML_PARSER_AVAILABLE:
-                with gr.Accordion("📥 Import Workflow from YAML", open=False):
+                with gr.Accordion("📥 Import Workflow from YAML", open=True):
                     gr.Markdown("""
 **Import workflows designed in the Visual Workflow Builder**
 
@@ -1157,6 +1195,11 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
 
                     workflow_preview = gr.JSON(
                         label="Workflow Preview",
+                        visible=False
+                    )
+
+                    workflow_viz = gr.HTML(
+                        label="Workflow Visualization",
                         visible=False
                     )
 
@@ -1302,7 +1345,7 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                 interactive=False
             )
 
-    # Agent outputs section
+    # Agent outputs section with tabs
     gr.Markdown("---")
     gr.Markdown("## 📝 Agent Outputs")
     gr.Markdown("*Individual agent findings and logs (updates after each run)*")
@@ -1310,23 +1353,19 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
     log_outputs = []
     export_individual_buttons = []
 
-    with gr.Row():
-        for i, role in enumerate(AGENT_ROLES):
-            if i % 3 == 0 and i > 0:  # Create new row every 3 agents
-                with gr.Row():
-                    pass
-
-            with gr.Column():
-                gr.Markdown(f"### {role}")
+    with gr.Tabs() as agent_output_tabs:
+        for role in AGENT_ROLES:
+            with gr.Tab(label=role):
                 log_output = gr.Textbox(
-                    lines=10,
+                    label=f"{role} Output",
+                    lines=20,
                     interactive=False,
-                    show_label=False,
-                    placeholder=f"No output yet for {role}..."
+                    placeholder=f"No output yet for {role}...",
+                    show_copy_button=True
                 )
                 log_outputs.append(log_output)
 
-                export_btn = gr.Button(f"Export {role}", size="sm", variant="secondary")
+                export_btn = gr.Button(f"📥 Export {role} Output", size="sm", variant="secondary")
                 export_individual_buttons.append(export_btn)
 
     # Event handlers
@@ -1442,13 +1481,13 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
         import_button.click(
             handle_yaml_import,
             inputs=[yaml_file_input],
-            outputs=[import_status, workflow_preview, agent_selector, project_input, workflow_preview]
+            outputs=[import_status, workflow_preview, agent_selector, project_input, workflow_preview, workflow_viz]
         )
 
         clear_import_button.click(
             clear_yaml_import,
             inputs=[],
-            outputs=[import_status, workflow_preview, workflow_preview]
+            outputs=[import_status, workflow_preview, workflow_preview, workflow_viz]
         )
 
     # Export button handlers
