@@ -1494,9 +1494,17 @@ def create_custom_prompt_inputs():
     """Create custom prompt inputs for each agent"""
     prompt_inputs = {}
     for role in AGENT_ROLES:
+        # Get default prompt from either DEFAULT_PROMPTS or agents.config.json
+        if role in DEFAULT_PROMPTS:
+            default_prompt = DEFAULT_PROMPTS[role]
+        elif AGENT_CONFIGS_DYNAMIC and role in AGENT_CONFIGS_DYNAMIC:
+            default_prompt = AGENT_CONFIGS_DYNAMIC[role].get('defaultPrompt', 'Execute task for this agent')
+        else:
+            default_prompt = "Custom prompt for this agent..."
+
         prompt_inputs[role] = gr.Textbox(
             label=f"{role} Agent Prompt",
-            placeholder=DEFAULT_PROMPTS[role],
+            placeholder=default_prompt,
             lines=3,
             value=""
         )
@@ -1779,7 +1787,7 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
 
                         priority_inputs[role] = gr.Number(
                             label=f"{role}",
-                            value=AGENT_EXECUTION_PRIORITY.get(role, 999),
+                            value=AGENT_EXECUTION_PRIORITY.get(role, 10),
                             minimum=1,
                             maximum=20,
                             step=1,
@@ -1792,9 +1800,18 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                 gr.Markdown("*Leave blank to use default prompts. Use {project_description} as placeholder.*")
                 custom_prompt_inputs = {}
                 for role in AGENT_ROLES:
+                    # Get default prompt from either DEFAULT_PROMPTS or agents.config.json
+                    if role in DEFAULT_PROMPTS:
+                        default_prompt = DEFAULT_PROMPTS[role][:100] + "..."
+                    elif AGENT_CONFIGS_DYNAMIC and role in AGENT_CONFIGS_DYNAMIC:
+                        prompt = AGENT_CONFIGS_DYNAMIC[role].get('defaultPrompt', 'Execute task for this agent')
+                        default_prompt = prompt[:100] + "..." if len(prompt) > 100 else prompt
+                    else:
+                        default_prompt = "Custom prompt for this agent..."
+
                     custom_prompt_inputs[role] = gr.Textbox(
                         label=f"{role} Custom Prompt",
-                        placeholder=DEFAULT_PROMPTS[role][:100] + "...",
+                        placeholder=default_prompt,
                         lines=2,
                         value=""
                     )
