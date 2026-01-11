@@ -1954,33 +1954,36 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
 
             # Execution Priority Configuration
             gr.Markdown("## 🔢 Execution Priority (Optional)")
-            with gr.Accordion("Configure Agent Execution Order", open=False):
+            with gr.Accordion("Configure Agent Execution Order", open=False) as priority_accordion:
                 gr.Markdown("""
 **Lower number = runs first** | Agents with same priority can run in parallel
 
 **Default order:**
 1. Memory, PM → 2. Research → 3. Ideas → 4. Designs → 5. iOS/Android/Web → 6. Senior → 7. QA → 8. Verifier
+
+*Only showing priority controls for selected agents*
                 """)
                 priority_inputs = {}
-                with gr.Row():
-                    for i, role in enumerate(AGENT_ROLES):
-                        if i % 4 == 0 and i > 0:
-                            with gr.Row():
-                                pass
 
-                        priority_inputs[role] = gr.Number(
-                            label=f"{role}",
-                            value=AGENT_EXECUTION_PRIORITY.get(role, 10),
-                            minimum=1,
-                            maximum=20,
-                            step=1,
-                            precision=0
-                        )
+                # Create priority inputs for ALL agents, but hide them initially
+                for role in AGENT_ROLES:
+                    # Default visible agents (PM, Memory, Research, etc.)
+                    default_visible = role in ["PM", "Memory", "Research", "Ideas", "Designs", "QA", "Senior"]
+
+                    priority_inputs[role] = gr.Number(
+                        label=f"{role}",
+                        value=AGENT_EXECUTION_PRIORITY.get(role, 10),
+                        minimum=1,
+                        maximum=20,
+                        step=1,
+                        precision=0,
+                        visible=default_visible
+                    )
 
             # Custom prompts section (collapsible)
             gr.Markdown("## ✏️ Custom Prompts (Optional)")
             with gr.Accordion("Override Agent Prompts", open=False):
-                gr.Markdown("*Leave blank to use default prompts. Use {project_description} as placeholder.*")
+                gr.Markdown("*Leave blank to use default prompts. Use {project_description} as placeholder. Only showing selected agents.*")
                 custom_prompt_inputs = {}
                 for role in AGENT_ROLES:
                     # Get default prompt from either DEFAULT_PROMPTS or agents.config.json
@@ -1992,11 +1995,15 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                     else:
                         default_prompt = "Custom prompt for this agent..."
 
+                    # Default visible agents
+                    default_visible = role in ["PM", "Memory", "Research", "Ideas", "Designs", "QA", "Senior"]
+
                     custom_prompt_inputs[role] = gr.Textbox(
                         label=f"{role} Custom Prompt",
                         placeholder=default_prompt,
                         lines=2,
-                        value=""
+                        value="",
+                        visible=default_visible
                     )
 
             # Model selection section
@@ -2010,17 +2017,21 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
 
             # Per-agent model override (advanced)
             with gr.Accordion("Advanced: Per-Agent Model Override", open=False):
-                gr.Markdown("*Override individual agent models. Leave as 'Use Default' to follow preset.*")
+                gr.Markdown("*Override individual agent models. Leave as 'Use Default' to follow preset. Only showing selected agents.*")
                 custom_model_inputs = {}
                 model_choices = ["Use Default"] + [f"{v['name']} ({v['cost']} cost, {v['speed']} speed)"
                                                     for k, v in AVAILABLE_MODELS.items()]
                 model_ids = ["Use Default"] + list(AVAILABLE_MODELS.keys())
 
                 for role in AGENT_ROLES:
+                    # Default visible agents
+                    default_visible = role in ["PM", "Memory", "Research", "Ideas", "Designs", "QA", "Senior"]
+
                     custom_model_inputs[role] = gr.Dropdown(
                         choices=model_choices,
                         value="Use Default",
-                        label=f"{role} Model"
+                        label=f"{role} Model",
+                        visible=default_visible
                     )
 
             # Execution controls
@@ -2235,6 +2246,32 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
             inputs=list(agent_selectors_by_category.values()),
             outputs=[agent_selector]
         )
+
+    # Update visibility of priority/prompt/model inputs based on selected agents
+    def update_input_visibility(selected_agents):
+        """Show/hide priority, prompt, and model inputs based on selected agents"""
+        updates = []
+
+        # For each agent, show input if selected, hide if not
+        for role in AGENT_ROLES:
+            is_visible = role in selected_agents
+            # Add 3 updates for each agent: priority, custom_prompt, custom_model
+            updates.append(gr.update(visible=is_visible))  # priority
+            updates.append(gr.update(visible=is_visible))  # custom_prompt
+            updates.append(gr.update(visible=is_visible))  # custom_model
+
+        return updates
+
+    # When agent selection changes, update visibility of all inputs
+    agent_selector.change(
+        update_input_visibility,
+        inputs=[agent_selector],
+        outputs=[
+            # Interleave priority, custom_prompt, and custom_model for each agent
+            val for role in AGENT_ROLES
+            for val in [priority_inputs[role], custom_prompt_inputs[role], custom_model_inputs[role]]
+        ]
+    )
 
     # YAML Import button handlers
     if YAML_PARSER_AVAILABLE:
