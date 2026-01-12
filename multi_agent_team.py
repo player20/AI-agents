@@ -2082,9 +2082,9 @@ with gr.Blocks(title="Super Dev Team") as demo:
             </div>
 
             <script>
-                // Global state to prevent multiple initializations and memory leaks
-                let workflowInitialized = false;
-                let agentCheckInterval = null;
+                // Global state using Promise for safe single initialization
+                let workflowInitPromise = null;
+                let checkboxObserver = null;
 
                 // Workflow stepper auto-advancement
                 function updateWorkflowStep(step) {
@@ -2124,59 +2124,117 @@ with gr.Blocks(title="Super Dev Team") as demo:
                     }
                 }
 
-                // Auto-advance based on user input
-                function initWorkflowTracking() {
-                    // Prevent multiple initializations
-                    if (workflowInitialized) {
-                        return;
-                    }
-                    workflowInitialized = true;
+                // Check agent selection count
+                function checkAgentSelection() {
+                    const checkedBoxes = document.querySelectorAll('input[type="checkbox"]:checked');
+                    const agentCount = Array.from(checkedBoxes).filter(cb => {
+                        const label = cb.parentElement;
+                        return label && !label.textContent.includes('Code Review') && !label.textContent.includes('Auto-export');
+                    }).length;
 
-                    // Step 1: Check if project description has content
-                    const projectInput = document.querySelector('textarea[placeholder*="Build a real-time"], textarea[placeholder*="Describe your project"]');
-                    if (projectInput) {
-                        projectInput.addEventListener('input', function() {
-                            if (this.value.length > 20) {
-                                updateWorkflowStep(2);
-                            }
-                        });
-                    }
-
-                    // Step 2: Check if agents are selected
-                    agentCheckInterval = setInterval(() => {
-                        const checkedBoxes = document.querySelectorAll('input[type="checkbox"]:checked');
-                        const agentCount = Array.from(checkedBoxes).filter(cb => {
-                            const label = cb.parentElement;
-                            return label && !label.textContent.includes('Code Review') && !label.textContent.includes('Auto-export');
-                        }).length;
-
-                        if (agentCount > 0) {
-                            updateWorkflowStep(3);
-                            // Clear interval once agents are selected to prevent memory leak
-                            if (agentCheckInterval) {
-                                clearInterval(agentCheckInterval);
-                                agentCheckInterval = null;
-                            }
+                    if (agentCount > 0) {
+                        updateWorkflowStep(3);
+                        // Disconnect observer once agents are selected to prevent unnecessary checks
+                        if (checkboxObserver) {
+                            checkboxObserver.disconnect();
+                            checkboxObserver = null;
                         }
-                    }, 1000);
-
-                    // Step 4: When Run button is clicked
-                    document.addEventListener('click', (e) => {
-                        if (e.target && e.target.textContent.includes('Run Team')) {
-                            updateWorkflowStep(4);
-                        }
-                    });
+                    }
                 }
 
-                // Initialize workflow tracking when DOM is ready
+                // Promise-based initialization with retry logic
+                async function initWorkflowTracking() {
+                    // Return existing promise if initialization already in progress
+                    if (workflowInitPromise) {
+                        return workflowInitPromise;
+                    }
+
+                    workflowInitPromise = new Promise((resolve, reject) => {
+                        let retries = 0;
+                        const maxRetries = 5;
+
+                        function attemptInit() {
+                            // Step 1: Check if project description has content
+                            const projectInput = document.querySelector('textarea[placeholder*="Build a real-time"], textarea[placeholder*="Describe your project"]');
+
+                            if (!projectInput && retries < maxRetries) {
+                                // Element not ready, retry after delay
+                                retries++;
+                                setTimeout(attemptInit, 500);
+                                return;
+                            }
+
+                            // Successfully found elements or max retries reached
+                            if (projectInput) {
+                                projectInput.addEventListener('input', function() {
+                                    if (this.value.length > 20) {
+                                        updateWorkflowStep(2);
+                                    }
+                                });
+                            }
+
+                            // Step 2: Use MutationObserver instead of setInterval for better performance
+                            checkboxObserver = new MutationObserver((mutations) => {
+                                // Only check when checkbox states change
+                                const hasCheckboxChange = mutations.some(mutation =>
+                                    mutation.type === 'attributes' &&
+                                    mutation.attributeName === 'aria-checked'
+                                );
+
+                                if (hasCheckboxChange) {
+                                    checkAgentSelection();
+                                }
+                            });
+
+                            // Observe checkbox container for changes
+                            const checkboxContainer = document.querySelector('.gradio-container');
+                            if (checkboxContainer) {
+                                checkboxObserver.observe(checkboxContainer, {
+                                    attributes: true,
+                                    subtree: true,
+                                    attributeFilter: ['aria-checked']
+                                });
+                            }
+
+                            // Also listen for direct input events on checkboxes (fallback)
+                            document.addEventListener('change', (e) => {
+                                if (e.target && e.target.type === 'checkbox') {
+                                    checkAgentSelection();
+                                }
+                            });
+
+                            // Step 4: When Run button is clicked
+                            document.addEventListener('click', (e) => {
+                                if (e.target && e.target.textContent.includes('Run Team')) {
+                                    updateWorkflowStep(4);
+                                }
+                            });
+
+                            resolve();
+                        }
+
+                        attemptInit();
+                    });
+
+                    return workflowInitPromise;
+                }
+
+                // Cleanup on page unload
+                window.addEventListener('beforeunload', () => {
+                    if (checkboxObserver) {
+                        checkboxObserver.disconnect();
+                        checkboxObserver = null;
+                    }
+                    workflowInitPromise = null;
+                });
+
+                // Single initialization call using Promise
+                // This prevents race conditions from multiple calls
                 if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', initWorkflowTracking);
+                    document.addEventListener('DOMContentLoaded', () => initWorkflowTracking());
                 } else {
                     initWorkflowTracking();
                 }
-
-                // Also retry after a delay for Gradio dynamic rendering
-                setTimeout(initWorkflowTracking, 2000);
             </script>
             """)
 
@@ -2318,7 +2376,8 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                         gr.Markdown("### 📂 Agents Organized by Category")
 
                         for category, agent_ids in agents_by_category.items():
-                            with gr.Accordion(f"{category} ({len(agent_ids)} agents)", open=(category in ["Management", "Engineering"])):
+                            # Only open "Management" by default to improve initial render performance
+                            with gr.Accordion(f"{category} ({len(agent_ids)} agents)", open=(category == "Management")):
                                 agent_selectors_by_category[category] = gr.CheckboxGroup(
                                     choices=agent_ids,
                                     value=[aid for aid in agent_ids if aid in ["PM", "Memory", "Research", "Ideas", "Designs", "QA", "Senior"]],  # Default selections
@@ -2344,8 +2403,41 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
 
             # Agent search and filter JavaScript
             gr.HTML("""
+            <style>
+                /* Performance optimizations for 52 checkboxes */
+                .agent-checkbox-container {
+                    /* Use CSS containment for better rendering performance */
+                    contain: layout style paint;
+                    /* Enable GPU acceleration */
+                    will-change: transform;
+                    /* Prevent reflow */
+                    transform: translateZ(0);
+                }
+
+                /* Optimize accordion rendering */
+                [class*="accordion"] {
+                    /* Contain layout calculations */
+                    contain: layout;
+                    /* Hint browser about transform changes */
+                    will-change: contents;
+                }
+
+                /* Smooth transitions */
+                label {
+                    transition: opacity 0.15s ease;
+                }
+
+                /* Hidden state optimization */
+                [style*="display: none"] {
+                    /* Use visibility for better performance than display:none in some cases */
+                    visibility: hidden;
+                    height: 0;
+                    overflow: hidden;
+                }
+            </style>
+
             <script>
-                // Agent search and filter functionality
+                // Agent search and filter functionality with performance optimizations
                 function initAgentSearchAndFilter() {
                     // Get references to search and filter elements
                     const searchBox = document.querySelector('#agent_search_box textarea, #agent_search_box input');
@@ -2357,61 +2449,108 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                         return;
                     }
 
+                    // Debounce function to prevent excessive re-renders
+                    function debounce(func, wait) {
+                        let timeout;
+                        return function executedFunction(...args) {
+                            const later = () => {
+                                clearTimeout(timeout);
+                                func(...args);
+                            };
+                            clearTimeout(timeout);
+                            timeout = setTimeout(later, wait);
+                        };
+                    }
+
+                    // Cache DOM queries for better performance
+                    let accordionsCache = null;
+                    let lastSearchTerm = '';
+                    let lastCategory = 'All Categories';
+
                     function filterAgents() {
                         const searchTerm = (searchBox.value || '').toLowerCase();
                         const selectedCategory = categoryFilter.value || 'All Categories';
 
-                        // Get all accordion elements
-                        const accordions = document.querySelectorAll('[class*="accordion"]');
+                        // Skip if nothing changed (optimization)
+                        if (searchTerm === lastSearchTerm && selectedCategory === lastCategory) {
+                            return;
+                        }
 
-                        accordions.forEach(accordion => {
-                            const header = accordion.querySelector('span, div');
-                            if (!header) return;
+                        lastSearchTerm = searchTerm;
+                        lastCategory = selectedCategory;
 
-                            const headerText = header.textContent || '';
-                            const categoryName = headerText.split('(')[0].trim();
-
-                            // Check if this accordion matches the category filter
-                            const matchesCategory = selectedCategory === 'All Categories' ||
-                                                    headerText.includes(selectedCategory);
-
-                            if (!matchesCategory) {
-                                accordion.style.display = 'none';
-                                return;
+                        // Use requestAnimationFrame for smoother updates
+                        requestAnimationFrame(() => {
+                            // Cache accordion queries if not already cached
+                            if (!accordionsCache) {
+                                accordionsCache = Array.from(document.querySelectorAll('[class*="accordion"]'));
                             }
 
-                            // If no search term, show all matching categories
-                            if (!searchTerm) {
-                                accordion.style.display = '';
-                                return;
-                            }
+                            // Batch DOM updates using DocumentFragment for better performance
+                            accordionsCache.forEach(accordion => {
+                                const header = accordion.querySelector('span, div');
+                                if (!header) return;
 
-                            // Get all checkboxes in this accordion
-                            const labels = accordion.querySelectorAll('label');
-                            let visibleCount = 0;
+                                const headerText = header.textContent || '';
 
-                            labels.forEach(label => {
-                                const labelText = (label.textContent || '').toLowerCase();
-                                const matchesSearch = labelText.includes(searchTerm);
+                                // Check if this accordion matches the category filter
+                                const matchesCategory = selectedCategory === 'All Categories' ||
+                                                        headerText.includes(selectedCategory);
 
-                                if (matchesSearch) {
-                                    label.style.display = '';
-                                    visibleCount++;
-                                } else {
-                                    label.style.display = 'none';
+                                if (!matchesCategory) {
+                                    accordion.style.display = 'none';
+                                    return;
                                 }
-                            });
 
-                            // Hide accordion if no agents match
-                            accordion.style.display = visibleCount > 0 ? '' : 'none';
+                                // If no search term, show all matching categories
+                                if (!searchTerm) {
+                                    accordion.style.display = '';
+                                    // Show all labels in this accordion
+                                    const labels = accordion.querySelectorAll('label');
+                                    labels.forEach(label => {
+                                        label.style.display = '';
+                                    });
+                                    return;
+                                }
+
+                                // Get all checkboxes in this accordion
+                                const labels = accordion.querySelectorAll('label');
+                                let visibleCount = 0;
+
+                                // Batch style updates
+                                const updates = [];
+                                labels.forEach(label => {
+                                    const labelText = (label.textContent || '').toLowerCase();
+                                    const matchesSearch = labelText.includes(searchTerm);
+
+                                    updates.push({ label, visible: matchesSearch });
+                                    if (matchesSearch) visibleCount++;
+                                });
+
+                                // Apply all updates at once (reduces reflows)
+                                updates.forEach(({ label, visible }) => {
+                                    label.style.display = visible ? '' : 'none';
+                                });
+
+                                // Hide accordion if no agents match
+                                accordion.style.display = visibleCount > 0 ? '' : 'none';
+                            });
                         });
                     }
 
-                    // Attach event listeners
-                    searchBox.addEventListener('input', filterAgents);
-                    categoryFilter.addEventListener('change', filterAgents);
+                    // Debounced filter for search input (300ms delay)
+                    const debouncedFilter = debounce(filterAgents, 300);
 
-                    console.log('Agent search and filter initialized');
+                    // Attach event listeners
+                    searchBox.addEventListener('input', debouncedFilter);  // Debounced for typing
+                    categoryFilter.addEventListener('change', filterAgents);  // Immediate for dropdown
+
+                    // Clear cache when accordions might change (e.g., after Gradio updates)
+                    window.addEventListener('gradio-reload', () => {
+                        accordionsCache = null;
+                    });
+
+                    console.log('Agent search and filter initialized with performance optimizations');
                 }
 
                 // Initialize when DOM is ready
@@ -2891,6 +3030,23 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
         Returns:
             Tuple of (HTML display string, clear button visibility boolean)
         """
+        # Input validation for security
+        if not isinstance(project_description, str):
+            return (
+                gr.update(visible=True, value="""
+                <div style="background: #fef3c7; border: 2px solid #fbbf24; padding: 20px; border-radius: 12px; margin: 16px 0;">
+                    <div style="font-weight: 600; color: #92400e; font-size: 16px;">⚠️ Invalid Input</div>
+                    <div style="color: #92400e; margin-top: 8px;">Project description must be text.</div>
+                </div>
+                """),
+                gr.update(visible=False)
+            )
+
+        # Limit description length to prevent abuse (max 10,000 characters)
+        if len(project_description) > 10000:
+            project_description = project_description[:10000]
+
+        # Check minimum length
         if not project_description or len(project_description.strip()) < 20:
             return (
                 gr.update(visible=True, value="""
@@ -3071,7 +3227,8 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                 <div style="font-size: 13px; color: #0369a1; margin-bottom: 12px;">
                     💡 <strong>Tip:</strong> Click the button below to automatically select these agents in Step 2.
                 </div>
-                <button id="apply_recommendations" onclick="applyRecommendedAgents({json.dumps(recommended_agents)})"
+                <button id="apply_recommendations_{hash(project_description)}" class="apply-recommendations-btn"
+                        data-agents="{html.escape(json.dumps(recommended_agents))}"
                         style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: transform 0.2s ease;">
                     ✅ Apply These Recommendations
                 </button>
@@ -3169,6 +3326,45 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                     }}, 500);
                 }}
             }}
+
+            // Event delegation for apply recommendations buttons
+            // This is safer than inline onclick as it uses data attributes
+            document.addEventListener('click', function(event) {{
+                if (event.target.classList.contains('apply-recommendations-btn')) {{
+                    // Get agent IDs from data attribute (already HTML-escaped)
+                    const agentsData = event.target.getAttribute('data-agents');
+
+                    // Validate and parse
+                    if (!agentsData) {{
+                        console.error('No agent data found on button');
+                        showToast('❌ Error: No agent data available');
+                        return;
+                    }}
+
+                    try {{
+                        // Parse the JSON string
+                        const agentIds = JSON.parse(agentsData);
+
+                        // Validate it's an array
+                        if (!Array.isArray(agentIds)) {{
+                            throw new Error('Agent data is not an array');
+                        }}
+
+                        // Validate all items are strings (agent IDs)
+                        const allStrings = agentIds.every(id => typeof id === 'string');
+                        if (!allStrings) {{
+                            throw new Error('Invalid agent ID format');
+                        }}
+
+                        // Apply recommendations
+                        applyRecommendedAgents(agentIds);
+
+                    }} catch (e) {{
+                        console.error('Error parsing agent data:', e);
+                        showToast('❌ Error: Invalid agent data format');
+                    }}
+                }}
+            }});
         </script>
         """
 
