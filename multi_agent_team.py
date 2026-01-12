@@ -1931,15 +1931,159 @@ def run_dev_team(project_description, selected_agents, github_url="", custom_pro
             return status_msg, outputs, export_paths
 
         except Exception as e:
-            error_msg = f"Error during task execution: {str(e)}\nCheck agent logs for details."
+            # Enhanced error handling with specific guidance
+            error_type = type(e).__name__
+            error_detail = str(e)
+
+            log_agent_message("System", f"❌ Error during execution: {error_type}")
+            log_agent_message("System", f"   Details: {error_detail}")
+
+            # Provide specific guidance based on error type
+            if "rate_limit" in error_detail.lower() or "429" in error_detail:
+                error_msg = f"""❌ API Rate Limit Exceeded
+
+What happened:
+You've made too many requests to the Claude API recently.
+
+Why it happened:
+- Running too many agents in a short time period
+- Each agent makes API calls, and there's a limit per hour
+- Free tier: 30 requests/hour | Paid tier: Higher limits
+
+What to do next:
+✓ Wait 30-60 minutes for the rate limit to reset
+✓ OR: Reduce the number of agents (try 3-5 instead of 10+)
+✓ OR: Upgrade to a paid tier for higher limits
+✓ Check API status: https://status.anthropic.com
+
+Partial outputs may be available in the Agent Outputs tab below."""
+
+            elif "authentication" in error_detail.lower() or "401" in error_detail or "api key" in error_detail.lower():
+                error_msg = f"""❌ API Authentication Failed
+
+What happened:
+The Claude API key is invalid or missing.
+
+Why it happened:
+- API key not set in environment variables
+- API key has expired or been revoked
+- Incorrect API key format
+
+What to do next:
+✓ Check your .env file has ANTHROPIC_API_KEY set
+✓ Verify the API key is correct (starts with 'sk-ant-...')
+✓ Get a new API key from: https://console.anthropic.com/settings/keys
+✓ Restart the application after updating the key"""
+
+            elif "timeout" in error_detail.lower() or "timed out" in error_detail.lower():
+                error_msg = f"""❌ API Request Timeout
+
+What happened:
+The API request took too long and was cancelled.
+
+Why it happened:
+- Network connectivity issues
+- Claude API experiencing high load
+- Very complex prompts requiring long processing time
+
+What to do next:
+✓ Check your internet connection
+✓ Try running fewer agents at once
+✓ Simplify prompts (remove unnecessary details)
+✓ Try again in a few minutes
+✓ Check API status: https://status.anthropic.com
+
+Partial outputs may be available in the Agent Outputs tab below."""
+
+            elif "connection" in error_detail.lower() or "network" in error_detail.lower():
+                error_msg = f"""❌ Network Connection Error
+
+What happened:
+Unable to connect to the Claude API servers.
+
+Why it happened:
+- Internet connection is down or unstable
+- Firewall blocking API requests
+- VPN interfering with connections
+- API servers temporarily unavailable
+
+What to do next:
+✓ Check your internet connection
+✓ Disable VPN/proxy temporarily
+✓ Check firewall settings allow connections to api.anthropic.com
+✓ Try again in a few minutes
+✓ Check API status: https://status.anthropic.com"""
+
+            elif "context" in error_detail.lower() or "token" in error_detail.lower() and "limit" in error_detail.lower():
+                error_msg = f"""❌ Context Length Exceeded
+
+What happened:
+The total input + output exceeded Claude's context window (200K tokens).
+
+Why it happened:
+- Too many agents running (each adds to context)
+- Very long project descriptions or custom prompts
+- Agents generating extremely long outputs
+
+What to do next:
+✓ Reduce the number of agents (run 3-5 at a time)
+✓ Shorten your project description
+✓ Use more concise custom prompts
+✓ Run agents in smaller batches
+
+Partial outputs may be available in the Agent Outputs tab below."""
+
+            else:
+                # Generic error with troubleshooting tips
+                error_msg = f"""❌ Execution Error
+
+What happened:
+An unexpected error occurred during agent execution.
+
+Error details:
+{error_type}: {error_detail}
+
+What to do next:
+✓ Check the execution logs below for more details
+✓ Try running fewer agents
+✓ Simplify your project description
+✓ Check your internet connection
+✓ Verify API key is valid
+✓ Try again in a few minutes
+
+Partial outputs may be available in the Agent Outputs tab below.
+
+If the problem persists, please report this issue with the error details above."""
+
             log_agent_message("System", error_msg)
+
             # Still return partial outputs if available
             outputs = {role: "\n".join(agent_logs[role]) for role in agent_logs if agent_logs[role]}
             return error_msg, outputs, None
 
     except Exception as e:
-        error_msg = f"Critical error in run_dev_team: {str(e)}"
+        # Top-level critical error handler
+        error_type = type(e).__name__
+        error_detail = str(e)
+
+        error_msg = f"""❌ Critical Error
+
+A critical error occurred before execution could begin.
+
+Error details:
+{error_type}: {error_detail}
+
+What to do next:
+✓ Check that all required fields are filled (project description, agents)
+✓ Verify your API key is set correctly
+✓ Check the console logs for more details
+✓ Try restarting the application
+✓ Report this issue if it persists
+
+This error prevented execution from starting, so no outputs are available."""
+
         print(error_msg)  # Log to console for debugging
+        log_agent_message("System", error_msg)
         return error_msg, {}, None
 
 # ==============================
@@ -1970,31 +2114,164 @@ def create_custom_prompt_inputs():
     return prompt_inputs
 
 def export_handler(format_type, project_desc, selected_agents_list):
-    """Handle manual export requests"""
+    """Handle manual export requests with rich visual feedback"""
+    import os
+
     try:
         if not selected_agents_list or len(selected_agents_list) == 0:
-            return "Error: No agents selected. Run the team first."
+            return """
+            <div style="background: #fef3c7; border: 2px solid #fbbf24; padding: 16px; border-radius: 8px;">
+                <div style="font-weight: 600; color: #92400e;">⚠️ No Agents Selected</div>
+                <div style="color: #92400e; margin-top: 6px; font-size: 14px;">
+                    Please run the team first to generate outputs.
+                </div>
+            </div>
+            """
 
         outputs = {role: "\n".join(agent_logs[role]) for role in agent_logs if agent_logs[role]}
 
         if not outputs:
-            return "Error: No outputs to export. Run the team first."
+            return """
+            <div style="background: #fef3c7; border: 2px solid #fbbf24; padding: 16px; border-radius: 8px;">
+                <div style="font-weight: 600; color: #92400e;">⚠️ No Outputs Available</div>
+                <div style="color: #92400e; margin-top: 6px; font-size: 14px;">
+                    Run the team first to generate outputs for export.
+                </div>
+            </div>
+            """
 
+        # Export files
+        paths = {}
         if format_type == "json":
-            path = export_to_json(project_desc[:100], selected_agents_list, outputs)
+            paths['json'] = export_to_json(project_desc[:100], selected_agents_list, outputs)
         elif format_type == "markdown":
-            path = export_to_markdown(project_desc[:100], selected_agents_list, outputs)
+            paths['markdown'] = export_to_markdown(project_desc[:100], selected_agents_list, outputs)
         elif format_type == "csv":
-            path = export_to_csv(project_desc[:100], selected_agents_list, outputs)
+            paths['csv'] = export_to_csv(project_desc[:100], selected_agents_list, outputs)
         elif format_type == "all":
             paths = export_all_formats(project_desc[:100], selected_agents_list, outputs)
-            return f"Exported successfully!\n\nJSON: {paths['json']}\nMarkdown: {paths['markdown']}\nCSV: {paths['csv']}"
         else:
-            return f"Error: Unknown format '{format_type}'"
+            return f"""
+            <div style="background: #fee2e2; border: 2px solid #ef4444; padding: 16px; border-radius: 8px;">
+                <div style="font-weight: 600; color: #991b1b;">❌ Unknown Format</div>
+                <div style="color: #b91c1c; margin-top: 6px; font-size: 14px;">
+                    Format '{format_type}' is not supported.
+                </div>
+            </div>
+            """
 
-        return f"Exported successfully to:\n{path}"
+        # Generate rich feedback HTML
+        files_html = ""
+        total_size = 0
+
+        for file_format, file_path in paths.items():
+            # Get file size
+            if os.path.exists(file_path):
+                file_size = os.path.getsize(file_path)
+                total_size += file_size
+                size_kb = file_size / 1024
+                size_str = f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb/1024:.1f} MB"
+            else:
+                size_str = "Unknown size"
+
+            # Format icons
+            format_icons = {
+                'json': '📄',
+                'markdown': '📝',
+                'csv': '📊'
+            }
+            icon = format_icons.get(file_format, '📁')
+
+            # Normalize path for display (convert backslashes)
+            display_path = file_path.replace('\\', '/')
+
+            files_html += f"""
+            <div style="background: white; border-left: 3px solid #10b981; padding: 14px;
+                        margin-bottom: 10px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 24px;">{icon}</span>
+                        <div>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 14px;">
+                                {file_format.upper()} Export
+                            </div>
+                            <div style="color: #64748b; font-size: 12px; margin-top: 2px;">
+                                {size_str}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="font-family: 'Courier New', monospace; background: #f8fafc;
+                            padding: 10px; border-radius: 4px; color: #475569; font-size: 12px;
+                            word-break: break-all; margin-top: 8px;">
+                    {display_path}
+                </div>
+            </div>
+            """
+
+        return f"""
+        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%);
+                    border: 2px solid #10b981; padding: 20px; border-radius: 10px;
+                    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);">
+
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                <div style="font-size: 32px;">✅</div>
+                <div>
+                    <div style="font-weight: 700; color: #166534; font-size: 18px;">
+                        Export Successful!
+                    </div>
+                    <div style="color: #15803d; font-size: 14px; margin-top: 2px;">
+                        {len(paths)} file(s) exported • Total size: {total_size/1024:.1f} KB
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 16px;">
+                {files_html}
+            </div>
+
+            <div style="background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px;
+                        border-radius: 6px; margin-top: 16px;">
+                <div style="font-weight: 600; color: #92400e; font-size: 13px; margin-bottom: 6px;">
+                    💡 What's Next?
+                </div>
+                <div style="color: #92400e; font-size: 12px; line-height: 1.5;">
+                    • Files are saved in the <code>gradio_exports/</code> directory<br>
+                    • Open files in your favorite editor to review agent outputs<br>
+                    • Share with your team or use for documentation
+                </div>
+            </div>
+        </div>
+        """
+
     except Exception as e:
-        return f"Export failed: {str(e)}"
+        import traceback
+        error_detail = str(e)
+        return f"""
+        <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+                    border: 2px solid #ef4444; padding: 20px; border-radius: 10px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div style="font-size: 32px;">❌</div>
+                <div>
+                    <div style="font-weight: 700; color: #991b1b; font-size: 18px;">
+                        Export Failed
+                    </div>
+                    <div style="color: #b91c1c; font-size: 14px;">
+                        An error occurred while exporting
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #fca5a5;">
+                <div style="font-weight: 600; color: #991b1b; margin-bottom: 6px; font-size: 13px;">
+                    Error Details:
+                </div>
+                <div style="font-family: 'Courier New', monospace; color: #b91c1c; font-size: 12px;">
+                    {error_detail}
+                </div>
+            </div>
+        </div>
+        """
 
 def export_individual_handler(role, project_desc):
     """Handle individual agent export"""
@@ -2649,6 +2926,143 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                 **Select the agents you need.** Not sure where to start? Try the Recommended Agents tab or use Quick Start Templates.
                 """)
 
+                # Agent selection counter (live updates)
+                agent_selection_counter = gr.HTML(
+                    value="""
+                    <div id="agent_selection_counter" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+                            border: 2px solid #0ea5e9; padding: 16px 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span style="font-size: 24px;">👥</span>
+                                <div>
+                                    <div style="font-weight: 700; color: #0c4a6e; font-size: 16px;">
+                                        Selected Agents: <span id="agent_count" style="color: #0369a1;">0</span> / 52
+                                    </div>
+                                    <div style="font-size: 13px; color: #0369a1; margin-top: 2px;">
+                                        <span id="agent_count_message">Select at least 3-5 agents for best results</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button id="clear_all_agents" style="padding: 8px 16px; background: white;
+                                    color: #0369a1; border: 2px solid #0ea5e9; border-radius: 6px;
+                                    font-weight: 600; cursor: pointer; font-size: 13px;
+                                    transition: all 0.2s ease;">
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                    <script>
+                        // Initialize agent counter
+                        function updateAgentCounter() {
+                            // Count all checked checkboxes across all tabs
+                            const allCheckboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+
+                            // Filter out non-agent checkboxes (like code review mode)
+                            const agentCheckboxes = Array.from(allCheckboxes).filter(cb => {
+                                const label = cb.parentElement;
+                                if (!label) return false;
+
+                                // Exclude special checkboxes
+                                const labelText = label.textContent.toLowerCase();
+                                return !labelText.includes('code review') &&
+                                       !labelText.includes('auto export') &&
+                                       !labelText.includes('onboarding');
+                            });
+
+                            const count = agentCheckboxes.length;
+                            const countSpan = document.getElementById('agent_count');
+                            const messageSpan = document.getElementById('agent_count_message');
+                            const counter = document.getElementById('agent_selection_counter');
+
+                            if (countSpan) {
+                                countSpan.textContent = count;
+
+                                // Update color and message based on count
+                                if (count === 0) {
+                                    countSpan.style.color = '#64748b';
+                                    messageSpan.textContent = 'Select at least 3-5 agents for best results';
+                                    messageSpan.style.color = '#64748b';
+                                } else if (count < 3) {
+                                    countSpan.style.color = '#f59e0b';
+                                    messageSpan.textContent = 'Add a few more agents for better coverage';
+                                    messageSpan.style.color = '#f59e0b';
+                                } else if (count <= 10) {
+                                    countSpan.style.color = '#10b981';
+                                    messageSpan.textContent = 'Good selection! Ready to run';
+                                    messageSpan.style.color = '#10b981';
+                                } else if (count <= 20) {
+                                    countSpan.style.color = '#0369a1';
+                                    messageSpan.textContent = 'Large team - may take longer to execute';
+                                    messageSpan.style.color = '#0369a1';
+                                } else {
+                                    countSpan.style.color = '#f59e0b';
+                                    messageSpan.textContent = 'Very large team - consider reducing for faster results';
+                                    messageSpan.style.color = '#f59e0b';
+                                }
+                            }
+                        }
+
+                        // Clear all agents button handler
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const clearBtn = document.getElementById('clear_all_agents');
+                            if (clearBtn) {
+                                clearBtn.addEventListener('click', function() {
+                                    // Uncheck all agent checkboxes
+                                    const allCheckboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+                                    allCheckboxes.forEach(cb => {
+                                        const label = cb.parentElement;
+                                        if (label) {
+                                            const labelText = label.textContent.toLowerCase();
+                                            if (!labelText.includes('code review') &&
+                                                !labelText.includes('auto export')) {
+                                                cb.click();  // Trigger change event
+                                            }
+                                        }
+                                    });
+                                    updateAgentCounter();
+                                });
+
+                                // Hover effect
+                                clearBtn.addEventListener('mouseenter', function() {
+                                    this.style.background = '#f0f9ff';
+                                    this.style.transform = 'translateY(-1px)';
+                                });
+                                clearBtn.addEventListener('mouseleave', function() {
+                                    this.style.background = 'white';
+                                    this.style.transform = 'translateY(0)';
+                                });
+                            }
+                        });
+
+                        // Listen for checkbox changes with debouncing
+                        let counterTimeout;
+                        document.addEventListener('change', function(e) {
+                            if (e.target.type === 'checkbox') {
+                                clearTimeout(counterTimeout);
+                                counterTimeout = setTimeout(updateAgentCounter, 100);
+                            }
+                        });
+
+                        // Initial count
+                        setTimeout(updateAgentCounter, 1000);
+
+                        // Recount when accordions open (agents become visible)
+                        const observer = new MutationObserver(function() {
+                            clearTimeout(counterTimeout);
+                            counterTimeout = setTimeout(updateAgentCounter, 200);
+                        });
+
+                        setTimeout(() => {
+                            observer.observe(document.body, {
+                                childList: true,
+                                subtree: true
+                            });
+                        }, 2000);
+                    </script>
+                    """,
+                    elem_id="agent_counter_display"
+                )
+
                 # Grouped agent selectors by category (needed for reference)
                 agents_by_category = get_agents_by_category()
                 agent_selectors_by_category = {}
@@ -3293,7 +3707,15 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                 export_csv_btn = gr.Button("📊 CSV", size="sm")
 
             export_all_btn = gr.Button("📦 Export All Formats", variant="primary")
-            export_status = gr.Textbox(label="Export Status", lines=3, interactive=False, placeholder="No exports yet...")
+            export_status = gr.HTML(
+                value="""
+                <div style="background: #f8fafc; border: 2px solid #e2e8f0; padding: 16px; border-radius: 8px; text-align: center; color: #64748b;">
+                    <div style="font-size: 14px;">No exports yet...</div>
+                    <div style="font-size: 12px; margin-top: 6px; opacity: 0.8;">Export results will appear here</div>
+                </div>
+                """,
+                label="Export Status"
+            )
 
             gr.Markdown("## 📊 Quick Stats")
             stats_display = gr.Textbox(
