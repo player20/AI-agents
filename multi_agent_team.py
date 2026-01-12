@@ -8,6 +8,7 @@ from datetime import datetime
 import time  # Rate limit delay
 import csv
 from pathlib import Path
+import html  # For XSS prevention via html.escape()
 
 # Import Projects & Teams storage system
 from projects_store import (
@@ -557,6 +558,29 @@ if AGENT_CONFIGS_DYNAMIC:
     AGENT_ROLES = list(AGENT_CONFIGS_DYNAMIC.keys())
 else:
     AGENT_ROLES = ["PM", "Memory", "Research", "Ideas", "Designs", "Senior", "iOS", "Android", "Web", "QA", "Verifier"]
+
+# Create agent descriptions for tooltips (role + goal)
+AGENT_DESCRIPTIONS = {}
+if AGENT_CONFIGS_DYNAMIC:
+    for agent_id, config in AGENT_CONFIGS_DYNAMIC.items():
+        role = config.get('role', agent_id)
+        goal = config.get('goal', '')[:100]  # Limit goal length for tooltips
+        AGENT_DESCRIPTIONS[agent_id] = f"{role} - {goal}"
+else:
+    # Fallback descriptions for hardcoded agents
+    AGENT_DESCRIPTIONS = {
+        "PM": "Project Manager - Create efficient sprint plans and coordinate team",
+        "Memory": "Memory Specialist - Recall and store learnings from previous executions",
+        "Research": "Market Research Analyst - Analyze market opportunities and competitive landscape",
+        "Ideas": "Ideas Specialist - Generate lean, high-impact feature ideas",
+        "Designs": "UI/UX Designer - Create efficient, user-centered designs",
+        "Senior": "Senior Engineer - Technical leadership and architecture decisions",
+        "iOS": "iOS Developer - Build native iOS applications",
+        "Android": "Android Developer - Build native Android applications",
+        "Web": "Web Developer - Full-stack web development",
+        "QA": "Quality Assurance - Comprehensive testing and quality control",
+        "Verifier": "Code Verifier - Verify code quality and implementation correctness"
+    }
 
 # Initialize agent_logs now that AGENT_ROLES is defined
 agent_logs = {"System": []}  # System logs for execution status
@@ -1911,24 +1935,285 @@ with gr.Blocks(title="Super Dev Team") as demo:
 
         # TAB 2: QUICK RUN (existing UI)
         with gr.TabItem("⚡ Quick Run"):
+            # Interactive onboarding banner
+            gr.HTML("""
+            <div id="onboarding_banner" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        padding: 24px; border-radius: 12px; color: white; margin-bottom: 20px;">
+                <h2 style="margin: 0 0 12px 0; font-size: 24px; font-weight: 700;">👋 Welcome to Super Dev Team!</h2>
+                <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.5;">
+                    Get started in 3 easy steps:
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;">
+                    <div style="background: rgba(255,255,255,0.1); padding: 16px; border-radius: 8px;">
+                        <div style="font-size: 32px; margin-bottom: 8px;">1️⃣</div>
+                        <div style="font-weight: 600; font-size: 16px; margin-bottom: 4px;">Describe Your Project</div>
+                        <p style="font-size: 14px; margin: 0; opacity: 0.9; line-height: 1.4;">
+                            What do you want to build? Be specific!
+                        </p>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 16px; border-radius: 8px;">
+                        <div style="font-size: 32px; margin-bottom: 8px;">2️⃣</div>
+                        <div style="font-weight: 600; font-size: 16px; margin-bottom: 4px;">Choose Your Team</div>
+                        <p style="font-size: 14px; margin: 0; opacity: 0.9; line-height: 1.4;">
+                            Pick a preset or select individual agents
+                        </p>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 16px; border-radius: 8px;">
+                        <div style="font-size: 32px; margin-bottom: 8px;">3️⃣</div>
+                        <div style="font-weight: 600; font-size: 16px; margin-bottom: 4px;">Run & Review</div>
+                        <p style="font-size: 14px; margin: 0; opacity: 0.9; line-height: 1.4;">
+                            Click Run and watch your agents work!
+                        </p>
+                    </div>
+                </div>
+                <button id="dismiss-onboarding" style="margin-top: 4px; padding: 10px 20px;
+                        background: white; color: #667eea; border: none; border-radius: 6px;
+                        cursor: pointer; font-weight: 600; font-size: 14px; transition: transform 0.2s ease;">
+                    Got it! Let's start 🚀
+                </button>
+            </div>
+            <script>
+                // Safe localStorage with fallback to sessionStorage
+                function safeStorageGet(key) {
+                    try {
+                        return localStorage.getItem(key);
+                    } catch (e) {
+                        // Fallback to sessionStorage if localStorage unavailable
+                        try {
+                            return sessionStorage.getItem(key);
+                        } catch (e2) {
+                            console.warn('Storage unavailable:', e2);
+                            return null;
+                        }
+                    }
+                }
+
+                function safeStorageSet(key, value) {
+                    try {
+                        localStorage.setItem(key, value);
+                    } catch (e) {
+                        // Fallback to sessionStorage if localStorage unavailable
+                        try {
+                            sessionStorage.setItem(key, value);
+                        } catch (e2) {
+                            console.warn('Storage unavailable:', e2);
+                        }
+                    }
+                }
+
+                // Dismiss onboarding banner and save to storage
+                document.addEventListener('DOMContentLoaded', function() {
+                    const dismissBtn = document.getElementById('dismiss-onboarding');
+                    const banner = document.getElementById('onboarding_banner');
+
+                    // Check if user has dismissed before
+                    if (safeStorageGet('onboarding_dismissed') === 'true') {
+                        if (banner) banner.style.display = 'none';
+                    }
+
+                    // Handle dismiss button click
+                    if (dismissBtn) {
+                        dismissBtn.addEventListener('click', function() {
+                            if (banner) {
+                                banner.style.display = 'none';
+                                safeStorageSet('onboarding_dismissed', 'true');
+                            }
+                        });
+
+                        // Add hover effect
+                        dismissBtn.addEventListener('mouseenter', function() {
+                            this.style.transform = 'translateY(-2px)';
+                        });
+                        dismissBtn.addEventListener('mouseleave', function() {
+                            this.style.transform = 'translateY(0)';
+                        });
+                    }
+                });
+            </script>
+            """)
+
             gr.Markdown("*Single execution mode - run agents immediately*")
 
-            with gr.Row():
-                with gr.Column(scale=2):
-                    # Project configuration section
-                    gr.Markdown("## 📋 Project Configuration")
-                    project_input = gr.Textbox(
-                label="Project Description",
-                lines=5,
-                placeholder="Describe your project in detail..."
-            )
+            # ========== WORKFLOW STEPPER ==========
+            gr.HTML("""
+            <div id="workflow_stepper" style="margin: 32px 0; position: relative;">
+                <!-- Progress line background -->
+                <div style="position: absolute; top: 20px; left: 0; right: 0; height: 4px; background: #e2e8f0; z-index: 0;"></div>
+                <div id="workflow_progress_line" style="position: absolute; top: 20px; left: 0; height: 4px; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); z-index: 1; width: 0%; transition: width 0.3s ease;"></div>
 
-            github_url_input = gr.Textbox(
-                label="GitHub Repository URL (Optional)",
-                lines=1,
-                placeholder="https://github.com/username/repository (for direct code analysis from GitHub)",
-                info="Provide a GitHub URL to clone and analyze. Leave blank for text-only project descriptions."
-            )
+                <!-- Stepper container -->
+                <div style="display: flex; justify-content: space-between; position: relative; z-index: 2;">
+                    <!-- Step 1: Describe -->
+                    <div class="workflow-step" data-step="1" style="flex: 1; text-align: center;">
+                        <div class="step-circle" id="step1_circle" style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-weight: 700; font-size: 18px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: all 0.3s ease;">
+                            1
+                        </div>
+                        <div style="font-weight: 600; color: #1e293b; font-size: 15px; margin-bottom: 4px;">Describe</div>
+                        <div style="font-size: 13px; color: #64748b;">Your project</div>
+                    </div>
+
+                    <!-- Step 2: Choose -->
+                    <div class="workflow-step" data-step="2" style="flex: 1; text-align: center;">
+                        <div class="step-circle" id="step2_circle" style="width: 44px; height: 44px; border-radius: 50%; background: #e2e8f0; color: #94a3b8; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-weight: 700; font-size: 18px; transition: all 0.3s ease;">
+                            2
+                        </div>
+                        <div id="step2_label" style="font-weight: 600; color: #94a3b8; font-size: 15px; margin-bottom: 4px;">Choose</div>
+                        <div id="step2_desc" style="font-size: 13px; color: #94a3b8;">Your team</div>
+                    </div>
+
+                    <!-- Step 3: Configure -->
+                    <div class="workflow-step" data-step="3" style="flex: 1; text-align: center;">
+                        <div class="step-circle" id="step3_circle" style="width: 44px; height: 44px; border-radius: 50%; background: #e2e8f0; color: #94a3b8; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-weight: 700; font-size: 18px; transition: all 0.3s ease;">
+                            3
+                        </div>
+                        <div id="step3_label" style="font-weight: 600; color: #94a3b8; font-size: 15px; margin-bottom: 4px;">Configure</div>
+                        <div id="step3_desc" style="font-size: 13px; color: #94a3b8;">Settings (Optional)</div>
+                    </div>
+
+                    <!-- Step 4: Run -->
+                    <div class="workflow-step" data-step="4" style="flex: 1; text-align: center;">
+                        <div class="step-circle" id="step4_circle" style="width: 44px; height: 44px; border-radius: 50%; background: #e2e8f0; color: #94a3b8; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-weight: 700; font-size: 18px; transition: all 0.3s ease;">
+                            4
+                        </div>
+                        <div id="step4_label" style="font-weight: 600; color: #94a3b8; font-size: 15px; margin-bottom: 4px;">Run</div>
+                        <div id="step4_desc" style="font-size: 13px; color: #94a3b8;">Execute & review</div>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                // Global state to prevent multiple initializations and memory leaks
+                let workflowInitialized = false;
+                let agentCheckInterval = null;
+
+                // Workflow stepper auto-advancement
+                function updateWorkflowStep(step) {
+                    const progressLine = document.getElementById('workflow_progress_line');
+
+                    // Add null safety check to prevent crashes
+                    if (!progressLine) return;
+
+                    // Update progress line width
+                    const progressPct = ((step - 1) / 3) * 100;
+                    progressLine.style.width = progressPct + '%';
+
+                    // Update step circles and labels
+                    for (let i = 1; i <= 4; i++) {
+                        const circle = document.getElementById(`step${i}_circle`);
+                        const label = document.getElementById(`step${i}_label`);
+                        const desc = document.getElementById(`step${i}_desc`);
+
+                        // Add null safety check before accessing style property
+                        if (!circle) continue;
+
+                        if (i <= step) {
+                            // Active/completed step
+                            circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                            circle.style.color = 'white';
+                            circle.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                            if (label) label.style.color = '#1e293b';
+                            if (desc) desc.style.color = '#64748b';
+                        } else {
+                            // Inactive step
+                            circle.style.background = '#e2e8f0';
+                            circle.style.color = '#94a3b8';
+                            circle.style.boxShadow = 'none';
+                            if (label) label.style.color = '#94a3b8';
+                            if (desc) desc.style.color = '#94a3b8';
+                        }
+                    }
+                }
+
+                // Auto-advance based on user input
+                function initWorkflowTracking() {
+                    // Prevent multiple initializations
+                    if (workflowInitialized) {
+                        return;
+                    }
+                    workflowInitialized = true;
+
+                    // Step 1: Check if project description has content
+                    const projectInput = document.querySelector('textarea[placeholder*="Build a real-time"], textarea[placeholder*="Describe your project"]');
+                    if (projectInput) {
+                        projectInput.addEventListener('input', function() {
+                            if (this.value.length > 20) {
+                                updateWorkflowStep(2);
+                            }
+                        });
+                    }
+
+                    // Step 2: Check if agents are selected
+                    agentCheckInterval = setInterval(() => {
+                        const checkedBoxes = document.querySelectorAll('input[type="checkbox"]:checked');
+                        const agentCount = Array.from(checkedBoxes).filter(cb => {
+                            const label = cb.parentElement;
+                            return label && !label.textContent.includes('Code Review') && !label.textContent.includes('Auto-export');
+                        }).length;
+
+                        if (agentCount > 0) {
+                            updateWorkflowStep(3);
+                            // Clear interval once agents are selected to prevent memory leak
+                            if (agentCheckInterval) {
+                                clearInterval(agentCheckInterval);
+                                agentCheckInterval = null;
+                            }
+                        }
+                    }, 1000);
+
+                    // Step 4: When Run button is clicked
+                    document.addEventListener('click', (e) => {
+                        if (e.target && e.target.textContent.includes('Run Team')) {
+                            updateWorkflowStep(4);
+                        }
+                    });
+                }
+
+                // Initialize workflow tracking when DOM is ready
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', initWorkflowTracking);
+                } else {
+                    initWorkflowTracking();
+                }
+
+                // Also retry after a delay for Gradio dynamic rendering
+                setTimeout(initWorkflowTracking, 2000);
+            </script>
+            """)
+
+            # ========== STEP 1: DESCRIBE YOUR PROJECT ==========
+            with gr.Accordion("🎯 Step 1: Describe Your Project", open=True, elem_id="step1_accordion"):
+                gr.Markdown("""
+                **What do you want to build?** Be as specific as possible. The more details you provide, the better your agents can help.
+                """)
+
+                project_input = gr.Textbox(
+                    label="Project Description",
+                    lines=5,
+                    placeholder="Example: Build a real-time chat application with user authentication, message history, file sharing, and emoji support. Use React for frontend and Node.js/Express for backend...",
+                    info="💡 Tip: Include technology preferences, features, constraints, and success criteria"
+                )
+
+                # AI Recommendations Section
+                with gr.Row():
+                    get_recommendations_btn = gr.Button("✨ Get AI Recommendations", variant="secondary", size="sm")
+                    clear_recommendations_btn = gr.Button("Clear Recommendations", variant="secondary", size="sm", visible=False)
+
+                recommendations_display = gr.HTML(visible=False)
+
+                with gr.Row():
+                    github_url_input = gr.Textbox(
+                        label="📂 GitHub Repository URL (Optional)",
+                        lines=1,
+                        placeholder="https://github.com/username/repository",
+                        info="Analyze existing code from GitHub",
+                        scale=3
+                    )
+                    code_review_checkbox = gr.Checkbox(
+                        label="Code Review Mode",
+                        value=False,
+                        info="Optimize for code analysis",
+                        scale=1
+                    )
 
             # YAML Workflow Import Section
             if YAML_PARSER_AVAILABLE:
@@ -1966,32 +2251,297 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                         visible=False
                     )
 
-            # Agent selection
-            gr.Markdown("## 🤖 Select Agents to Execute")
+            # ========== STEP 2: CHOOSE YOUR TEAM ==========
+            with gr.Accordion("👥 Step 2: Choose Your Team", open=True, elem_id="step2_accordion"):
+                gr.Markdown("""
+                **Select the agents you need.** Not sure where to start? Try the Recommended Agents tab or use Quick Start Templates.
+                """)
 
-            # Agent presets dropdown
-            agent_preset_dropdown = gr.Dropdown(
-                choices=["Custom Selection"] + list(AGENT_PRESETS.keys()),
-                value="New Project Development",
-                label="Agent Preset",
-                info="Quick select common agent combinations"
-            )
+                # Grouped agent selectors by category (needed for reference)
+                agents_by_category = get_agents_by_category()
+                agent_selectors_by_category = {}
 
-            # Grouped agent selectors by category
-            agents_by_category = get_agents_by_category()
-            agent_selectors_by_category = {}
+                with gr.Tabs():
+                    # TAB 1: RECOMMENDED AGENTS (10 most common)
+                    with gr.TabItem("⭐ Recommended Agents"):
+                        gr.Markdown("""
+                        **Most commonly used agents** - These cover 80% of typical projects
+                        """)
 
-            gr.Markdown("### 📂 Agents Organized by Category")
-            gr.Markdown("*Select agents from each category below. Teams are organized by expertise area.*")
+                        # Quick Start Templates
+                        with gr.Accordion("💡 Quick Start Templates", open=True):
+                            gr.Markdown("**Not sure which agents to pick?** Try these popular combinations:")
+                            with gr.Row():
+                                preset_web = gr.Button("🌐 Web App Squad", variant="secondary", size="sm")
+                                preset_mobile = gr.Button("📱 Mobile App Squad", variant="secondary", size="sm")
+                                preset_backend = gr.Button("⚙️ Backend Squad", variant="secondary", size="sm")
+                            with gr.Row():
+                                preset_fullstack = gr.Button("🚀 Full-Stack Squad", variant="secondary", size="sm")
+                                preset_ai = gr.Button("🤖 AI/ML Squad", variant="secondary", size="sm")
+                                preset_data = gr.Button("📊 Data Analytics Squad", variant="secondary", size="sm")
 
-            for category, agent_ids in agents_by_category.items():
-                with gr.Accordion(f"{category} ({len(agent_ids)} agents)", open=(category in ["Management", "Engineering", "Product & Design"])):
-                    agent_selectors_by_category[category] = gr.CheckboxGroup(
-                        choices=agent_ids,
-                        value=[aid for aid in agent_ids if aid in ["PM", "Memory", "Research", "Ideas", "Designs", "QA", "Senior"]],  # Default selections
-                        label=f"{category} Agents",
-                        info=f"Select from {len(agent_ids)} {category.lower()} agents"
-                    )
+                        gr.Markdown("### Essential Agents for Most Projects")
+
+                        # Create a special "Essential" category selector
+                        essential_agents = ["PM", "Senior", "Research", "Ideas", "Designs", "Web", "QA", "Verifier", "DevOps", "Memory"]
+                        agent_selectors_by_category["Essential"] = gr.CheckboxGroup(
+                            choices=essential_agents,
+                            value=["PM", "Senior", "QA", "Memory"],
+                            label="Essential Agents (10 most common)",
+                            info="These agents handle most common project needs. Select at least 3-5 agents for best results."
+                        )
+
+                    # TAB 2: ALL AGENTS BY CATEGORY (52 total)
+                    with gr.TabItem("🔧 All Agents by Category"):
+                        gr.Markdown("""
+                        **Browse all 52 agents** organized by expertise area
+                        """)
+
+                        # Agent search and filter section
+                        gr.Markdown("### 🔍 Find Specific Agents")
+
+                        with gr.Row():
+                            agent_search = gr.Textbox(
+                                placeholder="Search agents by name or role... (e.g. 'frontend', 'testing', 'data')",
+                                label="Quick Agent Search",
+                                scale=3,
+                                elem_id="agent_search_box"
+                            )
+                            agent_category_filter = gr.Dropdown(
+                                choices=["All Categories"] + list(agents_by_category.keys()),
+                                value="All Categories",
+                                label="Filter by Category",
+                                scale=1,
+                                elem_id="agent_category_filter"
+                            )
+
+                        gr.Markdown("### 📂 Agents Organized by Category")
+
+                        for category, agent_ids in agents_by_category.items():
+                            with gr.Accordion(f"{category} ({len(agent_ids)} agents)", open=(category in ["Management", "Engineering"])):
+                                agent_selectors_by_category[category] = gr.CheckboxGroup(
+                                    choices=agent_ids,
+                                    value=[aid for aid in agent_ids if aid in ["PM", "Memory", "Research", "Ideas", "Designs", "QA", "Senior"]],  # Default selections
+                                    label=f"{category} Agents",
+                                    info=f"Select from {len(agent_ids)} {category.lower()} agents"
+                                )
+
+                    # TAB 3: SAVED TEAMS (from Projects & Teams)
+                    with gr.TabItem("💾 My Saved Teams"):
+                        gr.Markdown("""
+                        **Load teams you've created** in the Projects & Teams tab
+                        """)
+
+                        # Agent presets dropdown (existing functionality)
+                        agent_preset_dropdown = gr.Dropdown(
+                            choices=["Custom Selection"] + list(AGENT_PRESETS.keys()),
+                            value="New Project Development",
+                            label="Agent Preset",
+                            info="Quick select from predefined team configurations"
+                        )
+
+                        gr.Markdown("*More saved teams coming soon from Projects & Teams integration*")
+
+            # Agent search and filter JavaScript
+            gr.HTML("""
+            <script>
+                // Agent search and filter functionality
+                function initAgentSearchAndFilter() {
+                    // Get references to search and filter elements
+                    const searchBox = document.querySelector('#agent_search_box textarea, #agent_search_box input');
+                    const categoryFilter = document.querySelector('#agent_category_filter select');
+
+                    if (!searchBox || !categoryFilter) {
+                        // Retry after a short delay if elements aren't ready
+                        setTimeout(initAgentSearchAndFilter, 500);
+                        return;
+                    }
+
+                    function filterAgents() {
+                        const searchTerm = (searchBox.value || '').toLowerCase();
+                        const selectedCategory = categoryFilter.value || 'All Categories';
+
+                        // Get all accordion elements
+                        const accordions = document.querySelectorAll('[class*="accordion"]');
+
+                        accordions.forEach(accordion => {
+                            const header = accordion.querySelector('span, div');
+                            if (!header) return;
+
+                            const headerText = header.textContent || '';
+                            const categoryName = headerText.split('(')[0].trim();
+
+                            // Check if this accordion matches the category filter
+                            const matchesCategory = selectedCategory === 'All Categories' ||
+                                                    headerText.includes(selectedCategory);
+
+                            if (!matchesCategory) {
+                                accordion.style.display = 'none';
+                                return;
+                            }
+
+                            // If no search term, show all matching categories
+                            if (!searchTerm) {
+                                accordion.style.display = '';
+                                return;
+                            }
+
+                            // Get all checkboxes in this accordion
+                            const labels = accordion.querySelectorAll('label');
+                            let visibleCount = 0;
+
+                            labels.forEach(label => {
+                                const labelText = (label.textContent || '').toLowerCase();
+                                const matchesSearch = labelText.includes(searchTerm);
+
+                                if (matchesSearch) {
+                                    label.style.display = '';
+                                    visibleCount++;
+                                } else {
+                                    label.style.display = 'none';
+                                }
+                            });
+
+                            // Hide accordion if no agents match
+                            accordion.style.display = visibleCount > 0 ? '' : 'none';
+                        });
+                    }
+
+                    // Attach event listeners
+                    searchBox.addEventListener('input', filterAgents);
+                    categoryFilter.addEventListener('change', filterAgents);
+
+                    console.log('Agent search and filter initialized');
+                }
+
+                // Initialize when DOM is ready
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', initAgentSearchAndFilter);
+                } else {
+                    initAgentSearchAndFilter();
+                }
+            </script>
+            """)
+
+            # Agent tooltips CSS and JavaScript
+            import json
+            agent_descriptions_json = json.dumps(AGENT_DESCRIPTIONS)
+
+            gr.HTML(f"""
+            <style>
+                /* Tooltip styling */
+                .agent-label {{
+                    position: relative;
+                    cursor: help;
+                }}
+
+                .agent-label .tooltip {{
+                    visibility: hidden;
+                    opacity: 0;
+                    position: absolute;
+                    z-index: 9999;
+                    background-color: #1e293b;
+                    color: white;
+                    padding: 10px 14px;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    max-width: 300px;
+                    width: max-content;
+                    left: 0;
+                    bottom: 100%;
+                    margin-bottom: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    transition: opacity 0.2s ease, visibility 0.2s ease;
+                    line-height: 1.4;
+                }}
+
+                .agent-label .tooltip::after {{
+                    content: "";
+                    position: absolute;
+                    top: 100%;
+                    left: 20px;
+                    border-width: 6px;
+                    border-style: solid;
+                    border-color: #1e293b transparent transparent transparent;
+                }}
+
+                .agent-label:hover .tooltip {{
+                    visibility: visible;
+                    opacity: 1;
+                }}
+
+                /* Info icon styling */
+                .agent-info-icon {{
+                    font-size: 12px;
+                    opacity: 0.6;
+                    margin-left: 4px;
+                    transition: opacity 0.2s ease;
+                }}
+
+                .agent-label:hover .agent-info-icon {{
+                    opacity: 1;
+                }}
+            </style>
+
+            <script>
+                // Add tooltips to agent checkboxes
+                function initAgentTooltips() {{
+                    const agentDescriptions = {agent_descriptions_json};
+
+                    // Find all checkbox labels
+                    const labels = document.querySelectorAll('label[class*="checkbox"]');
+
+                    labels.forEach(label => {{
+                        // Get the agent name from the label text
+                        let agentName = label.textContent.trim();
+
+                        // Check if this agent has a description
+                        if (agentDescriptions[agentName]) {{
+                            // Add info icon and tooltip
+                            const description = agentDescriptions[agentName];
+
+                            // Wrap label content
+                            label.classList.add('agent-label');
+
+                            // Add info icon
+                            const infoIcon = document.createElement('span');
+                            infoIcon.className = 'agent-info-icon';
+                            infoIcon.textContent = ' ℹ️';
+
+                            // Add tooltip
+                            const tooltip = document.createElement('span');
+                            tooltip.className = 'tooltip';
+                            tooltip.textContent = description;
+
+                            label.appendChild(infoIcon);
+                            label.appendChild(tooltip);
+                        }}
+                    }});
+
+                    console.log('Agent tooltips initialized');
+                }}
+
+                // Initialize tooltips after a delay to ensure checkboxes are rendered
+                setTimeout(initAgentTooltips, 1000);
+
+                // Re-initialize after Gradio updates (when accordions open/close)
+                const observer = new MutationObserver((mutations) => {{
+                    mutations.forEach((mutation) => {{
+                        if (mutation.addedNodes.length) {{
+                            setTimeout(initAgentTooltips, 500);
+                        }}
+                    }});
+                }});
+
+                // Observe the document for changes
+                setTimeout(() => {{
+                    observer.observe(document.body, {{
+                        childList: true,
+                        subtree: true
+                    }});
+                }}, 2000);
+            </script>
+            """)
 
             # Merged selection display (updated dynamically from category selections)
             with gr.Accordion("✅ Selected Agents Summary", open=False):
@@ -2003,120 +2553,144 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                     interactive=True
                 )
 
-            # Code Review Mode toggle
-            code_review_checkbox = gr.Checkbox(
-                label="Code Review Mode",
-                value=False,
-                info="Optimize prompts for code analysis (Senior, QA, Verifier agents)"
-            )
-
-            # Execution Priority Configuration
-            gr.Markdown("## 🔢 Execution Priority (Optional)")
-            with gr.Accordion("Configure Agent Execution Order", open=False) as priority_accordion:
+            # ========== STEP 3: CONFIGURE EXECUTION (ADVANCED) ==========
+            with gr.Accordion("⚙️ Step 3: Configure Execution (Advanced)", open=False, elem_id="step3_accordion"):
                 gr.Markdown("""
-**Lower number = runs first** | Agents with same priority can run in parallel
-
-**Default order:**
-1. Memory, PM → 2. Research → 3. Ideas → 4. Designs → 5. iOS/Android/Web → 6. Senior → 7. QA → 8. Verifier
-
-*Only showing priority controls for selected agents*
+                **Advanced settings for power users.** Most projects work great with default settings - only customize if needed.
                 """)
-                priority_inputs = {}
 
-                # Create priority inputs for ALL agents, but hide them initially
-                for role in AGENT_ROLES:
-                    # Default visible agents (PM, Memory, Research, etc.)
-                    default_visible = role in ["PM", "Memory", "Research", "Ideas", "Designs", "QA", "Senior"]
+                with gr.Tabs():
+                    # TAB 1: MODEL SELECTION
+                    with gr.TabItem("🤖 Model Selection"):
+                        gr.Markdown("""
+                        **Choose AI models for your agents**
 
-                    priority_inputs[role] = gr.Number(
-                        label=f"{role}",
-                        value=AGENT_EXECUTION_PRIORITY.get(role, 10),
-                        minimum=1,
-                        maximum=20,
-                        step=1,
-                        precision=0,
-                        visible=default_visible
-                    )
+                        - **Speed (Haiku)**: Fastest, cheapest, good for simple tasks
+                        - **Balanced (Sonnet)**: Best quality/speed trade-off - recommended for most projects
+                        - **Quality (Opus)**: Highest quality, slower, best for complex/critical tasks
+                        """)
 
-            # Custom prompts section (collapsible)
-            gr.Markdown("## ✏️ Custom Prompts (Optional)")
-            with gr.Accordion("Override Agent Prompts", open=False):
-                gr.Markdown("*Leave blank to use default prompts. Use {project_description} as placeholder. Only showing selected agents.*")
-                custom_prompt_inputs = {}
-                for role in AGENT_ROLES:
-                    # Get default prompt from either DEFAULT_PROMPTS or agents.config.json
-                    if role in DEFAULT_PROMPTS:
-                        default_prompt = DEFAULT_PROMPTS[role][:100] + "..."
-                    elif AGENT_CONFIGS_DYNAMIC and role in AGENT_CONFIGS_DYNAMIC:
-                        prompt = AGENT_CONFIGS_DYNAMIC[role].get('defaultPrompt', 'Execute task for this agent')
-                        default_prompt = prompt[:100] + "..." if len(prompt) > 100 else prompt
-                    else:
-                        default_prompt = "Custom prompt for this agent..."
+                        model_preset_dropdown = gr.Dropdown(
+                            choices=list(MODEL_PRESETS.keys()),
+                            value="Speed (All Haiku)",
+                            label="Model Preset",
+                            info="💡 Recommended: Start with 'Balanced' for best results"
+                        )
 
-                    # Default visible agents
-                    default_visible = role in ["PM", "Memory", "Research", "Ideas", "Designs", "QA", "Senior"]
+                        # Per-agent model override (advanced)
+                        with gr.Accordion("Per-Agent Model Override (Advanced)", open=False):
+                            gr.Markdown("*Override individual agent models. Leave as 'Use Default' to follow preset above.*")
+                            custom_model_inputs = {}
+                            model_choices = ["Use Default"] + [f"{v['name']} ({v['cost']} cost, {v['speed']} speed)"
+                                                                for k, v in AVAILABLE_MODELS.items()]
+                            model_ids = ["Use Default"] + list(AVAILABLE_MODELS.keys())
 
-                    custom_prompt_inputs[role] = gr.Textbox(
-                        label=f"{role} Custom Prompt",
-                        placeholder=default_prompt,
-                        lines=2,
-                        value="",
-                        visible=default_visible
-                    )
+                            for role in AGENT_ROLES:
+                                # Default visible agents
+                                default_visible = role in ["PM", "Memory", "Research", "Ideas", "Designs", "QA", "Senior"]
 
-            # Model selection section
-            gr.Markdown("## 🤖 Model Selection")
-            model_preset_dropdown = gr.Dropdown(
-                choices=list(MODEL_PRESETS.keys()),
-                value="Speed (All Haiku)",
-                label="Model Preset",
-                info="💡 Speed = faster & cheaper | Balanced = good quality | Quality = best results for critical agents"
-            )
+                                custom_model_inputs[role] = gr.Dropdown(
+                                    choices=model_choices,
+                                    value="Use Default",
+                                    label=f"{role} Model",
+                                    visible=default_visible
+                                )
 
-            # Per-agent model override (advanced)
-            with gr.Accordion("Advanced: Per-Agent Model Override", open=False):
-                gr.Markdown("*Override individual agent models. Leave as 'Use Default' to follow preset. Only showing selected agents.*")
-                custom_model_inputs = {}
-                model_choices = ["Use Default"] + [f"{v['name']} ({v['cost']} cost, {v['speed']} speed)"
-                                                    for k, v in AVAILABLE_MODELS.items()]
-                model_ids = ["Use Default"] + list(AVAILABLE_MODELS.keys())
+                    # TAB 2: CUSTOM PROMPTS
+                    with gr.TabItem("✏️ Custom Prompts"):
+                        gr.Markdown("""
+                        **Override default agent instructions**
 
-                for role in AGENT_ROLES:
-                    # Default visible agents
-                    default_visible = role in ["PM", "Memory", "Research", "Ideas", "Designs", "QA", "Senior"]
+                        Leave blank to use smart defaults. Only customize if you need specialized behavior.
+                        Use `{project_description}` as a placeholder for the project details.
+                        """)
 
-                    custom_model_inputs[role] = gr.Dropdown(
-                        choices=model_choices,
-                        value="Use Default",
-                        label=f"{role} Model",
-                        visible=default_visible
-                    )
+                        custom_prompt_inputs = {}
+                        for role in AGENT_ROLES:
+                            # Get default prompt from either DEFAULT_PROMPTS or agents.config.json
+                            if role in DEFAULT_PROMPTS:
+                                default_prompt = DEFAULT_PROMPTS[role][:100] + "..."
+                            elif AGENT_CONFIGS_DYNAMIC and role in AGENT_CONFIGS_DYNAMIC:
+                                prompt = AGENT_CONFIGS_DYNAMIC[role].get('defaultPrompt', 'Execute task for this agent')
+                                default_prompt = prompt[:100] + "..." if len(prompt) > 100 else prompt
+                            else:
+                                default_prompt = "Custom prompt for this agent..."
 
-            # Execution controls
-            gr.Markdown("## ⚙️ Execution Controls")
-            with gr.Row():
-                phase_dropdown = gr.Dropdown(
-                    choices=PHASE_CHOICES,
-                    value=PHASE_CHOICES[3],
-                    label="Execution Phase"
-                )
-                auto_export_checkbox = gr.Checkbox(
-                    label="Auto-export results",
-                    value=True,
-                    info="Automatically export to all formats after run"
-                )
+                            # Default visible agents
+                            default_visible = role in ["PM", "Memory", "Research", "Ideas", "Designs", "QA", "Senior"]
 
-            feedback_input = gr.Textbox(
-                label="Feedback / Apply Target",
-                lines=2,
-                placeholder="Optional: Feedback for reruns OR 'APPLY: C:\\path\\to\\repo' OR 'APPLY: https://github.com/user/repo' to apply changes"
-            )
+                            custom_prompt_inputs[role] = gr.Textbox(
+                                label=f"{role} Custom Prompt",
+                                placeholder=default_prompt,
+                                lines=2,
+                                value="",
+                                visible=default_visible
+                            )
 
-            approval_dropdown = gr.Dropdown(
-                choices=["Run (No Approval Yet)", "Approve", "Reject and Rerun"],
-                label="Action",
-                value="Run (No Approval Yet)"
-            )
+                    # TAB 3: EXECUTION PRIORITY
+                    with gr.TabItem("🔢 Execution Priority"):
+                        gr.Markdown("""
+                        **Control the order agents execute**
+
+                        - **Lower number = runs first**
+                        - Agents with same priority can run in parallel (future feature)
+                        - Default order: Memory/PM → Research → Ideas → Designs → Development → Senior → QA → Verifier
+                        """)
+
+                        with gr.Accordion("Priority Settings (Optional)", open=False) as priority_accordion:
+                            gr.Markdown("*Adjust execution order. Lower numbers run first. Default order works for most projects.*")
+
+                            priority_inputs = {}
+
+                            # Create priority inputs for ALL agents, but hide them initially
+                            for role in AGENT_ROLES:
+                                # Default visible agents (PM, Memory, Research, etc.)
+                                default_visible = role in ["PM", "Memory", "Research", "Ideas", "Designs", "QA", "Senior"]
+
+                                priority_inputs[role] = gr.Number(
+                                    label=f"{role}",
+                                    value=AGENT_EXECUTION_PRIORITY.get(role, 10),
+                                    minimum=1,
+                                    maximum=20,
+                                    step=1,
+                                    precision=0,
+                                    visible=default_visible
+                                )
+
+                    # TAB 4: EXECUTION CONTROLS
+                    with gr.TabItem("⚙️ Execution Controls"):
+                        gr.Markdown("""
+                        **Additional execution settings**
+
+                        Control phases, auto-export, feedback, and apply modes.
+                        """)
+
+                        phase_dropdown = gr.Dropdown(
+                            choices=PHASE_CHOICES,
+                            value=PHASE_CHOICES[3],
+                            label="Execution Phase",
+                            info="Select which phase of development to run"
+                        )
+
+                        auto_export_checkbox = gr.Checkbox(
+                            label="Auto-export results",
+                            value=True,
+                            info="Automatically export to JSON, Markdown, CSV, and TXT after execution"
+                        )
+
+                        feedback_input = gr.Textbox(
+                            label="Feedback / Apply Target",
+                            lines=2,
+                            placeholder="Optional: Feedback for reruns OR 'APPLY: C:\\path\\to\\repo' OR 'APPLY: https://github.com/user/repo' to apply changes",
+                            info="Provide feedback for iterative improvements or specify where to apply changes"
+                        )
+
+                        approval_dropdown = gr.Dropdown(
+                            choices=["Run (No Approval Yet)", "Approve", "Reject and Rerun"],
+                            label="Action",
+                            value="Run (No Approval Yet)",
+                            info="Choose execution action (Run/Approve/Reject)"
+                        )
 
             # Action buttons
             gr.Markdown("### ⚡ Execute Workflow")
@@ -2125,6 +2699,112 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
             with gr.Row():
                 run_button = gr.Button("▶️ Run Team", variant="primary", size="lg")
                 clear_button = gr.Button("🗑️ Clear Logs", variant="secondary")
+
+            # Live progress indicator
+            execution_progress = gr.HTML(
+                value="""
+                <div id="execution_progress_container" style="display: none; background: #f8fafc; padding: 20px; border-radius: 12px; border: 2px solid #e2e8f0; margin: 16px 0;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                        <span style="font-weight: 600; color: #1e293b;">Executing Agents</span>
+                        <span id="agent_progress_text" style="color: #64748b;">0 agents complete</span>
+                    </div>
+                    <div style="background: #e2e8f0; height: 24px; border-radius: 12px; overflow: hidden;">
+                        <div id="progress_bar_fill" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+                                    height: 100%; width: 0%; transition: width 0.5s ease;"></div>
+                    </div>
+                    <div id="current_agent_status" style="margin-top: 12px; color: #64748b; font-size: 14px;">
+                        ⏳ Preparing execution...
+                    </div>
+                </div>
+
+                <script>
+                    // Progress bar control functions
+                    window.showExecutionProgress = function(agentCount) {
+                        const container = document.getElementById('execution_progress_container');
+                        const progressBar = document.getElementById('progress_bar_fill');
+                        const statusText = document.getElementById('current_agent_status');
+                        const progressText = document.getElementById('agent_progress_text');
+
+                        if (!container) return;
+
+                        container.style.display = 'block';
+                        progressBar.style.width = '0%';
+                        statusText.textContent = '⏳ Preparing execution...';
+                        progressText.textContent = '0 agents complete';
+
+                        // Simulate progressive loading based on estimated time
+                        // Assume 30-60 seconds per agent on average
+                        const estimatedTimePerAgent = 45000; // 45 seconds
+                        const totalTime = agentCount * estimatedTimePerAgent;
+                        const updateInterval = 1000; // Update every second
+
+                        let elapsed = 0;
+                        let currentAgent = 0;
+
+                        const progressInterval = setInterval(() => {
+                            elapsed += updateInterval;
+                            const progress = Math.min((elapsed / totalTime) * 100, 95); // Cap at 95% until complete
+
+                            progressBar.style.width = progress + '%';
+
+                            // Update current agent estimate
+                            const estimatedAgent = Math.floor((elapsed / estimatedTimePerAgent));
+                            if (estimatedAgent > currentAgent && estimatedAgent < agentCount) {
+                                currentAgent = estimatedAgent;
+                                progressText.textContent = `${currentAgent} agents complete`;
+                                statusText.textContent = `🤖 Running agent ${currentAgent + 1}...`;
+                            }
+
+                            // Stop when we detect execution completion (status output changes)
+                            const statusOutput = document.querySelector('[label="📊 Execution Status"] textarea');
+                            if (statusOutput && statusOutput.value.includes('completed successfully')) {
+                                clearInterval(progressInterval);
+                                progressBar.style.width = '100%';
+                                statusText.innerHTML = '<span style="color: #166534;">✅ Execution Complete!</span>';
+                                progressText.textContent = `${agentCount} agents complete`;
+
+                                // Hide after 3 seconds
+                                setTimeout(() => {
+                                    container.style.display = 'none';
+                                }, 3000);
+                            }
+                        }, updateInterval);
+
+                        // Safety timeout - hide after 20 minutes
+                        setTimeout(() => {
+                            clearInterval(progressInterval);
+                            if (container.style.display !== 'none') {
+                                container.style.display = 'none';
+                            }
+                        }, 1200000); // 20 minutes
+                    };
+
+                    window.hideExecutionProgress = function() {
+                        const container = document.getElementById('execution_progress_container');
+                        if (container) {
+                            container.style.display = 'none';
+                        }
+                    };
+
+                    // Listen for Run button clicks
+                    document.addEventListener('click', (e) => {
+                        if (e.target && e.target.textContent.includes('Run Team')) {
+                            // Count selected agents
+                            const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+                            const agentCount = Array.from(checkboxes).filter(cb => {
+                                const label = cb.parentElement;
+                                return label && !label.textContent.includes('Code Review');
+                            }).length;
+
+                            if (agentCount > 0) {
+                                showExecutionProgress(agentCount);
+                            }
+                        }
+                    });
+                </script>
+                """,
+                elem_id="execution_progress_bar"
+            )
 
             # Status display
             status_output = gr.Textbox(label="📊 Execution Status", lines=4, interactive=False)
@@ -2172,7 +2852,520 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                 export_btn = gr.Button(f"📥 Export {role} Output", size="sm", variant="secondary")
                 export_individual_buttons.append(export_btn)
 
+        # Execution History Tab
+        with gr.Tab(label="📜 History"):
+            gr.Markdown("### 📜 Execution History")
+            gr.Markdown("*View and replay past executions from your export history*")
+
+            with gr.Row():
+                history_filter = gr.Dropdown(
+                    choices=["All Executions", "Last 24 Hours", "Last 7 Days", "Successful Only", "Failed Only"],
+                    value="All Executions",
+                    label="Filter",
+                    scale=1
+                )
+                history_search = gr.Textbox(
+                    placeholder="🔍 Search by project description or agent names...",
+                    label="Search",
+                    scale=2
+                )
+                refresh_history_btn = gr.Button("🔄 Refresh", size="sm", variant="secondary", scale=1)
+
+            execution_history_display = gr.HTML(
+                value="""
+                <div style="text-align: center; padding: 60px 20px; color: #94a3b8;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+                    <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">No Execution History Yet</div>
+                    <div style="font-size: 14px;">Run your first team to see execution history here!</div>
+                </div>
+                """
+            )
+
     # Event handlers
+    def recommend_agents_for_project(project_description):
+        """Generate AI-powered agent recommendations based on project description
+
+        Args:
+            project_description: User's project description text
+
+        Returns:
+            Tuple of (HTML display string, clear button visibility boolean)
+        """
+        if not project_description or len(project_description.strip()) < 20:
+            return (
+                gr.update(visible=True, value="""
+                <div style="background: #fef3c7; border: 2px solid #fbbf24; padding: 20px; border-radius: 12px; margin: 16px 0;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">⚠️</span>
+                        <div style="font-weight: 600; color: #92400e; font-size: 16px;">Need More Details</div>
+                    </div>
+                    <div style="color: #92400e; line-height: 1.5;">
+                        Please provide a more detailed project description (at least 20 characters) to get personalized agent recommendations.
+                    </div>
+                </div>
+                """),
+                gr.update(visible=False)
+            )
+
+        # Keyword-to-agent mapping with confidence weighting
+        keyword_agent_map = {
+            # Web Development
+            "web": {"agents": ["Web", "FrontendEngineer", "BackendEngineer", "FullStackEngineer"], "weight": 3},
+            "website": {"agents": ["Web", "FrontendEngineer", "UIDesigner", "ProductDesigner"], "weight": 3},
+            "frontend": {"agents": ["FrontendEngineer", "Web", "UIDesigner", "ProductDesigner"], "weight": 4},
+            "backend": {"agents": ["BackendEngineer", "Senior", "DatabaseAdmin"], "weight": 4},
+            "fullstack": {"agents": ["FullStackEngineer", "Senior", "Web", "DatabaseAdmin"], "weight": 4},
+            "full-stack": {"agents": ["FullStackEngineer", "Senior", "Web", "DatabaseAdmin"], "weight": 4},
+
+            # Mobile Development
+            "mobile": {"agents": ["iOS", "Android", "MobileEngineer", "ProductDesigner"], "weight": 4},
+            "ios": {"agents": ["iOS", "MobileEngineer", "UIDesigner"], "weight": 5},
+            "android": {"agents": ["Android", "MobileEngineer", "UIDesigner"], "weight": 5},
+            "app": {"agents": ["iOS", "Android", "MobileEngineer", "Web"], "weight": 2},
+
+            # API & Backend
+            "api": {"agents": ["BackendEngineer", "Senior", "APIDesigner", "Architect"], "weight": 4},
+            "rest": {"agents": ["BackendEngineer", "APIDesigner", "Senior"], "weight": 3},
+            "graphql": {"agents": ["BackendEngineer", "APIDesigner", "FullStackEngineer"], "weight": 4},
+
+            # Database
+            "database": {"agents": ["DatabaseAdmin", "DataEngineer", "BackendEngineer"], "weight": 4},
+            "sql": {"agents": ["DatabaseAdmin", "BackendEngineer", "DataEngineer"], "weight": 3},
+            "nosql": {"agents": ["DatabaseAdmin", "BackendEngineer"], "weight": 3},
+            "postgres": {"agents": ["DatabaseAdmin", "BackendEngineer"], "weight": 3},
+            "mongodb": {"agents": ["DatabaseAdmin", "BackendEngineer"], "weight": 3},
+
+            # AI & ML
+            "ai": {"agents": ["AIResearcher", "MLEngineer", "DataScientist", "DataEngineer"], "weight": 4},
+            "ml": {"agents": ["MLEngineer", "DataScientist", "AIResearcher", "DataEngineer"], "weight": 4},
+            "machine learning": {"agents": ["MLEngineer", "DataScientist", "DataEngineer"], "weight": 5},
+            "data science": {"agents": ["DataScientist", "DataAnalyst", "DataEngineer"], "weight": 5},
+            "deep learning": {"agents": ["MLEngineer", "AIResearcher", "DataScientist"], "weight": 4},
+
+            # Data
+            "data": {"agents": ["DataAnalyst", "DataEngineer", "DataScientist"], "weight": 3},
+            "analytics": {"agents": ["DataAnalyst", "BusinessAnalyst", "DataEngineer"], "weight": 3},
+            "visualization": {"agents": ["DataAnalyst", "FrontendEngineer", "UIDesigner"], "weight": 2},
+
+            # Testing & QA
+            "test": {"agents": ["QA", "TestAutomation", "Verifier"], "weight": 3},
+            "testing": {"agents": ["QA", "TestAutomation", "Verifier", "Senior"], "weight": 4},
+            "qa": {"agents": ["QA", "TestAutomation", "Verifier"], "weight": 4},
+            "quality": {"agents": ["QA", "Verifier", "Senior"], "weight": 3},
+
+            # Design & UX
+            "design": {"agents": ["ProductDesigner", "UIDesigner", "UXResearcher", "Designs"], "weight": 4},
+            "ui": {"agents": ["UIDesigner", "ProductDesigner", "FrontendEngineer"], "weight": 4},
+            "ux": {"agents": ["UXResearcher", "ProductDesigner", "UIDesigner"], "weight": 4},
+            "user experience": {"agents": ["UXResearcher", "ProductDesigner", "AccessibilitySpecialist"], "weight": 5},
+
+            # DevOps & Cloud
+            "cloud": {"agents": ["CloudArchitect", "DevOps", "SRE", "InfrastructureEngineer"], "weight": 4},
+            "devops": {"agents": ["DevOps", "SRE", "CloudArchitect"], "weight": 5},
+            "kubernetes": {"agents": ["DevOps", "CloudArchitect", "SRE"], "weight": 4},
+            "docker": {"agents": ["DevOps", "BackendEngineer", "CloudArchitect"], "weight": 3},
+            "aws": {"agents": ["CloudArchitect", "DevOps", "InfrastructureEngineer"], "weight": 3},
+
+            # Security
+            "security": {"agents": ["SecurityEngineer", "Senior", "Verifier", "PenetrationTester"], "weight": 4},
+            "authentication": {"agents": ["SecurityEngineer", "BackendEngineer", "Senior"], "weight": 3},
+            "auth": {"agents": ["SecurityEngineer", "BackendEngineer", "Senior"], "weight": 2},
+
+            # Documentation
+            "documentation": {"agents": ["TechnicalWriter", "DocumentationEngineer", "DeveloperAdvocate"], "weight": 4},
+            "docs": {"agents": ["TechnicalWriter", "DocumentationEngineer"], "weight": 3},
+
+            # Blockchain
+            "blockchain": {"agents": ["BlockchainEngineer", "SecurityEngineer", "FullStackEngineer"], "weight": 5},
+            "web3": {"agents": ["BlockchainEngineer", "FrontendEngineer", "SecurityEngineer"], "weight": 4},
+            "smart contract": {"agents": ["BlockchainEngineer", "SecurityEngineer"], "weight": 5},
+
+            # Performance
+            "performance": {"agents": ["PerformanceEngineer", "SRE", "Architect", "Senior"], "weight": 3},
+            "optimization": {"agents": ["PerformanceEngineer", "Senior", "Architect"], "weight": 3},
+            "scalability": {"agents": ["Architect", "SRE", "PerformanceEngineer", "CloudArchitect"], "weight": 4}
+        }
+
+        # Score agents based on keyword matches
+        agent_scores = {}
+        desc_lower = project_description.lower()
+
+        # Always include core agents with base score
+        core_agents = ["PM", "Senior", "QA", "Memory"]
+        for agent in core_agents:
+            agent_scores[agent] = 2  # Base score for core agents
+
+        # Score based on keyword matches
+        total_weight = 0
+        for keyword, data in keyword_agent_map.items():
+            if keyword in desc_lower:
+                weight = data["weight"]
+                total_weight += weight
+                for agent in data["agents"]:
+                    agent_scores[agent] = agent_scores.get(agent, 0) + weight
+
+        # Sort agents by score and take top 10
+        sorted_agents = sorted(agent_scores.items(), key=lambda x: x[1], reverse=True)[:10]
+        recommended_agents = [agent for agent, score in sorted_agents]
+
+        # Calculate confidence score (0-100%)
+        if total_weight == 0:
+            confidence = 40  # Low confidence for generic descriptions
+        else:
+            confidence = min(100, 40 + (total_weight * 5))  # Scale based on keyword matches
+
+        # Determine confidence level and color
+        if confidence >= 80:
+            confidence_level = "High Confidence"
+            confidence_color = "#10b981"
+        elif confidence >= 60:
+            confidence_level = "Medium Confidence"
+            confidence_color = "#f59e0b"
+        else:
+            confidence_level = "Low Confidence"
+            confidence_color = "#ef4444"
+
+        # Get agent descriptions for display
+        agent_cards_html = ""
+        for agent_id in recommended_agents:
+            if agent_id in AGENT_DESCRIPTIONS:
+                description = AGENT_DESCRIPTIONS[agent_id]
+            else:
+                description = f"Specialized agent for {agent_id} tasks"
+
+            # Escape HTML to prevent XSS attacks
+            description_safe = html.escape(description)
+            agent_id_safe = html.escape(agent_id)
+
+            agent_cards_html += f"""
+            <div style="background: white; border: 2px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+                <div style="font-weight: 600; color: #1e293b; font-size: 14px;">{agent_id_safe}</div>
+                <div style="font-size: 13px; color: #64748b; margin-top: 4px;">
+                    {description_safe}
+                </div>
+            </div>
+            """
+
+        # Generate recommendations HTML
+        recommendations_html = f"""
+        <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 2px solid #0ea5e9; padding: 24px; border-radius: 12px; margin: 16px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div>
+                    <div style="font-weight: 700; color: #0c4a6e; font-size: 18px; margin-bottom: 4px;">
+                        ✨ Recommended Team for Your Project
+                    </div>
+                    <div style="font-size: 14px; color: #0369a1;">
+                        Based on your project description, we suggest these {len(recommended_agents)} agents
+                    </div>
+                </div>
+                <div style="background: {confidence_color}; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                    {confidence_level} ({confidence}%)
+                </div>
+            </div>
+
+            <div style="margin-top: 16px; max-height: 400px; overflow-y: auto;">
+                {agent_cards_html}
+            </div>
+
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #0ea5e9;">
+                <div style="font-size: 13px; color: #0369a1; margin-bottom: 12px;">
+                    💡 <strong>Tip:</strong> Click the button below to automatically select these agents in Step 2.
+                </div>
+                <button id="apply_recommendations" onclick="applyRecommendedAgents({json.dumps(recommended_agents)})"
+                        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: transform 0.2s ease;">
+                    ✅ Apply These Recommendations
+                </button>
+            </div>
+        </div>
+
+        <script>
+            // Function to show toast notification instead of alert
+            function showToast(message, duration = 3000) {{
+                const toast = document.createElement('div');
+                toast.textContent = message;
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 16px 20px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    z-index: 9999;
+                    font-size: 14px;
+                    max-width: 300px;
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                `;
+                document.body.appendChild(toast);
+
+                // Fade in
+                setTimeout(() => {{ toast.style.opacity = '1'; }}, 10);
+
+                // Fade out and remove
+                setTimeout(() => {{
+                    toast.style.opacity = '0';
+                    setTimeout(() => {{ toast.remove(); }}, 300);
+                }}, duration);
+            }}
+
+            // Function to apply recommended agents with improved matching
+            function applyRecommendedAgents(agentIds) {{
+                // Validate input is an array
+                if (!Array.isArray(agentIds)) {{
+                    console.error('Invalid agentIds parameter:', agentIds);
+                    showToast('❌ Error: Invalid agent list');
+                    return;
+                }}
+
+                // Find all checkboxes
+                const allCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+
+                // Create Set for faster lookups
+                const agentIdSet = new Set(agentIds.map(id => id.trim().toLowerCase()));
+                let matchedCount = 0;
+
+                // Process all checkboxes
+                allCheckboxes.forEach(cb => {{
+                    const label = cb.parentElement;
+                    if (!label) return;
+
+                    const labelText = label.textContent.trim();
+
+                    // Skip non-agent checkboxes (Code Review, Auto-export, etc.)
+                    if (labelText.includes('Code Review') ||
+                        labelText.includes('Auto-export') ||
+                        labelText.includes('auto-export')) {{
+                        return;
+                    }}
+
+                    // Extract agent name (text before any description/emoji)
+                    // Handles formats like "PM ℹ️" or "PM - Project Manager"
+                    const agentName = labelText.split(/[ℹ️-]/)[0].trim();
+
+                    // Use exact match instead of startsWith to prevent false positives
+                    const shouldCheck = agentIdSet.has(agentName.toLowerCase());
+
+                    if (cb.checked !== shouldCheck) {{
+                        cb.checked = shouldCheck;
+                        if (shouldCheck) matchedCount++;
+
+                        // Trigger events to update Gradio state
+                        cb.dispatchEvent(new Event('input', {{ bubbles: true, composed: true }}));
+                        cb.dispatchEvent(new Event('change', {{ bubbles: true, composed: true }}));
+                    }}
+                }});
+
+                // Show success message with count
+                showToast(`✅ Selected ${{matchedCount}} recommended agents! Scroll down to review.`, 4000);
+
+                // Scroll to Step 2
+                const step2 = document.querySelector('[elem_id="step2_accordion"]') ||
+                              document.getElementById('step2_accordion');
+                if (step2) {{
+                    setTimeout(() => {{
+                        step2.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+                    }}, 500);
+                }}
+            }}
+        </script>
+        """
+
+        return (
+            gr.update(visible=True, value=recommendations_html),
+            gr.update(visible=True)
+        )
+
+    def clear_recommendations():
+        """Clear the recommendations display"""
+        return (
+            gr.update(visible=False, value=""),
+            gr.update(visible=False)
+        )
+
+    def load_execution_history(filter_type="All Executions", search_query=""):
+        """Load execution history from gradio_exports directory
+
+        Args:
+            filter_type: Filter criteria (All, Last 24 Hours, etc.)
+            search_query: Search text for filtering
+
+        Returns:
+            HTML string displaying execution history cards
+        """
+        import glob
+        from datetime import datetime, timedelta
+
+        exports_dir = Path("gradio_exports")
+
+        # Check if exports directory exists
+        if not exports_dir.exists():
+            return """
+            <div style="text-align: center; padding: 60px 20px; color: #94a3b8;">
+                <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+                <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">No Execution History Yet</div>
+                <div style="font-size: 14px;">Run your first team to see execution history here!</div>
+            </div>
+            """
+
+        # Load all JSON export files
+        json_files = sorted(exports_dir.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True)
+
+        if not json_files:
+            return """
+            <div style="text-align: center; padding: 60px 20px; color: #94a3b8;">
+                <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+                <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">No Execution History Yet</div>
+                <div style="font-size: 14px;">Run your first team to see execution history here!</div>
+            </div>
+            """
+
+        executions = []
+        now = datetime.now()
+
+        for json_file in json_files[:50]:  # Limit to 50 most recent
+            try:
+                with open(json_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+
+                    # Extract execution metadata
+                    timestamp_str = data.get("timestamp", "Unknown")
+                    try:
+                        exec_time = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+                    except:
+                        exec_time = datetime.fromtimestamp(json_file.stat().st_mtime)
+
+                    agents_used = data.get("agents_used", [])
+                    project_desc = data.get("project_description", "")
+                    status = data.get("execution_status", "unknown")
+
+                    # Apply filters
+                    if filter_type == "Last 24 Hours":
+                        if (now - exec_time) > timedelta(hours=24):
+                            continue
+                    elif filter_type == "Last 7 Days":
+                        if (now - exec_time) > timedelta(days=7):
+                            continue
+                    elif filter_type == "Successful Only":
+                        if status != "success":
+                            continue
+                    elif filter_type == "Failed Only":
+                        if status == "success":
+                            continue
+
+                    # Apply search filter
+                    if search_query:
+                        search_lower = search_query.lower()
+                        if not (search_lower in project_desc.lower() or
+                                any(search_lower in agent.lower() for agent in agents_used)):
+                            continue
+
+                    executions.append({
+                        "file": json_file.name,
+                        "timestamp": exec_time,
+                        "agents": agents_used,
+                        "status": status,
+                        "description": project_desc[:150] + ("..." if len(project_desc) > 150 else ""),
+                        "full_data": data
+                    })
+
+            except Exception as e:
+                print(f"[WARNING] Could not load {json_file}: {e}")
+                continue
+
+        if not executions:
+            return f"""
+            <div style="text-align: center; padding: 60px 20px; color: #94a3b8;">
+                <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+                <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">No Matching Executions</div>
+                <div style="font-size: 14px;">Try adjusting your filters or search query</div>
+            </div>
+            """
+
+        # Generate HTML cards for each execution
+        cards_html = ""
+        for i, exec_data in enumerate(executions):
+            status_icon = "✅" if exec_data["status"] == "success" else "❌"
+            status_color = "#10b981" if exec_data["status"] == "success" else "#ef4444"
+            status_text = exec_data["status"].upper()
+
+            # Format timestamp as relative time
+            time_diff = now - exec_data["timestamp"]
+            if time_diff.total_seconds() < 3600:
+                time_display = f"{int(time_diff.total_seconds() / 60)} minutes ago"
+            elif time_diff.total_seconds() < 86400:
+                time_display = f"{int(time_diff.total_seconds() / 3600)} hours ago"
+            else:
+                time_display = f"{int(time_diff.days)} days ago"
+
+            agents_display = ", ".join(exec_data["agents"][:5])
+            if len(exec_data["agents"]) > 5:
+                agents_display += f" + {len(exec_data['agents']) - 5} more"
+
+            # Escape HTML
+            safe_desc = html.escape(exec_data["description"])
+            safe_agents = html.escape(agents_display)
+            safe_file = html.escape(exec_data["file"])
+
+            cards_html += f"""
+            <div style="background: white; border: 2px solid #e2e8f0; border-left: 4px solid {status_color};
+                        border-radius: 12px; padding: 20px; margin-bottom: 16px; cursor: pointer;
+                        transition: box-shadow 0.2s ease, transform 0.2s ease;"
+                 onmouseover="this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)'; this.style.transform='translateY(-2px)';"
+                 onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'; this.style.transform='translateY(0)';">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <span style="font-size: 20px;">{status_icon}</span>
+                            <div style="font-weight: 600; color: #1e293b; font-size: 16px;">
+                                Execution #{i + 1}
+                            </div>
+                            <span style="background: {status_color}; color: white; padding: 4px 10px;
+                                       border-radius: 12px; font-size: 11px; font-weight: 600;">
+                                {status_text}
+                            </span>
+                        </div>
+                        <div style="color: #64748b; font-size: 13px; margin-top: 4px;">
+                            🕐 {time_display} • 📄 {safe_file}
+                        </div>
+                    </div>
+                    <button onclick="replayExecution('{safe_file}')"
+                            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                   color: white; padding: 10px 20px; border: none; border-radius: 8px;
+                                   font-weight: 600; cursor: pointer; font-size: 13px;
+                                   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+                                   transition: transform 0.2s ease;">
+                        🔄 Replay
+                    </button>
+                </div>
+
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+                    <div style="color: #475569; font-size: 14px; margin-bottom: 8px;">
+                        {safe_desc}
+                    </div>
+                    <div style="color: #64748b; font-size: 13px;">
+                        <strong>👥 Agents:</strong> {safe_agents}
+                    </div>
+                </div>
+            </div>
+            """
+
+        return f"""
+        <div style="margin-top: 16px;">
+            <div style="color: #64748b; font-size: 14px; margin-bottom: 16px;">
+                Showing {len(executions)} execution(s)
+            </div>
+            {cards_html}
+        </div>
+
+        <script>
+        function replayExecution(filename) {{
+            alert('🔄 Replay functionality coming soon!\\n\\nYou can manually load this configuration from:\\ngradio_exports/' + filename);
+        }}
+        </script>
+        """
+
     def merge_category_selections(*category_selections):
         """Merge all category checkbox selections into a single list"""
         merged = []
@@ -2270,6 +3463,45 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
         return ("Logs cleared.", "Ready to start...") + tuple([""] * len(AGENT_ROLES))
 
     # Wire up the run button
+    # AI Recommendations button handlers
+    get_recommendations_btn.click(
+        recommend_agents_for_project,
+        inputs=[project_input],
+        outputs=[recommendations_display, clear_recommendations_btn]
+    )
+
+    clear_recommendations_btn.click(
+        clear_recommendations,
+        inputs=[],
+        outputs=[recommendations_display, clear_recommendations_btn]
+    )
+
+    # Execution History event handlers
+    refresh_history_btn.click(
+        load_execution_history,
+        inputs=[history_filter, history_search],
+        outputs=[execution_history_display]
+    )
+
+    history_filter.change(
+        load_execution_history,
+        inputs=[history_filter, history_search],
+        outputs=[execution_history_display]
+    )
+
+    history_search.submit(
+        load_execution_history,
+        inputs=[history_filter, history_search],
+        outputs=[execution_history_display]
+    )
+
+    # Load history on startup
+    demo.load(
+        load_execution_history,
+        inputs=[history_filter, history_search],
+        outputs=[execution_history_display]
+    )
+
     run_inputs = [project_input, agent_selector, github_url_input] + \
                  [custom_prompt_inputs[role] for role in AGENT_ROLES] + \
                  [model_preset_dropdown] + \
@@ -2294,6 +3526,66 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
     agent_preset_dropdown.change(
         update_agent_selection_grouped,
         inputs=[agent_preset_dropdown],
+        outputs=list(agent_selectors_by_category.values())
+    )
+
+    # Quick Start preset button handlers
+    def apply_quick_start_preset(preset_agents):
+        """Apply a quick start preset - returns updates for all category groups including Essential"""
+        updates = []
+
+        # Handle Essential category first (it's always first in agent_selectors_by_category)
+        if "Essential" in agent_selectors_by_category:
+            essential_agents = ["PM", "Senior", "Research", "Ideas", "Designs", "Web", "QA", "Verifier", "DevOps", "Memory"]
+            selected_essential = [aid for aid in essential_agents if aid in preset_agents]
+            updates.append(gr.update(value=selected_essential))
+
+        # Handle all other categories
+        for category, agent_ids in agents_by_category.items():
+            # Select agents that are both in this category and in the preset
+            selected = [aid for aid in agent_ids if aid in preset_agents]
+            updates.append(gr.update(value=selected))
+
+        return tuple(updates)
+
+    # Define preset agent combinations
+    quick_start_presets = {
+        "Web App Squad": ["PM", "Senior", "Web", "FrontendEngineer", "BackendEngineer", "QA"],
+        "Mobile App Squad": ["PM", "ProductDesigner", "iOS", "Android", "QA", "Verifier"],
+        "Backend Squad": ["PM", "Senior", "BackendEngineer", "DatabaseAdmin", "QA"],
+        "Full-Stack Squad": ["PM", "FullStackEngineer", "Web", "DatabaseAdmin", "DevOps", "QA"],
+        "AI/ML Squad": ["PM", "DataScientist", "MLEngineer", "DataEngineer", "Senior", "QA"],
+        "Data Analytics Squad": ["PM", "DataAnalyst", "DataEngineer", "DataScientist", "QA"]
+    }
+
+    # Wire up quick start preset buttons
+    preset_web.click(
+        lambda: apply_quick_start_preset(quick_start_presets["Web App Squad"]),
+        outputs=list(agent_selectors_by_category.values())
+    )
+
+    preset_mobile.click(
+        lambda: apply_quick_start_preset(quick_start_presets["Mobile App Squad"]),
+        outputs=list(agent_selectors_by_category.values())
+    )
+
+    preset_backend.click(
+        lambda: apply_quick_start_preset(quick_start_presets["Backend Squad"]),
+        outputs=list(agent_selectors_by_category.values())
+    )
+
+    preset_fullstack.click(
+        lambda: apply_quick_start_preset(quick_start_presets["Full-Stack Squad"]),
+        outputs=list(agent_selectors_by_category.values())
+    )
+
+    preset_ai.click(
+        lambda: apply_quick_start_preset(quick_start_presets["AI/ML Squad"]),
+        outputs=list(agent_selectors_by_category.values())
+    )
+
+    preset_data.click(
+        lambda: apply_quick_start_preset(quick_start_presets["Data Analytics Squad"]),
         outputs=list(agent_selectors_by_category.values())
     )
 
