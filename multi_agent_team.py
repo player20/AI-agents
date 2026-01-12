@@ -2884,6 +2884,13 @@ with gr.Blocks(title="Super Dev Team") as demo:
                         scale=1
                     )
 
+                # GitHub URL Validation Feedback
+                github_url_validation = gr.HTML(
+                    value="",
+                    visible=False,
+                    elem_id="github_url_validation"
+                )
+
             # YAML Workflow Import Section
             if YAML_PARSER_AVAILABLE:
                 with gr.Accordion("📥 Import Workflow from YAML", open=True):
@@ -3462,6 +3469,27 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                             value="Speed (All Haiku)",
                             label="Model Preset",
                             info="💡 Recommended: Start with 'Balanced' for best results"
+                        )
+
+                        # Cost & Time Estimator
+                        cost_estimate_display = gr.HTML(
+                            value="""
+                            <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+                                        border: 2px solid #f59e0b; padding: 16px; border-radius: 8px; margin-top: 16px;">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                    <span style="font-size: 24px;">💰</span>
+                                    <div>
+                                        <div style="font-weight: 700; color: #92400e; font-size: 15px;">
+                                            Estimated Cost & Time
+                                        </div>
+                                        <div style="color: #b45309; font-size: 13px; margin-top: 2px;">
+                                            Select agents to see cost estimate
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            """,
+                            elem_id="cost_estimate_display"
                         )
 
                         # Per-agent model override (advanced)
@@ -4468,6 +4496,248 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
 
         return header_html
 
+    def validate_github_url(url):
+        """Validate GitHub URL format and provide feedback"""
+        import re
+
+        if not url or not url.strip():
+            return gr.update(value="", visible=False)
+
+        url = url.strip()
+
+        # GitHub URL patterns
+        patterns = [
+            r'^https?://github\.com/[\w-]+/[\w.-]+/?$',  # https://github.com/username/repo
+            r'^github\.com/[\w-]+/[\w.-]+/?$',  # github.com/username/repo
+            r'^[\w-]+/[\w.-]+$'  # username/repo
+        ]
+
+        is_valid = any(re.match(pattern, url) for pattern in patterns)
+
+        if is_valid:
+            # Extract username and repo
+            parts = url.replace('https://', '').replace('http://', '').replace('github.com/', '').strip('/').split('/')
+            if len(parts) >= 2:
+                username, repo = parts[0], parts[1]
+                return gr.update(
+                    value=f"""
+                    <div style="background: #f0fdf4; border: 2px solid #10b981; padding: 12px; border-radius: 6px; margin-top: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 20px;">✅</span>
+                            <div>
+                                <div style="font-weight: 600; color: #166534; font-size: 14px;">
+                                    Valid GitHub Repository
+                                </div>
+                                <div style="color: #15803d; font-size: 12px; margin-top: 4px;">
+                                    <strong>{username}/{repo}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    """,
+                    visible=True
+                )
+
+        # Invalid format - provide guidance
+        return gr.update(
+            value=f"""
+            <div style="background: #fef3c7; border: 2px solid #f59e0b; padding: 12px; border-radius: 6px; margin-top: 8px;">
+                <div style="display: flex; align-items: start; gap: 10px;">
+                    <span style="font-size: 20px;">⚠️</span>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #92400e; font-size: 14px; margin-bottom: 8px;">
+                            Invalid GitHub URL Format
+                        </div>
+                        <div style="color: #92400e; font-size: 12px; line-height: 1.5;">
+                            <strong>Expected formats:</strong><br>
+                            ✓ <code style="background: white; padding: 2px 6px; border-radius: 3px;">https://github.com/username/repo</code><br>
+                            ✓ <code style="background: white; padding: 2px 6px; border-radius: 3px;">github.com/username/repo</code><br>
+                            ✓ <code style="background: white; padding: 2px 6px; border-radius: 3px;">username/repo</code>
+                        </div>
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #f59e0b40; color: #92400e; font-size: 11px;">
+                            <strong>Your input:</strong> <code style="background: white; padding: 2px 6px; border-radius: 3px;">{url}</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """,
+            visible=True
+        )
+
+    def calculate_cost_estimate(selected_agents, model_preset):
+        """Calculate estimated cost and time for selected agents and model preset"""
+
+        if not selected_agents or len(selected_agents) == 0:
+            return """
+            <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+                        border: 2px solid #f59e0b; padding: 16px; border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 24px;">💰</span>
+                    <div>
+                        <div style="font-weight: 700; color: #92400e; font-size: 15px;">
+                            Estimated Cost & Time
+                        </div>
+                        <div style="color: #b45309; font-size: 13px; margin-top: 2px;">
+                            Select agents to see cost estimate
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """
+
+        # Cost per 1M tokens (approximate, based on Anthropic pricing)
+        # These are rough estimates - actual costs vary by input/output ratio
+        model_costs = {
+            "claude-opus-3-5-20250219": {"input": 15.0, "output": 75.0, "name": "Opus"},
+            "claude-opus-4-20250514": {"input": 15.0, "output": 75.0, "name": "Opus 4"},
+            "claude-sonnet-3-5-20241022": {"input": 3.0, "output": 15.0, "name": "Sonnet 3.5"},
+            "claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0, "name": "Sonnet 4"},
+            "claude-3-5-haiku-20241022": {"input": 1.0, "output": 5.0, "name": "Haiku"}
+        }
+
+        # Average tokens per agent (rough estimate based on typical usage)
+        # Input: ~2000 tokens (prompt + context), Output: ~3000 tokens (agent response)
+        avg_input_tokens = 2000
+        avg_output_tokens = 3000
+
+        # Get models based on preset
+        if not model_preset or model_preset == "Custom Selection":
+            model_preset = "Speed (All Haiku)"  # Default
+
+        preset_models = MODEL_PRESETS.get(model_preset, {})
+
+        # Calculate cost per agent
+        total_cost = 0
+        cost_breakdown = []
+
+        for agent in selected_agents:
+            # Get model for this agent
+            model_id = preset_models.get(agent, "claude-3-5-haiku-20241022")
+            model_info = model_costs.get(model_id, {"input": 1.0, "output": 5.0, "name": "Haiku"})
+
+            # Calculate cost for this agent
+            input_cost = (avg_input_tokens / 1_000_000) * model_info["input"]
+            output_cost = (avg_output_tokens / 1_000_000) * model_info["output"]
+            agent_cost = input_cost + output_cost
+            total_cost += agent_cost
+
+            cost_breakdown.append({
+                "agent": agent,
+                "model": model_info["name"],
+                "cost": agent_cost
+            })
+
+        # Estimate time (rough: 30-60 seconds per agent depending on model)
+        time_per_agent = {
+            "Opus": 60,
+            "Opus 4": 60,
+            "Sonnet 3.5": 45,
+            "Sonnet 4": 45,
+            "Haiku": 30
+        }
+
+        total_time_seconds = 0
+        for item in cost_breakdown:
+            total_time_seconds += time_per_agent.get(item["model"], 45)
+
+        # Format time
+        if total_time_seconds < 60:
+            time_str = f"{total_time_seconds} seconds"
+        else:
+            minutes = total_time_seconds // 60
+            seconds = total_time_seconds % 60
+            time_str = f"{minutes}m {seconds}s"
+
+        # Determine cost color and warning
+        if total_cost < 0.10:
+            cost_color = "#10b981"  # Green
+            cost_label = "Low Cost"
+            warning = ""
+        elif total_cost < 0.50:
+            cost_color = "#0ea5e9"  # Blue
+            cost_label = "Moderate Cost"
+            warning = ""
+        elif total_cost < 2.00:
+            cost_color = "#f59e0b"  # Orange
+            cost_label = "Higher Cost"
+            warning = """
+            <div style="background: #fef3c7; padding: 10px; border-radius: 6px; margin-top: 12px; border-left: 3px solid #f59e0b;">
+                <div style="font-size: 12px; color: #92400e;">
+                    ⚠️ <strong>Consider using Haiku</strong> for faster, cheaper results if quality allows
+                </div>
+            </div>
+            """
+        else:
+            cost_color = "#ef4444"  # Red
+            cost_label = "High Cost"
+            warning = f"""
+            <div style="background: #fee2e2; padding: 10px; border-radius: 6px; margin-top: 12px; border-left: 3px solid #ef4444;">
+                <div style="font-size: 12px; color: #991b1b; font-weight: 600;">
+                    🚨 <strong>High Cost Alert!</strong>
+                </div>
+                <div style="font-size: 11px; color: #991b1b; margin-top: 4px;">
+                    This run will cost approximately ${total_cost:.2f}. Consider:
+                    <ul style="margin: 6px 0 0 16px; padding: 0;">
+                        <li>Running fewer agents (currently {len(selected_agents)})</li>
+                        <li>Using Sonnet or Haiku models instead of Opus</li>
+                        <li>Running agents in smaller batches</li>
+                    </ul>
+                </div>
+            </div>
+            """
+
+        # Build breakdown HTML
+        breakdown_html = ""
+        for item in cost_breakdown:
+            breakdown_html += f"""
+            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f59e0b20;">
+                <div style="font-size: 12px; color: #78350f;">
+                    <strong>{item["agent"]}</strong> <span style="opacity: 0.7;">({item["model"]})</span>
+                </div>
+                <div style="font-size: 12px; color: #92400e; font-weight: 600;">
+                    ${item["cost"]:.4f}
+                </div>
+            </div>
+            """
+
+        return f"""
+        <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+                    border: 2px solid {cost_color}; padding: 16px; border-radius: 8px;">
+
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 24px;">💰</span>
+                    <div>
+                        <div style="font-weight: 700; color: #92400e; font-size: 15px;">
+                            Estimated Cost: <span style="color: {cost_color};">${total_cost:.3f}</span>
+                        </div>
+                        <div style="color: #b45309; font-size: 13px; margin-top: 2px;">
+                            ⏱️ Estimated Time: ~{time_str}
+                        </div>
+                    </div>
+                </div>
+                <div style="background: {cost_color}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600;">
+                    {cost_label}
+                </div>
+            </div>
+
+            <details style="margin-top: 12px;">
+                <summary style="cursor: pointer; font-size: 12px; color: #92400e; font-weight: 600; margin-bottom: 8px;">
+                    📊 Per-Agent Breakdown ({len(selected_agents)} agents)
+                </summary>
+                <div style="margin-top: 8px; max-height: 200px; overflow-y: auto;">
+                    {breakdown_html}
+                </div>
+            </details>
+
+            {warning}
+
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f59e0b40; font-size: 11px; color: #92400e; opacity: 0.8;">
+                💡 Costs are estimates based on average token usage. Actual costs may vary.
+            </div>
+        </div>
+        """
+
     def run_and_update(project, selected, github_url, *args):
         """Main execution handler - receives all individual inputs and builds dictionaries"""
         try:
@@ -4782,6 +5052,26 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
         update_agent_selection_grouped,
         inputs=[agent_preset_dropdown],
         outputs=list(agent_selectors_by_category.values())
+    )
+
+    # Cost estimator event handlers - update cost when agents or model changes
+    agent_selector.change(
+        calculate_cost_estimate,
+        inputs=[agent_selector, model_preset_dropdown],
+        outputs=[cost_estimate_display]
+    )
+
+    model_preset_dropdown.change(
+        calculate_cost_estimate,
+        inputs=[agent_selector, model_preset_dropdown],
+        outputs=[cost_estimate_display]
+    )
+
+    # GitHub URL validation handler
+    github_url_input.change(
+        validate_github_url,
+        inputs=[github_url_input],
+        outputs=[github_url_validation]
     )
 
     # Quick Start preset button handlers
