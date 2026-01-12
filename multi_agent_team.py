@@ -2974,6 +2974,21 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
     gr.Markdown("## 📝 Agent Outputs")
     gr.Markdown("*Individual agent findings and logs (updates after each run)*")
 
+    # Visual summary of which agents have outputs
+    agent_output_summary = gr.HTML(
+        value="""
+        <div id="agent_output_summary" style="background: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 16px; border: 2px solid #e2e8f0;">
+            <div style="font-weight: 600; color: #64748b; margin-bottom: 12px; font-size: 14px;">
+                📊 Agent Output Summary
+            </div>
+            <div style="color: #94a3b8; font-size: 14px;">
+                Run agents to see output summary here...
+            </div>
+        </div>
+        """,
+        visible=True
+    )
+
     log_outputs = []
     export_individual_buttons = []
 
@@ -3585,6 +3600,83 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
 
         return tuple(updates)
 
+    def generate_output_summary(selected_agents, outputs):
+        """Generate HTML summary showing which agents have outputs"""
+        if not selected_agents or not outputs:
+            return """
+            <div id="agent_output_summary" style="background: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 16px; border: 2px solid #e2e8f0;">
+                <div style="font-weight: 600; color: #64748b; margin-bottom: 12px; font-size: 14px;">
+                    📊 Agent Output Summary
+                </div>
+                <div style="color: #94a3b8; font-size: 14px;">
+                    Run agents to see output summary here...
+                </div>
+            </div>
+            """
+
+        # Build summary cards for each agent
+        summary_cards = ""
+        agents_with_output = 0
+        total_chars = 0
+
+        for agent in selected_agents:
+            output = outputs.get(agent, "")
+            has_output = len(output.strip()) > 0
+            char_count = len(output)
+
+            if has_output:
+                agents_with_output += 1
+                total_chars += char_count
+
+            # Color coding
+            if has_output:
+                bg_color = "#f0fdf4"
+                border_color = "#10b981"
+                icon = "✅"
+                status_text = f"{char_count:,} characters"
+                status_color = "#15803d"
+            else:
+                bg_color = "#f8fafc"
+                border_color = "#e2e8f0"
+                icon = "⚪"
+                status_text = "No output"
+                status_color = "#94a3b8"
+
+            summary_cards += f"""
+            <div style="background: {bg_color}; border-left: 4px solid {border_color}; padding: 12px 16px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 20px;">{icon}</span>
+                    <div>
+                        <div style="font-weight: 600; color: #1e293b; font-size: 14px;">{agent}</div>
+                        <div style="font-size: 12px; color: {status_color};">{status_text}</div>
+                    </div>
+                </div>
+                <div style="font-size: 12px; color: #64748b;">
+                    Click "{agent}" tab below →
+                </div>
+            </div>
+            """
+
+        # Header summary
+        header_html = f"""
+        <div id="agent_output_summary" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 20px; border-radius: 12px; border: 2px solid #0ea5e9; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="font-weight: 700; color: #0c4a6e; font-size: 16px;">
+                    📊 Agent Output Summary
+                </div>
+                <div style="background: #0ea5e9; color: white; padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 14px;">
+                    {agents_with_output}/{len(selected_agents)} agents completed
+                </div>
+            </div>
+            <div style="color: #0369a1; font-size: 13px; margin-bottom: 16px;">
+                Total output: {total_chars:,} characters across {agents_with_output} agents
+            </div>
+            {summary_cards}
+        </div>
+        """
+
+        return header_html
+
     def run_and_update(project, selected, github_url, *args):
         """Main execution handler - receives all individual inputs and builds dictionaries"""
         try:
@@ -3641,16 +3733,20 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
             # Update logs
             logs = update_logs()
 
+            # Generate output summary
+            summary_html = generate_output_summary(selected, outputs)
+
             # Update stats
             stats = f"Agents Run: {len(selected)}\nModel Preset: {model_preset}\nLast Run: {datetime.now().strftime('%H:%M:%S')}\nStatus: Completed"
             if export_paths:
                 stats += f"\n\nAuto-exported:\n✓ JSON\n✓ Markdown\n✓ CSV"
 
-            return (status_msg, stats) + tuple(logs)
+            return (status_msg, stats, summary_html) + tuple(logs)
 
         except Exception as e:
             error_msg = f"Error in run_and_update: {str(e)}"
-            return (error_msg, "Error occurred") + tuple([""] * len(AGENT_ROLES))
+            empty_summary = generate_output_summary([], {})
+            return (error_msg, "Error occurred", empty_summary) + tuple([""] * len(AGENT_ROLES))
 
     def clear_all_logs():
         """Clear all agent logs"""
@@ -3709,13 +3805,27 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
     run_button.click(
         run_and_update,
         inputs=run_inputs,
-        outputs=[status_output, stats_display] + log_outputs
+        outputs=[status_output, stats_display, agent_output_summary] + log_outputs
     )
 
+    def clear_all_and_summary():
+        """Clear all logs and reset summary"""
+        empty_summary = """
+        <div id="agent_output_summary" style="background: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 16px; border: 2px solid #e2e8f0;">
+            <div style="font-weight: 600; color: #64748b; margin-bottom: 12px; font-size: 14px;">
+                📊 Agent Output Summary
+            </div>
+            <div style="color: #94a3b8; font-size: 14px;">
+                Run agents to see output summary here...
+            </div>
+        </div>
+        """
+        return ("Logs cleared.", "Ready to start...", empty_summary) + tuple([""] * len(AGENT_ROLES))
+
     clear_button.click(
-        clear_all_logs,
+        clear_all_and_summary,
         inputs=[],
-        outputs=[status_output, stats_display] + log_outputs
+        outputs=[status_output, stats_display, agent_output_summary] + log_outputs
     )
 
     # Agent preset dropdown handler - updates both category groups and main selector
