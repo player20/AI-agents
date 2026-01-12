@@ -1072,6 +1072,340 @@ def export_all_formats(project_name, selected_agents, outputs, metadata=None):
     }
 
 # ==============================
+# Code Extraction & Project Generation
+# ==============================
+import re
+from typing import Dict, List, Tuple
+
+def extract_code_blocks(text: str) -> List[Dict[str, str]]:
+    """
+    Extract code blocks from markdown-formatted text.
+
+    Returns list of dicts with: {'language': str, 'code': str, 'file_path': str or None}
+    """
+    code_blocks = []
+
+    # Pattern to match ```language ... ``` blocks
+    pattern = r'```(\w+)?\n(.*?)```'
+    matches = re.finditer(pattern, text, re.DOTALL)
+
+    for match in matches:
+        language = match.group(1) or 'text'
+        code = match.group(2).strip()
+
+        if not code:  # Skip empty blocks
+            continue
+
+        # Try to detect file path from comments in code
+        file_path = detect_file_path(code, language)
+
+        code_blocks.append({
+            'language': language,
+            'code': code,
+            'file_path': file_path
+        })
+
+    return code_blocks
+
+def detect_file_path(code: str, language: str) -> str or None:
+    """
+    Detect file path from code comments or patterns.
+
+    Looks for patterns like:
+    - // src/App.js
+    - # filename: server.py
+    - <!-- file: index.html -->
+    - // File: components/Button.tsx
+    """
+    # Check first 5 lines for file path hints
+    lines = code.split('\n')[:5]
+
+    for line in lines:
+        line = line.strip()
+
+        # JavaScript/TypeScript: // src/App.js or // File: ...
+        if line.startswith('//'):
+            # Remove // and whitespace
+            potential_path = line[2:].strip()
+            # Remove "file:" or "File:" prefix
+            potential_path = re.sub(r'^(file|File):\s*', '', potential_path)
+            if '/' in potential_path or '\\' in potential_path or '.' in potential_path:
+                return potential_path
+
+        # Python: # filename: server.py or # File: ...
+        if line.startswith('#') and not line.startswith('##'):
+            potential_path = line[1:].strip()
+            potential_path = re.sub(r'^(filename|file|File):\s*', '', potential_path, flags=re.IGNORECASE)
+            if '/' in potential_path or '\\' in potential_path or '.' in potential_path:
+                return potential_path
+
+        # HTML/XML: <!-- file: index.html -->
+        html_match = re.search(r'<!--\s*(file|File|filename):\s*(.+?)\s*-->', line)
+        if html_match:
+            return html_match.group(2).strip()
+
+    # If no explicit path found, return None
+    return None
+
+def infer_file_path(code: str, language: str, index: int) -> str:
+    """
+    Infer a reasonable file path when none is explicitly provided.
+    """
+    # Map language to common patterns
+    extensions = {
+        'javascript': '.js',
+        'js': '.js',
+        'typescript': '.ts',
+        'ts': '.ts',
+        'tsx': '.tsx',
+        'jsx': '.jsx',
+        'python': '.py',
+        'py': '.py',
+        'html': '.html',
+        'css': '.css',
+        'scss': '.scss',
+        'json': '.json',
+        'yaml': '.yaml',
+        'yml': '.yml',
+        'bash': '.sh',
+        'shell': '.sh',
+        'sql': '.sql',
+        'dockerfile': 'Dockerfile',
+        'go': '.go',
+        'rust': '.rs',
+        'java': '.java',
+        'cpp': '.cpp',
+        'c': '.c'
+    }
+
+    # Try to infer from code content
+    if 'package.json' in code or '"name"' in code and '"version"' in code:
+        return 'package.json'
+    if 'README' in code[:100].upper() or '# ' in code[:20]:
+        return 'README.md'
+    if code.strip().startswith('FROM ') or code.strip().startswith('RUN '):
+        return 'Dockerfile'
+    if 'import React' in code or 'from React' in code:
+        return f'src/App{extensions.get(language, ".js")}'
+    if 'def main' in code or 'if __name__' in code:
+        return f'main{extensions.get(language, ".py")}'
+    if '<html' in code.lower() or '<!doctype' in code.lower():
+        return 'index.html'
+
+    # Default naming
+    ext = extensions.get(language.lower(), '.txt')
+    if ext == 'Dockerfile':
+        return ext
+    return f'file{index + 1}{ext}'
+
+def generate_project_structure(code_blocks: List[Dict]) -> Dict[str, str]:
+    """
+    Generate a project structure from code blocks.
+
+    Returns dict of {file_path: code_content}
+    """
+    project_files = {}
+    unnamed_counter = 1
+
+    for i, block in enumerate(code_blocks):
+        file_path = block['file_path']
+
+        # If no path detected, infer one
+        if not file_path:
+            file_path = infer_file_path(block['code'], block['language'], i)
+
+        # Normalize path (replace backslashes, remove leading slashes)
+        file_path = file_path.replace('\\', '/')
+        file_path = file_path.lstrip('/')
+
+        # Handle duplicates by appending number
+        original_path = file_path
+        counter = 1
+        while file_path in project_files:
+            name, ext = os.path.splitext(original_path)
+            file_path = f"{name}_{counter}{ext}"
+            counter += 1
+
+        project_files[file_path] = block['code']
+
+    return project_files
+
+def generate_package_json(project_files: Dict[str, str], project_name: str = "my-project") -> str:
+    """
+    Generate package.json based on detected dependencies in code.
+    """
+    dependencies = set()
+    dev_dependencies = set()
+
+    # Scan all JavaScript/TypeScript files for imports
+    for file_path, code in project_files.items():
+        if file_path.endswith(('.js', '.jsx', '.ts', '.tsx')):
+            # Find import statements
+            import_pattern = r'import .+ from [\'"]([^.\'"]+)[\'"]'
+            imports = re.findall(import_pattern, code)
+            dependencies.update(imports)
+
+            # Find require statements
+            require_pattern = r'require\([\'"]([^.\'"]+)[\'"]\)'
+            requires = re.findall(require_pattern, code)
+            dependencies.update(requires)
+
+    # Common dev dependencies for React projects
+    if any('react' in dep.lower() for dep in dependencies):
+        dev_dependencies.update(['@types/react', '@types/react-dom', 'vite'])
+
+    # Build package.json
+    package = {
+        "name": project_name,
+        "version": "1.0.0",
+        "description": "Generated by AI Agents",
+        "main": "index.js",
+        "scripts": {
+            "start": "node index.js",
+            "dev": "vite" if 'vite' in dev_dependencies else "node index.js",
+            "build": "vite build" if 'vite' in dev_dependencies else "echo 'No build configured'",
+            "test": "echo 'No tests configured'"
+        },
+        "dependencies": {dep: "latest" for dep in sorted(dependencies) if dep},
+        "devDependencies": {dep: "latest" for dep in sorted(dev_dependencies) if dep},
+        "author": "AI Agents",
+        "license": "MIT"
+    }
+
+    return json.dumps(package, indent=2)
+
+def generate_readme(project_name: str, project_files: Dict[str, str]) -> str:
+    """
+    Generate README.md with project overview.
+    """
+    file_list = "\n".join([f"- `{path}`" for path in sorted(project_files.keys())])
+
+    readme = f"""# {project_name}
+
+## Overview
+This project was generated by AI Agents.
+
+## Project Structure
+{file_list}
+
+## Getting Started
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Run the project:
+```bash
+npm start
+```
+
+## Generated Files
+This project contains {len(project_files)} files generated from AI agent outputs.
+
+---
+*Generated by AI Agents - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
+"""
+    return readme
+
+def save_project_to_disk(project_files: Dict[str, str], output_dir: str = "output") -> Tuple[str, List[str]]:
+    """
+    Save all project files to disk.
+
+    Returns: (project_path, list of created file paths)
+    """
+    # Create timestamped project directory
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    project_name = f"project_{timestamp}"
+    project_path = os.path.join(output_dir, project_name)
+
+    # Create output directory
+    os.makedirs(project_path, exist_ok=True)
+
+    created_files = []
+
+    # Save each file
+    for file_path, content in project_files.items():
+        full_path = os.path.join(project_path, file_path)
+
+        # Create parent directories if needed
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+
+        # Write file
+        with open(full_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+        created_files.append(full_path)
+
+    return project_path, created_files
+
+def extract_and_save_code(outputs: Dict[str, str], project_name: str = None) -> Dict:
+    """
+    Main function to extract code from agent outputs and save to disk.
+
+    Args:
+        outputs: Dict of {agent_name: output_text}
+        project_name: Optional project name (auto-generated if None)
+
+    Returns:
+        Dict with:
+        - 'success': bool
+        - 'project_path': str
+        - 'files_created': List[str]
+        - 'file_count': int
+        - 'message': str
+    """
+    try:
+        # Extract all code blocks from all agents
+        all_code_blocks = []
+        for agent_name, output_text in outputs.items():
+            if not output_text:
+                continue
+            blocks = extract_code_blocks(output_text)
+            all_code_blocks.extend(blocks)
+
+        if not all_code_blocks:
+            return {
+                'success': False,
+                'project_path': None,
+                'files_created': [],
+                'file_count': 0,
+                'message': 'No code blocks found in agent outputs'
+            }
+
+        # Generate project structure
+        project_files = generate_project_structure(all_code_blocks)
+
+        # Add package.json if JavaScript/TypeScript files detected
+        has_js = any(path.endswith(('.js', '.jsx', '.ts', '.tsx')) for path in project_files.keys())
+        if has_js and 'package.json' not in project_files:
+            project_files['package.json'] = generate_package_json(project_files, project_name or "my-project")
+
+        # Add README.md
+        if 'README.md' not in project_files:
+            project_files['README.md'] = generate_readme(project_name or "My Project", project_files)
+
+        # Save to disk
+        project_path, created_files = save_project_to_disk(project_files)
+
+        return {
+            'success': True,
+            'project_path': project_path,
+            'files_created': created_files,
+            'file_count': len(created_files),
+            'message': f'Successfully created {len(created_files)} files'
+        }
+
+    except Exception as e:
+        return {
+            'success': False,
+            'project_path': None,
+            'files_created': [],
+            'file_count': 0,
+            'message': f'Error: {str(e)}'
+        }
+
+# ==============================
 # Main Execution Function (with agent selection, custom prompts, error handling)
 # ==============================
 def run_dev_team(project_description, selected_agents, github_url="", custom_prompts=None, model_preset="Speed (All Haiku)",
@@ -2989,6 +3323,41 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
         visible=True
     )
 
+    # Code extraction section
+    with gr.Row():
+        with gr.Column(scale=3):
+            gr.Markdown("""
+            ### 📦 Generate Project Files
+
+            **Automatically extract code from agent outputs and create a working project.**
+
+            This will:
+            - 🔍 Find all code blocks in agent outputs
+            - 📁 Create proper directory structure
+            - 💾 Save files to disk
+            - 📦 Generate package.json and README.md
+            """)
+        with gr.Column(scale=2):
+            extract_code_btn = gr.Button(
+                "📦 Extract Code to Files",
+                variant="primary",
+                size="lg",
+                elem_id="extract_code_btn"
+            )
+
+            project_name_input = gr.Textbox(
+                label="Project Name",
+                placeholder="my-awesome-project",
+                value="",
+                info="Optional: Name for the generated project folder"
+            )
+
+    # Success feedback display (hidden until extraction completes)
+    code_extraction_feedback = gr.HTML(
+        value="",
+        visible=False
+    )
+
     log_outputs = []
     export_individual_buttons = []
 
@@ -3826,6 +4195,164 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
         clear_all_and_summary,
         inputs=[],
         outputs=[status_output, stats_display, agent_output_summary] + log_outputs
+    )
+
+    # Code extraction button handler
+    def handle_code_extraction(project_name, *agent_outputs):
+        """
+        Extract code from agent outputs and save to disk.
+
+        Args:
+            project_name: Optional project name
+            *agent_outputs: Variable number of agent output strings (one per agent)
+
+        Returns:
+            Tuple of (feedback_html, visibility_boolean)
+        """
+        # Build outputs dict from agent textboxes
+        outputs = {}
+        for i, role in enumerate(AGENT_ROLES):
+            if i < len(agent_outputs):
+                outputs[role] = agent_outputs[i] or ""
+
+        # Use default project name if none provided
+        if not project_name or not project_name.strip():
+            from datetime import datetime
+            project_name = f"agent-project-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+
+        # Clean project name (remove invalid characters)
+        import re
+        project_name = re.sub(r'[^\w\s-]', '', project_name).strip()
+        project_name = re.sub(r'[-\s]+', '-', project_name)
+
+        # Call the extraction function
+        result = extract_and_save_code(outputs, project_name)
+
+        if result['success']:
+            # Generate success feedback HTML
+            files_html = ""
+            for file_path in result.get('files_created', []):
+                files_html += f"""
+                <div style="background: white; border-left: 3px solid #10b981; padding: 12px; margin-bottom: 8px; border-radius: 4px;">
+                    <div style="font-family: 'Courier New', monospace; color: #1e293b; font-size: 14px;">
+                        📄 {file_path}
+                    </div>
+                </div>
+                """
+
+            project_path = result.get('project_path', '').replace('\\', '/')
+
+            feedback_html = f"""
+            <div style="background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%);
+                        border: 3px solid #10b981; padding: 24px; border-radius: 12px;
+                        margin: 20px 0; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
+
+                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+                    <div style="font-size: 48px;">✅</div>
+                    <div>
+                        <div style="font-weight: 700; color: #166534; font-size: 22px; margin-bottom: 4px;">
+                            Project Files Generated Successfully!
+                        </div>
+                        <div style="color: #15803d; font-size: 15px;">
+                            Created {result['file_count']} files in working project structure
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px;
+                            border: 2px solid #86efac;">
+                    <div style="font-weight: 600; color: #166534; margin-bottom: 12px; font-size: 14px;">
+                        📁 Project Location:
+                    </div>
+                    <div style="font-family: 'Courier New', monospace; background: #f8fafc;
+                                padding: 12px; border-radius: 6px; color: #1e293b; font-size: 13px;
+                                word-break: break-all;">
+                        {project_path}
+                    </div>
+                </div>
+
+                <div style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px;
+                            border: 2px solid #86efac; max-height: 300px; overflow-y: auto;">
+                    <div style="font-weight: 600; color: #166534; margin-bottom: 12px; font-size: 14px;">
+                        📄 Files Created ({result['file_count']}):
+                    </div>
+                    {files_html}
+                </div>
+
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 14px;
+                            border-radius: 6px; margin-bottom: 16px;">
+                    <div style="font-weight: 600; color: #92400e; margin-bottom: 6px; font-size: 13px;">
+                        💡 Next Steps:
+                    </div>
+                    <div style="color: #92400e; font-size: 13px; line-height: 1.6;">
+                        1. Open the project folder in your code editor<br>
+                        2. Review generated files and customize as needed<br>
+                        3. Install dependencies: <code style="background: white; padding: 2px 6px; border-radius: 3px;">npm install</code> or <code style="background: white; padding: 2px 6px; border-radius: 3px;">pip install -r requirements.txt</code><br>
+                        4. Run the project and test functionality
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; padding-top: 16px; border-top: 2px solid #86efac;">
+                    <div style="color: #15803d; font-size: 13px; text-align: center;">
+                        🎉 Your AI-generated project is ready to use! Happy coding!
+                    </div>
+                </div>
+            </div>
+            """
+
+            return gr.update(value=feedback_html, visible=True)
+
+        else:
+            # Generate error feedback HTML
+            error_message = result.get('message', 'Unknown error occurred')
+
+            feedback_html = f"""
+            <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+                        border: 3px solid #ef4444; padding: 24px; border-radius: 12px;
+                        margin: 20px 0; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);">
+
+                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+                    <div style="font-size: 48px;">❌</div>
+                    <div>
+                        <div style="font-weight: 700; color: #991b1b; font-size: 22px; margin-bottom: 4px;">
+                            Code Extraction Failed
+                        </div>
+                        <div style="color: #b91c1c; font-size: 15px;">
+                            Could not extract code from agent outputs
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: white; border-radius: 8px; padding: 16px; border: 2px solid #fca5a5;">
+                    <div style="font-weight: 600; color: #991b1b; margin-bottom: 8px; font-size: 14px;">
+                        Error Details:
+                    </div>
+                    <div style="color: #b91c1c; font-size: 13px; line-height: 1.6;">
+                        {error_message}
+                    </div>
+                </div>
+
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 14px;
+                            border-radius: 6px; margin-top: 16px;">
+                    <div style="font-weight: 600; color: #92400e; margin-bottom: 6px; font-size: 13px;">
+                        💡 Troubleshooting Tips:
+                    </div>
+                    <div style="color: #92400e; font-size: 13px; line-height: 1.6;">
+                        1. Make sure agents have been run and generated outputs<br>
+                        2. Check that outputs contain code blocks (```language ... ```)<br>
+                        3. Verify agents included file paths in comments (// src/App.js)<br>
+                        4. Try running agents again with clearer prompts
+                    </div>
+                </div>
+            </div>
+            """
+
+            return gr.update(value=feedback_html, visible=True)
+
+    extract_code_btn.click(
+        handle_code_extraction,
+        inputs=[project_name_input] + log_outputs,
+        outputs=[code_extraction_feedback]
     )
 
     # Agent preset dropdown handler - updates both category groups and main selector
