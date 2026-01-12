@@ -3615,73 +3615,204 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                 run_button = gr.Button("▶️ Run Team", variant="primary", size="lg")
                 clear_button = gr.Button("🗑️ Clear Logs", variant="secondary")
 
-            # Live progress indicator
+            # Enhanced Live progress indicator with time tracking
             execution_progress = gr.HTML(
                 value="""
-                <div id="execution_progress_container" style="display: none; background: #f8fafc; padding: 20px; border-radius: 12px; border: 2px solid #e2e8f0; margin: 16px 0;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-                        <span style="font-weight: 600; color: #1e293b;">Executing Agents</span>
-                        <span id="agent_progress_text" style="color: #64748b;">0 agents complete</span>
+                <div id="execution_progress_container" style="display: none; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 24px; border-radius: 12px; border: 2px solid #0ea5e9; margin: 16px 0; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.15);">
+                    <!-- Header -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 24px;">🤖</span>
+                            <div>
+                                <div style="font-weight: 700; color: #0c4a6e; font-size: 16px;">Executing Agents</div>
+                                <div style="color: #0369a1; font-size: 13px; margin-top: 2px;">
+                                    <span id="agent_progress_text">Starting...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 12px; color: #0369a1; font-weight: 600;">
+                                ⏱️ <span id="elapsed_time">0:00</span>
+                            </div>
+                            <div style="font-size: 11px; color: #0369a1; margin-top: 2px;">
+                                Est. <span id="remaining_time">--</span> remaining
+                            </div>
+                        </div>
                     </div>
-                    <div style="background: #e2e8f0; height: 24px; border-radius: 12px; overflow: hidden;">
-                        <div id="progress_bar_fill" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-                                    height: 100%; width: 0%; transition: width 0.5s ease;"></div>
+
+                    <!-- Progress Bar -->
+                    <div style="background: #e0f2fe; height: 28px; border-radius: 14px; overflow: hidden; margin-bottom: 16px; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+                        <div id="progress_bar_fill" style="background: linear-gradient(90deg, #0ea5e9 0%, #0284c7 100%);
+                                    height: 100%; width: 0%; transition: width 0.5s ease;
+                                    display: flex; align-items: center; justify-content: center;
+                                    color: white; font-weight: 700; font-size: 13px;">
+                            <span id="progress_percentage">0%</span>
+                        </div>
                     </div>
-                    <div id="current_agent_status" style="margin-top: 12px; color: #64748b; font-size: 14px;">
-                        ⏳ Preparing execution...
+
+                    <!-- Per-Agent Status List -->
+                    <div style="background: white; border-radius: 8px; padding: 16px; max-height: 250px; overflow-y: auto;">
+                        <div style="font-weight: 600; color: #0c4a6e; font-size: 13px; margin-bottom: 12px;">
+                            Agent Progress:
+                        </div>
+                        <div id="agent_status_list">
+                            <!-- Agent status items will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Expected Completion Time -->
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #0ea5e940; text-align: center; color: #0369a1; font-size: 12px;">
+                        Expected completion: <strong id="completion_time">Calculating...</strong>
                     </div>
                 </div>
 
                 <script>
-                    // Progress bar control functions
-                    window.showExecutionProgress = function(agentCount) {
+                    // Enhanced progress bar with time tracking and per-agent status
+                    window.showExecutionProgress = function(agentCount, selectedAgents = []) {
                         const container = document.getElementById('execution_progress_container');
                         const progressBar = document.getElementById('progress_bar_fill');
-                        const statusText = document.getElementById('current_agent_status');
+                        const progressPercentage = document.getElementById('progress_percentage');
                         const progressText = document.getElementById('agent_progress_text');
+                        const elapsedTimeSpan = document.getElementById('elapsed_time');
+                        const remainingTimeSpan = document.getElementById('remaining_time');
+                        const completionTimeSpan = document.getElementById('completion_time');
+                        const agentStatusList = document.getElementById('agent_status_list');
 
                         if (!container) return;
 
                         container.style.display = 'block';
                         progressBar.style.width = '0%';
-                        statusText.textContent = '⏳ Preparing execution...';
-                        progressText.textContent = '0 agents complete';
+                        progressPercentage.textContent = '0%';
 
-                        // Simulate progressive loading based on estimated time
-                        // Assume 30-60 seconds per agent on average
-                        const estimatedTimePerAgent = 45000; // 45 seconds
+                        // Get agent names from checkboxes if not provided
+                        if (!selectedAgents || selectedAgents.length === 0) {
+                            const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+                            selectedAgents = Array.from(checkboxes)
+                                .map(cb => cb.parentElement ? cb.parentElement.textContent.trim() : '')
+                                .filter(name => name && !name.includes('Code Review') && !name.includes('Auto Export'));
+                        }
+
+                        // Initialize agent status list
+                        agentStatusList.innerHTML = selectedAgents.map((agent, i) => `
+                            <div id="agent_status_${i}" style="display: flex; align-items: center; gap: 8px; padding: 8px; margin-bottom: 6px; border-radius: 6px; background: #f8fafc;">
+                                <span class="agent-icon" style="font-size: 16px;">⚪</span>
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 600; color: #64748b; font-size: 13px;">${agent}</div>
+                                    <div class="agent-time" style="font-size: 11px; color: #94a3b8;">Pending...</div>
+                                </div>
+                            </div>
+                        `).join('');
+
+                        // Estimate time per agent (model-dependent, but we'll use average)
+                        const estimatedTimePerAgent = 45000; // 45 seconds average
                         const totalTime = agentCount * estimatedTimePerAgent;
                         const updateInterval = 1000; // Update every second
 
+                        let startTime = Date.now();
                         let elapsed = 0;
                         let currentAgent = 0;
+                        let agentStartTimes = [startTime];
 
                         const progressInterval = setInterval(() => {
-                            elapsed += updateInterval;
+                            elapsed = Date.now() - startTime;
+                            const elapsedSeconds = Math.floor(elapsed / 1000);
+                            const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+                            const elapsedSecsRem = elapsedSeconds % 60;
+                            elapsedTimeSpan.textContent = `${elapsedMinutes}:${elapsedSecsRem.toString().padStart(2, '0')}`;
+
+                            // Calculate progress
                             const progress = Math.min((elapsed / totalTime) * 100, 95); // Cap at 95% until complete
-
                             progressBar.style.width = progress + '%';
+                            progressPercentage.textContent = Math.floor(progress) + '%';
 
-                            // Update current agent estimate
-                            const estimatedAgent = Math.floor((elapsed / estimatedTimePerAgent));
-                            if (estimatedAgent > currentAgent && estimatedAgent < agentCount) {
-                                currentAgent = estimatedAgent;
-                                progressText.textContent = `${currentAgent} agents complete`;
-                                statusText.textContent = `🤖 Running agent ${currentAgent + 1}...`;
+                            // Estimate remaining time
+                            const remainingMs = totalTime - elapsed;
+                            if (remainingMs > 0) {
+                                const remainingSeconds = Math.floor(remainingMs / 1000);
+                                const remainingMinutes = Math.floor(remainingSeconds / 60);
+                                const remainingSecsRem = remainingSeconds % 60;
+                                remainingTimeSpan.textContent = `${remainingMinutes}m ${remainingSecsRem}s`;
+
+                                // Expected completion time
+                                const completionDate = new Date(Date.now() + remainingMs);
+                                const hours = completionDate.getHours();
+                                const minutes = completionDate.getMinutes();
+                                const ampm = hours >= 12 ? 'PM' : 'AM';
+                                const displayHours = hours % 12 || 12;
+                                completionTimeSpan.textContent = `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+                            } else {
+                                remainingTimeSpan.textContent = '0m 0s';
                             }
 
-                            // Stop when we detect execution completion (status output changes)
-                            const statusOutput = document.querySelector('[label="📊 Execution Status"] textarea');
-                            if (statusOutput && statusOutput.value.includes('completed successfully')) {
-                                clearInterval(progressInterval);
-                                progressBar.style.width = '100%';
-                                statusText.innerHTML = '<span style="color: #166534;">✅ Execution Complete!</span>';
-                                progressText.textContent = `${agentCount} agents complete`;
+                            // Update current agent estimate
+                            const estimatedAgent = Math.floor(elapsed / estimatedTimePerAgent);
+                            if (estimatedAgent !== currentAgent && estimatedAgent < agentCount) {
+                                // Mark previous agent as complete
+                                if (currentAgent > 0) {
+                                    const prevAgentEl = document.getElementById(`agent_status_${currentAgent - 1}`);
+                                    if (prevAgentEl) {
+                                        const agentTime = Math.floor((Date.now() - agentStartTimes[currentAgent - 1]) / 1000);
+                                        const timeStr = agentTime < 60 ? `${agentTime}s` : `${Math.floor(agentTime / 60)}m ${agentTime % 60}s`;
+                                        prevAgentEl.querySelector('.agent-icon').textContent = '✅';
+                                        prevAgentEl.querySelector('.agent-time').textContent = `Completed in ${timeStr}`;
+                                        prevAgentEl.querySelector('.agent-time').style.color = '#15803d';
+                                        prevAgentEl.style.background = '#f0fdf4';
+                                        prevAgentEl.style.borderLeft = '3px solid #10b981';
+                                    }
+                                }
 
-                                // Hide after 3 seconds
+                                currentAgent = estimatedAgent;
+                                agentStartTimes.push(Date.now());
+
+                                // Mark current agent as running
+                                const currentAgentEl = document.getElementById(`agent_status_${currentAgent}`);
+                                if (currentAgentEl) {
+                                    currentAgentEl.querySelector('.agent-icon').textContent = '⏳';
+                                    currentAgentEl.querySelector('.agent-time').textContent = 'Running...';
+                                    currentAgentEl.querySelector('.agent-time').style.color = '#0369a1';
+                                    currentAgentEl.style.background = '#e0f2fe';
+                                    currentAgentEl.style.borderLeft = '3px solid #0ea5e9';
+
+                                    // Scroll to current agent
+                                    currentAgentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }
+
+                                progressText.textContent = `${currentAgent + 1} / ${agentCount} agents running`;
+                            }
+
+                            // Check if execution is complete
+                            const statusOutput = document.querySelector('[label="📊 Execution Status"] textarea');
+                            if (statusOutput && (statusOutput.value.includes('completed successfully') || statusOutput.value.includes('Run complete'))) {
+                                clearInterval(progressInterval);
+
+                                // Mark all remaining agents as complete
+                                for (let i = currentAgent; i < agentCount; i++) {
+                                    const agentEl = document.getElementById(`agent_status_${i}`);
+                                    if (agentEl) {
+                                        const agentTime = Math.floor((Date.now() - (agentStartTimes[i] || startTime)) / 1000);
+                                        const timeStr = agentTime < 60 ? `${agentTime}s` : `${Math.floor(agentTime / 60)}m ${agentTime % 60}s`;
+                                        agentEl.querySelector('.agent-icon').textContent = '✅';
+                                        agentEl.querySelector('.agent-time').textContent = `Completed in ${timeStr}`;
+                                        agentEl.querySelector('.agent-time').style.color = '#15803d';
+                                        agentEl.style.background = '#f0fdf4';
+                                        agentEl.style.borderLeft = '3px solid #10b981';
+                                    }
+                                }
+
+                                progressBar.style.width = '100%';
+                                progressPercentage.textContent = '100%';
+                                progressText.textContent = `${agentCount} / ${agentCount} agents complete`;
+                                remainingTimeSpan.textContent = '0m 0s';
+                                completionTimeSpan.textContent = 'Now!';
+
+                                // Change container to success state
+                                container.style.border = '2px solid #10b981';
+                                container.style.background = 'linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%)';
+
+                                // Hide after 5 seconds
                                 setTimeout(() => {
                                     container.style.display = 'none';
-                                }, 3000);
+                                }, 5000);
                             }
                         }, updateInterval);
 
@@ -3708,7 +3839,7 @@ Upload a `.yaml` file exported from the Workflow Builder to automatically config
                             const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
                             const agentCount = Array.from(checkboxes).filter(cb => {
                                 const label = cb.parentElement;
-                                return label && !label.textContent.includes('Code Review');
+                                return label && !label.textContent.includes('Code Review') && !label.textContent.includes('Auto Export');
                             }).length;
 
                             if (agentCount > 0) {
