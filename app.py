@@ -189,16 +189,9 @@ def main():
         from streamlit_ui.main_interface import render_main_interface
         render_main_interface()
     else:
-        # Self-improvement mode (to be implemented in Week 4)
-        st.markdown("### 🔄 Meta Self-Improvement")
-        st.info("Coming soon! This feature will allow the system to evaluate and improve its own code, UI/UX, and capabilities.")
-        st.markdown("""
-            The self-improvement mode will:
-            - Analyze the platform's own codebase
-            - Identify UI/UX improvements
-            - Generate and apply fixes automatically
-            - Run in "forever mode" for autonomous improvement
-        """)
+        # Self-improvement mode
+        from streamlit_ui.self_improvement import render_self_improvement
+        render_self_improvement()
 
     st.markdown("""
         <div style='text-align: center; margin-top: 32px; padding: 32px;'>
