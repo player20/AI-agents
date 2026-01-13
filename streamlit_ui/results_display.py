@@ -90,6 +90,78 @@ def display_results(results: dict):
             st.metric(label, f"{score}/10")
             st.markdown(f"{get_emoji(score)} {description}")
 
+    # Test Results
+    test_results = results.get('test_results', [])
+    if test_results:
+        st.markdown("### 🧪 Test Results")
+
+        # Summary metrics
+        passed = len([t for t in test_results if t['status'] == 'passed'])
+        failed = len([t for t in test_results if t['status'] == 'failed'])
+        skipped = len([t for t in test_results if t['status'] in ['skipped', 'warning']])
+        total = len(test_results)
+
+        metric_cols = st.columns(4)
+        with metric_cols[0]:
+            st.metric("Total Tests", total)
+        with metric_cols[1]:
+            st.metric("Passed", passed, delta=f"{int(passed/total*100)}%" if total > 0 else "0%")
+        with metric_cols[2]:
+            st.metric("Failed", failed, delta=f"-{int(failed/total*100)}%" if total > 0 and failed > 0 else None)
+        with metric_cols[3]:
+            st.metric("Skipped", skipped)
+
+        # Detailed test results
+        with st.expander("View detailed test results", expanded=False):
+            for test in test_results:
+                status_emoji = {
+                    'passed': '✅',
+                    'failed': '❌',
+                    'skipped': '⏭️',
+                    'warning': '⚠️'
+                }.get(test['status'], '❓')
+
+                status_color = {
+                    'passed': '#44ff44',
+                    'failed': '#ff4444',
+                    'skipped': '#888888',
+                    'warning': '#ffaa44'
+                }.get(test['status'], '#ffffff')
+
+                st.markdown(f"""
+                <div style="border-left: 3px solid {status_color}; padding-left: 12px; margin: 8px 0;">
+                    <strong>{status_emoji} {test['name']}</strong><br/>
+                    <span style="color: #888; font-size: 0.9em;">
+                        Duration: {test.get('duration_ms', 0)}ms
+                        {f" | Error: {test.get('error', 'Unknown')}" if test['status'] == 'failed' else ""}
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # Performance Metrics
+    performance = results.get('performance', {})
+    if performance and performance.get('page_load_ms', 0) > 0:
+        st.markdown("### ⚡ Performance Metrics")
+
+        perf_cols = st.columns(4)
+        with perf_cols[0]:
+            load_time = performance.get('page_load_ms', 0)
+            load_color = "normal" if load_time < 3000 else "inverse"
+            st.metric("Page Load", f"{load_time}ms", delta="Fast" if load_time < 3000 else "Slow", delta_color=load_color)
+
+        with perf_cols[1]:
+            tti = performance.get('time_to_interactive_ms', 0)
+            st.metric("Time to Interactive", f"{tti}ms")
+
+        with perf_cols[2]:
+            fcp = performance.get('first_contentful_paint_ms', 0)
+            st.metric("First Paint", f"{fcp}ms")
+
+        with perf_cols[3]:
+            size = performance.get('total_size_kb', 0)
+            size_color = "normal" if size < 1024 else "inverse"
+            st.metric("Total Size", f"{size}KB", delta="Light" if size < 1024 else "Heavy", delta_color=size_color)
+
     # Screenshots
     st.markdown("### 📸 Screenshots")
 
