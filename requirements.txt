@@ -64,3 +64,5 @@ posthog>=3.0.0
 # Chart generation for reports
 matplotlib>=3.8.0
 seaborn>=0.13.0
+altair>=5.0.0
+pandas>=2.0.0
