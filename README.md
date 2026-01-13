@@ -34,10 +34,51 @@ Build complete applications in minutes with zero technical knowledge. Inspired b
 ### 1. Install
 
 ```bash
+# Clone the repository
 git clone https://github.com/player20/AI-agents
 cd AI-agents
+
+# Install Python dependencies
 pip install -r requirements.txt
+
+# Install Playwright browsers for testing
 playwright install
+
+# Verify installation (optional)
+python -c "import streamlit, anthropic, langchain, langgraph, dspy; print('✅ All dependencies installed!')"
+```
+
+**System Requirements:**
+- Python 3.10 or higher
+- 4GB+ RAM recommended
+- Internet connection for API calls
+
+**Troubleshooting Installation:**
+
+If you encounter dependency conflicts:
+```bash
+# Create a virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install with pip
+pip install -r requirements.txt
+```
+
+If Playwright installation fails:
+```bash
+# Install Playwright with all dependencies
+playwright install --with-deps
+
+# Or install specific browsers only
+playwright install chromium
+```
+
+If torch/transformers installation is slow:
+```bash
+# Install without CUDA (CPU only)
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install transformers
 ```
 
 ### 2. Configure
@@ -50,6 +91,18 @@ cp .env.example .env
 ANTHROPIC_API_KEY=sk-ant-your-key-here
 ```
 
+**Get Your API Key:**
+1. Visit [Anthropic Console](https://console.anthropic.com/)
+2. Create an account or sign in
+3. Navigate to API Keys
+4. Create new key and copy it
+5. Paste into `.env` file
+
+**Optional Configuration:**
+- `HUGGINGFACE_API_TOKEN`: For model fallbacks (optional)
+- `POSTHOG_API_KEY`: For analytics suggestions (optional)
+- `DEFAULT_MODEL`: Claude model to use (haiku/sonnet/opus)
+
 ### 3. Launch
 
 ```bash
@@ -57,6 +110,14 @@ streamlit run app.py
 ```
 
 Open **http://localhost:8501** and start creating! 🎉
+
+**First Run Checklist:**
+- ✅ Terminal shows "You can now view your Streamlit app in your browser"
+- ✅ Browser opens to localhost:8501
+- ✅ No red error messages in terminal
+- ✅ Framework status shows CrewAI ✅, LangGraph ✅, DSPy ✅
+
+If you see warnings about missing frameworks (LangGraph, DSPy), they're optional - the system will work with graceful fallbacks.
 
 ---
 
