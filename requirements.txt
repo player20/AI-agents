@@ -46,3 +46,21 @@ pillow>=10.0.0
 # Hugging Face integration
 transformers>=4.35.0
 huggingface-hub>=0.19.0
+torch>=2.0.0
+
+# DSPy for prompt optimization
+dspy-ai>=2.4.0
+
+# Additional testing & data generation
+faker>=22.0.0
+
+# Utilities
+shutil-which>=1.1.0
+reportlab>=4.0.0
+
+# Analytics SDK simulation
+posthog>=3.0.0
+
+# Chart generation for reports
+matplotlib>=3.8.0
+seaborn>=0.13.0
