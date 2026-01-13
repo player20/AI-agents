@@ -88,6 +88,13 @@ class WorkflowState:
         self.research_only = kwargs.get('research_only', False)
         self.existing_code = kwargs.get('existing_code', None)
 
+        # Audit mode parameters
+        self.analyze_dropoffs = kwargs.get('analyze_dropoffs', False)
+        self.app_url = kwargs.get('app_url', None)
+        self.test_credentials = kwargs.get('test_credentials', None)
+        self.funnel_analysis = None
+        self.detected_sdks = {}
+
         # Workflow outputs
         self.agent_outputs = {}
         self.project_path = None
@@ -483,7 +490,79 @@ Be critical but constructive.
 
         challenger_result = self._execute_agent_task(challenger_agent, challenger_prompt)
         state.agent_outputs['challenger'] = challenger_result
-        self._update_progress("planning", 0.9)
+        self._update_progress("planning", 0.85)
+
+        # Step 4: Audit Mode (if requested)
+        if state.analyze_dropoffs:
+            self._log("📉 Starting Audit Mode: Drop-off analysis...")
+            self._update_progress("planning", 0.87)
+
+            try:
+                from core.audit_mode import AuditModeAnalyzer
+
+                analyzer = AuditModeAnalyzer([], {})
+
+                # SDK Detection (if code provided)
+                if state.existing_code:
+                    self._log("🔍 Scanning code for analytics SDKs...")
+                    state.detected_sdks = analyzer.detect_sdks(state.existing_code)
+
+                    detected_list = [sdk for sdk, found in state.detected_sdks.items() if found]
+                    if detected_list:
+                        self._log(f"✅ Found SDKs: {', '.join(detected_list)}", "success")
+                    else:
+                        self._log("⚠️ No analytics SDKs detected - will recommend additions", "warning")
+
+                # Crawl app if URL provided
+                if state.app_url:
+                    self._log(f"🌐 Crawling {state.app_url}...")
+
+                    # Run async crawl
+                    sessions = asyncio.run(analyzer.crawl_app_flows(
+                        base_url=state.app_url,
+                        test_credentials=state.test_credentials,
+                        simulate_users=10
+                    ))
+
+                    self._log(f"✅ Simulated {len(sessions)} user sessions", "success")
+
+                    # Analyze funnel
+                    state.funnel_analysis = analyzer.analyze_sessions(sessions)
+
+                    completion_rate = state.funnel_analysis['completion_rate']
+                    self._log(f"📊 Completion rate: {completion_rate}%", "info")
+
+                    biggest_drop = state.funnel_analysis.get('biggest_drop_off', {})
+                    if biggest_drop.get('percentage', 0) > 50:
+                        self._log(
+                            f"🔴 CRITICAL: {biggest_drop['percentage']}% drop-off at {biggest_drop['step']}",
+                            "error"
+                        )
+
+                    # Generate recommendations
+                    state.recommendations = analyzer.generate_recommendations(
+                        state.funnel_analysis,
+                        state.detected_sdks,
+                        state.existing_code
+                    )
+
+                    self._log(f"✅ Generated {len(state.recommendations)} recommendations", "success")
+
+                    # Store in agent_outputs for result formatting
+                    state.agent_outputs['audit_mode'] = f"""
+Audit Mode Analysis Complete:
+- Simulated {len(sessions)} user sessions
+- Completion Rate: {completion_rate}%
+- Biggest Drop-off: {biggest_drop.get('step', 'N/A')} ({biggest_drop.get('percentage', 0)}%)
+- SDKs Detected: {', '.join(detected_list) if detected_list else 'None'}
+- Recommendations: {len(state.recommendations)} action items generated
+"""
+
+            except Exception as e:
+                self._log(f"❌ Audit mode failed: {e}", "error")
+                state.errors.append(f"Audit mode error: {str(e)}")
+
+            self._update_progress("planning", 0.95)
 
         # Verify planning phase for hallucinations
         self._log("🔍 Verifier: Checking for hallucinations and consistency...")
@@ -1174,7 +1253,7 @@ IMPORTANT: Only flag actual hallucinations or fabricated information. Don't be o
 
     def _format_success_result(self, state: WorkflowState) -> Dict[str, Any]:
         """Format successful execution result"""
-        return {
+        result = {
             'status': 'success',
             'project_name': state.project_name,
             'project_path': state.project_path,
@@ -1188,6 +1267,15 @@ IMPORTANT: Only flag actual hallucinations or fabricated information. Don't be o
             'performance': state.agent_outputs.get('performance', {}),
             'agent_outputs': state.agent_outputs,
         }
+
+        # Add audit mode data if available
+        if state.funnel_analysis:
+            result['funnel_analysis'] = state.funnel_analysis
+
+        if state.detected_sdks:
+            result['detected_sdks'] = state.detected_sdks
+
+        return result
 
     def _format_no_go_result(self, state: WorkflowState) -> Dict[str, Any]:
         """Format no-go decision result"""

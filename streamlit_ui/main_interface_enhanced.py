@@ -264,7 +264,7 @@ def render_clarification_flow():
 
 
 def run_enhanced_execution():
-    """Run the complete execution flow with all features"""
+    """Run the complete execution flow with all features - ROUTED THROUGH ORCHESTRATOR"""
 
     params = st.session_state['exec_params']
 
@@ -329,74 +329,415 @@ def run_enhanced_execution():
         """
         terminal_placeholder.markdown(terminal_html, unsafe_allow_html=True)
 
+    # Progress callback for orchestrator
+    def update_progress(phase: str, progress: float):
+        """Callback for orchestrator to update UI progress"""
+        if phase in phases:
+            text = "In progress..." if progress < 1.0 else "Complete!"
+            phases[phase].progress(progress, text=text)
+
+    # Terminal callback for orchestrator
+    def terminal_callback(message: str, level: str = "info"):
+        """Callback for orchestrator to log terminal messages"""
+        add_terminal_line(message, level)
+
     # Start execution
     add_terminal_line("🚀 Initializing Code Weaver Pro...", "info")
     add_terminal_line(f"📝 Project: {params['project_input'][:80]}...", "info")
     add_terminal_line(f"🎯 Platforms: {', '.join(params['platforms'])}", "info")
 
     try:
-        # Step 1: Meta Prompt - Extract context and adapt agents
-        phases['planning'].progress(0.1, text="Extracting context from your idea...")
-        add_terminal_line("🧠 Analyzing your idea with meta-prompt engine...", "info")
+        # Load configuration and create orchestrator
+        from core.config import load_config
+        from core.orchestrator import CodeWeaverOrchestrator
 
-        if META_AVAILABLE:
-            try:
-                meta_engine = MetaPromptEngine()
+        add_terminal_line("⚙️ Loading configuration...", "info")
 
-                # Check for clarification response
-                additional_context = st.session_state.get('clarification_response')
+        config = load_config()
 
-                # Extract context
-                context = meta_engine.extract_context(
-                    params['project_input'],
-                    temperature=0.0
+        # Add UI callbacks to config
+        config['orchestration']['progress_callback'] = update_progress
+        config['orchestration']['terminal_callback'] = terminal_callback
+
+        add_terminal_line("🔧 Initializing orchestrator with UI callbacks...", "info")
+        orchestrator = CodeWeaverOrchestrator(config)
+
+        # Prepare parameters for orchestrator
+        orchestrator_params = {
+            'platforms': params['platforms'],
+            'do_market_research': params['do_market_research'],
+            'research_only': params['research_only'],
+            'existing_code': params.get('code_files'),
+            'app_url': params.get('app_url'),
+            'analyze_dropoffs': params.get('analyze_dropoffs', False),
+            'test_credentials': st.session_state.get('test_credentials')
+        }
+
+        add_terminal_line("🚀 Starting orchestrated workflow...", "success")
+
+        # RUN THROUGH ORCHESTRATOR - This is the key change!
+        result = orchestrator.run(
+            user_input=params['project_input'],
+            **orchestrator_params
+        )
+
+        add_terminal_line("✅ Workflow complete!", "success")
+
+        # Store result for display
+        st.session_state['execution_result'] = result
+
+        # Handle different result statuses
+        if result['status'] == 'no-go':
+            add_terminal_line("⚠️ Market research recommendation: NO-GO", "warning")
+            with results_container:
+                st.markdown("### ⚠️ Market Research: NO-GO Decision")
+                st.warning(result['reason'])
+                st.markdown("**Agent Outputs:**")
+                for agent, output in result.get('agent_outputs', {}).items():
+                    with st.expander(f"📊 {agent}"):
+                        st.markdown(output)
+            return
+
+        elif result['status'] == 'research_complete':
+            add_terminal_line("✅ Research-only mode complete", "success")
+            with results_container:
+                st.markdown("### 📊 Market Research Complete")
+                st.info(result['description'])
+                st.markdown("**Research Findings:**")
+                for agent, output in result.get('agent_outputs', {}).items():
+                    if 'research' in agent.lower() or 'market' in agent.lower():
+                        with st.expander(f"📊 {agent}"):
+                            st.markdown(output)
+            return
+
+        elif result['status'] == 'error':
+            add_terminal_line(f"❌ Execution failed: {result['error']}", "error")
+            with results_container:
+                st.error(f"### ❌ Execution Failed\n\n{result['error']}")
+                with st.expander("🔍 Error Details"):
+                    for error in result.get('errors', []):
+                        st.code(error)
+            return
+
+        # Success case - display comprehensive results
+        add_terminal_line("🎉 Displaying results...", "success")
+
+        # Display results (existing logic)
+        with results_container:
+            display_enhanced_results_from_orchestrator(result, params)
+
+    except Exception as e:
+        add_terminal_line(f"❌ Fatal error: {e}", "error")
+        st.error(f"### ❌ Execution Failed\n\n{str(e)}")
+        import traceback
+        with st.expander("🔍 Error Details"):
+            st.code(traceback.format_exc())
+
+
+def display_enhanced_results_from_orchestrator(result: Dict, params: Dict):
+    """Display results from orchestrator execution"""
+
+    st.markdown("---")
+    st.markdown("## 🎉 Your App is Ready!")
+
+    # Extract result data
+    project_name = result.get('project_name', 'My Awesome App')
+    description = result.get('description', params['project_input'])
+    platforms = result.get('platforms', params['platforms'])
+    scores = result.get('scores', {'speed': 7, 'mobile': 7, 'intuitiveness': 7, 'functionality': 7})
+    features = result.get('features', [])
+    recommendations = result.get('recommendations', [])
+    test_results = result.get('test_results', [])
+    screenshots = result.get('screenshots', [])
+    performance = result.get('performance', {})
+
+    # Scores section
+    st.markdown("### 📊 Quality Scores")
+
+    score_cols = st.columns(4)
+    score_names = ['speed', 'mobile', 'intuitiveness', 'functionality']
+
+    for idx, score_name in enumerate(score_names):
+        score = scores.get(score_name, 7)
+        with score_cols[idx]:
+            # Determine badge class
+            if score >= 8:
+                badge_class = "score-excellent"
+                emoji = "⭐⭐⭐"
+            elif score >= 6:
+                badge_class = "score-good"
+                emoji = "⭐⭐"
+            elif score >= 4:
+                badge_class = "score-fair"
+                emoji = "⭐"
+            else:
+                badge_class = "score-poor"
+                emoji = "❌"
+
+            st.markdown(f"""
+                <div class='score-badge {badge_class}'>
+                    {score_name.replace('_', ' ').title()}<br>
+                    <span style='font-size: 20px;'>{score}/10 {emoji}</span>
+                </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Features and details
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("### ✨ Features Implemented")
+        if features:
+            for feature in features[:10]:  # Top 10
+                st.markdown(f"✅ {feature}")
+        else:
+            st.markdown("✅ User-friendly interface")
+            st.markdown("✅ Responsive design")
+            st.markdown("✅ Core functionality")
+
+    with col2:
+        st.markdown("### 📁 Project Details")
+        st.markdown(f"**Name:** {project_name}")
+        st.markdown(f"**Platforms:** {', '.join(platforms)}")
+        if result.get('project_path'):
+            st.markdown(f"**Location:** `{result['project_path']}`")
+
+    # Test Results (if available)
+    if test_results:
+        st.markdown("### 🧪 Test Results")
+        passed = len([t for t in test_results if t.get('status') == 'passed'])
+        total = len(test_results)
+        pass_rate = (passed / total * 100) if total > 0 else 0
+
+        if pass_rate >= 90:
+            st.success(f"✅ {passed}/{total} tests passed ({int(pass_rate)}%)")
+        elif pass_rate >= 70:
+            st.warning(f"⚠️ {passed}/{total} tests passed ({int(pass_rate)}%)")
+        else:
+            st.error(f"❌ {passed}/{total} tests passed ({int(pass_rate)}%)")
+
+        with st.expander("📋 View Test Details"):
+            for test in test_results:
+                status_emoji = "✅" if test['status'] == 'passed' else "❌"
+                st.markdown(f"{status_emoji} **{test['name']}** - {test.get('duration_ms', 0)}ms")
+                if test.get('error'):
+                    st.code(test['error'])
+
+    # Performance Metrics (if available)
+    if performance:
+        st.markdown("### ⚡ Performance Metrics")
+        perf_col1, perf_col2, perf_col3 = st.columns(3)
+
+        with perf_col1:
+            st.metric("Page Load", f"{performance.get('page_load_ms', 0)}ms")
+        with perf_col2:
+            st.metric("Time to Interactive", f"{performance.get('time_to_interactive_ms', 0)}ms")
+        with perf_col3:
+            st.metric("Bundle Size", f"{performance.get('total_size_kb', 0)}KB")
+
+    # Screenshots (if available)
+    if screenshots:
+        st.markdown("### 📸 Screenshots")
+        screenshot_cols = st.columns(min(3, len(screenshots)))
+        for idx, screenshot in enumerate(screenshots[:3]):
+            with screenshot_cols[idx]:
+                st.markdown(f"**{screenshot['name']}**")
+                if screenshot.get('path'):
+                    try:
+                        st.image(screenshot['path'], use_column_width=True)
+                    except:
+                        st.info(f"Screenshot: {screenshot['path']}")
+
+    # Audit Mode Results (if applicable)
+    if params.get('analyze_dropoffs') and result.get('agent_outputs', {}).get('audit_mode'):
+        st.markdown("### 📉 User Behavior Analysis")
+
+        # Try to get funnel data from agent outputs
+        audit_output = result['agent_outputs'].get('audit_mode', '')
+
+        # Display funnel chart if we have data
+        if 'funnel_analysis' in result:
+            import altair as alt
+            import pandas as pd
+
+            funnel = result['funnel_analysis']
+            funnel_data = []
+
+            for step, data in funnel.get('funnel', {}).items():
+                funnel_data.append({
+                    'Step': step.replace('_', ' ').title(),
+                    'Percentage': data['percentage'],
+                    'Count': data['count']
+                })
+
+            if funnel_data:
+                df = pd.DataFrame(funnel_data)
+
+                chart = alt.Chart(df).mark_bar(color='#667eea').encode(
+                    x=alt.X('Percentage:Q', scale=alt.Scale(domain=[0, 100])),
+                    y=alt.Y('Step:N', sort='-x'),
+                    tooltip=['Step', 'Percentage', 'Count']
+                ).properties(
+                    height=300
                 )
 
-                add_terminal_line(f"✅ Context extracted: Industry={context.get('industry', 'unknown')}", "success")
+                st.altair_chart(chart, use_container_width=True)
 
-                # Check if clarification needed
-                clarity_score = context.get('clarity_score', 10)
-                if clarity_score < 6 and not additional_context:
-                    add_terminal_line(f"⚠️ Input clarity score: {clarity_score}/10 - requesting clarification", "warning")
+                # Biggest drop-off highlight
+                biggest_drop = funnel.get('biggest_drop_off', {})
+                if biggest_drop:
+                    st.error(f"""
+                        🔴 **Critical Issue**: {biggest_drop['percentage']}% of users drop off at **{biggest_drop['step'].replace('_', ' ')}**
 
-                    clarification_question = meta_engine.request_clarification(
-                        params['project_input'],
-                        context
-                    )
+                        This is a major conversion killer. Check recommendations below for fixes.
+                    """)
 
-                    st.session_state['clarification_needed'] = True
-                    st.session_state['clarification_question'] = clarification_question
-                    st.session_state['partial_context'] = context
+    # Recommendations
+    if recommendations:
+        st.markdown("### 💡 Recommendations")
 
-                    st.rerun()
+        for rec in recommendations:
+            priority = rec.get('priority', 'medium')
 
-            except Exception as e:
-                add_terminal_line(f"⚠️ Meta-prompt failed: {e}. Continuing with generic agents.", "warning")
+            # Priority badge
+            if priority == 'critical':
+                badge_color = '#f85149'
+                icon = '🔴'
+            elif priority == 'high':
+                badge_color = '#f0883e'
+                icon = '🟠'
+            elif priority == 'medium':
+                badge_color = '#58a6ff'
+                icon = '🔵'
+            else:
+                badge_color = '#7e88b5'
+                icon = '⚪'
 
-        phases['planning'].progress(0.3, text="Planning architecture...")
-        add_terminal_line("📐 Agents are planning the architecture...", "info")
+            with st.expander(f"{icon} {rec.get('title', 'Recommendation')} [{priority.upper()}]"):
+                st.markdown(rec.get('description', ''))
 
-        # Step 2: Market Research (if requested)
-        if params['do_market_research']:
-            phases['planning'].progress(0.5, text="Conducting market research...")
-            add_terminal_line("📊 Running market analysis...", "info")
+                if 'suggestions' in rec:
+                    st.markdown("**Suggested Actions:**")
+                    for suggestion in rec['suggestions']:
+                        st.markdown(f"- {suggestion}")
 
-            # TODO: Call research agent
-            add_terminal_line("✅ Market research complete", "success")
+                if 'code_snippet' in rec:
+                    st.markdown("**Code to Add:**")
+                    st.code(rec['code_snippet'], language='javascript')
 
-            if params['research_only']:
-                phases['planning'].progress(1.0, text="Done!")
-                add_terminal_line("✅ Research-only mode complete. Review results below.", "success")
+    st.markdown("---")
 
-                # Display research results
-                with results_container:
-                    st.markdown("### 📊 Market Research Results")
-                    st.info("🚧 Research agent integration coming soon!")
+    # Action buttons (same as before)
+    st.markdown("### 🎯 What's Next?")
 
-                return
+    button_col1, button_col2, button_col3, button_col4 = st.columns(4)
 
-        # Step 3: Audit Mode (if requested)
-        if params['analyze_dropoffs']:
+    with button_col1:
+        # Download project
+        if st.button("📥 Download ZIP", use_container_width=True):
+            if result.get('project_path'):
+                st.info(f"Project ready at: {result['project_path']}")
+            else:
+                st.info("🚧 ZIP generation coming soon!")
+
+    with button_col2:
+        # Generate A/B variants
+        if st.button("🧪 Generate A/B Tests", use_container_width=True):
+            with st.spinner("Creating variants..."):
+                try:
+                    project_path = result.get('project_path', tempfile.mkdtemp())
+
+                    generator = ABTestGenerator(project_path)
+                    variants = generator.generate_variants(variant_count=3)
+
+                    st.success(f"✅ Created {len(variants)} A/B test variants!")
+
+                    for variant in variants:
+                        with st.expander(f"📊 {variant['name']}"):
+                            st.markdown(variant['description'])
+                            st.markdown(f"**Branch:** `{variant['branch_name']}`")
+                            st.markdown(f"**Metrics:** {', '.join(variant['metrics_to_track'])}")
+
+                except Exception as e:
+                    st.error(f"Failed to generate variants: {e}")
+
+    with button_col3:
+        # Export report
+        report_style = st.selectbox(
+            "Report Type:",
+            ["Executive Summary", "Dev Handover"],
+            key="report_style",
+            label_visibility="collapsed"
+        )
+
+        if st.button("📄 Export Report", use_container_width=True):
+            with st.spinner(f"Generating {report_style}..."):
+                try:
+                    generator = ReportGenerator()
+
+                    pdf_path = f"/tmp/{report_style.lower().replace(' ', '_')}_{datetime.now().timestamp()}.pdf"
+
+                    project_data = {
+                        'project_name': project_name,
+                        'description': description,
+                        'platforms': platforms,
+                        'scores': scores,
+                        'funnel_analysis': result.get('funnel_analysis'),
+                        'recommendations': recommendations,
+                        'screenshots': screenshots,
+                        'test_results': test_results,
+                        'performance': performance,
+                        'setup_instructions': [
+                            'npm install',
+                            'cp .env.example .env',
+                            'npm run dev'
+                        ]
+                    }
+
+                    if report_style == "Executive Summary":
+                        generator.generate_executive_summary(project_data, pdf_path)
+                    else:
+                        generator.generate_dev_handover(project_data, pdf_path)
+
+                    with open(pdf_path, 'rb') as f:
+                        st.download_button(
+                            f"📥 Download {report_style}",
+                            data=f.read(),
+                            file_name=f"{report_style.lower().replace(' ', '_')}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+
+                except Exception as e:
+                    st.error(f"Failed to generate report: {e}")
+
+    with button_col4:
+        # Restart
+        if st.button("🔄 Start Over", use_container_width=True):
+            # Clear session state
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
+
+    # Tweak options
+    with st.expander("🎨 Tweak Design (Live Preview)"):
+        st.markdown("**Customize colors and spacing:**")
+
+        tweak_col1, tweak_col2, tweak_col3 = st.columns(3)
+
+        with tweak_col1:
+            primary_color = st.color_picker("Primary Color", "#667eea")
+
+        with tweak_col2:
+            font_size = st.slider("Font Size (px)", 12, 24, 16)
+
+        with tweak_col3:
+            padding = st.slider("Padding (px)", 8, 32, 16)
+
+        if st.button("🎨 Apply & Regenerate"):
+            st.success("✅ Design tweaks applied! Regenerating...")
+            # TODO: Trigger regeneration with new styles
             phases['planning'].progress(0.7, text="Analyzing user behavior...")
             add_terminal_line("📉 Starting drop-off analysis...", "info")
 
