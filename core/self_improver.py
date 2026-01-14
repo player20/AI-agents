@@ -847,11 +847,19 @@ WRONG FORMATS (DO NOT USE):
 ❌ Adding comments after FILE_CONTENT_END
 ❌ Using different markers like ```python or "Here's the fix:"
 ❌ Outputting only the changed section (MUST output ENTIRE file)
+❌ Using "..." placeholders or truncating code (FORBIDDEN!)
+❌ Abbreviating with "// rest of file" or similar
+
+CRITICAL - DO NOT USE PLACEHOLDERS:
+- DO NOT use "..." to represent omitted code
+- DO NOT truncate or abbreviate ANY part of the file
+- Output EVERY SINGLE LINE from start to finish
+- If you use "..." you have FAILED this task
 
 REQUIREMENTS:
 1. First line MUST be exactly: FILE_CONTENT_START
 2. No text before FILE_CONTENT_START (not even "Sure!" or "Here it is")
-3. Paste the ENTIRE fixed file (all lines from start to finish)
+3. Paste the ENTIRE fixed file (all lines from start to finish - NO "..." ALLOWED)
 4. Last line MUST be exactly: FILE_CONTENT_END
 5. No text after FILE_CONTENT_END (no explanations)
 
@@ -905,6 +913,12 @@ BEGIN OUTPUT NOW (start with "FILE_CONTENT_START" on the very first line):
                     if first_line in ['python', 'py', 'javascript', 'js', 'typescript', 'ts', 'html', 'css']:
                         fixed_content = '\n'.join(fixed_content.split('\n')[1:])
 
+                    # Validate - reject placeholder/truncated outputs
+                    if '...' in fixed_content[:200] or '…' in fixed_content[:200]:  # Check first 200 chars
+                        self._log(f"  ⚠ Fix contains '...' placeholder for {Path(file_path).name}, rejecting", "warning")
+                        self._log(f"     Agent used prohibited abbreviation. First 150 chars: {repr(fixed_content[:150])}", "warning")
+                        continue
+
                     # Validate we got substantial content
                     if len(fixed_content) > 50:
                         fixes.append({
@@ -915,6 +929,7 @@ BEGIN OUTPUT NOW (start with "FILE_CONTENT_START" on the very first line):
                         })
                     else:
                         self._log(f"  ⚠ Fix too short for {Path(file_path).name} ({len(fixed_content)} chars), skipping", "warning")
+                        self._log(f"     Content received: {repr(fixed_content[:100])}", "warning")
                 else:
                     self._log(f"  ⚠ Could not find FILE_CONTENT_START/END markers in fix for {Path(file_path).name}", "warning")
                     # Show first 200 chars of output for debugging
