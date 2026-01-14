@@ -193,7 +193,10 @@ class SelfImprover:
             return screenshots
 
         except Exception as e:
-            self._log(f"Screenshot capture failed: {e}", "warning")
+            import traceback
+            error_details = traceback.format_exc()
+            self._log(f"Screenshot capture failed: {str(e)}", "warning")
+            self._log(f"Full error: {error_details}", "warning")
             return []
 
     def _get_files_to_analyze(self, target_files: Optional[List[str]] = None) -> List[Path]:
@@ -277,8 +280,12 @@ class SelfImprover:
         ]
 
         # Analyze in batches (max 3 files at a time to avoid context limits)
+        total_batches = (len(files) + 2) // 3  # Ceiling division
+        batch_num = 0
+
         for i in range(0, len(files), 3):
             batch = files[i:i+3]
+            batch_num += 1
             file_contents = {}
 
             for file_path in batch:
@@ -292,6 +299,9 @@ class SelfImprover:
 
             if not file_contents:
                 continue
+
+            # Show progress
+            self._log(f"📦 Analyzing batch {batch_num}/{total_batches} ({len(batch)} files)...", "info")
 
             # Mode-specific analysis prompts (include screenshots for UI/UX analysis)
             prompt = self._get_analysis_prompt(file_contents, mode, screenshots)
@@ -343,6 +353,8 @@ Only output issues that are genuinely worth fixing.
             tasks.append(challenger_task)
 
             # Run the crew with all agents working together
+            self._log(f"  → Running {len(analysis_agents)} agents: {', '.join([a.role for a in analysis_agents])}", "info")
+
             crew = Crew(
                 agents=analysis_agents,
                 tasks=tasks,
@@ -355,7 +367,7 @@ Only output issues that are genuinely worth fixing.
                 result_text = result.raw if hasattr(result, 'raw') else str(result)
 
                 # Log the raw result for debugging
-                self._log(f"Agent team returned {len(result_text)} characters", "info")
+                self._log(f"  ✓ Team analysis complete ({len(result_text)} characters)", "info")
 
                 # Parse issues from result
                 batch_issues = self._parse_issues(result_text, batch)
