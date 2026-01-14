@@ -38,6 +38,8 @@ class ImprovementState(TypedDict):
     # Control
     should_continue: bool
     error_message: str
+    previous_score: float  # Track previous score to detect stagnation
+    stuck_iterations: int  # Count consecutive iterations with no score improvement
 
 
 def analyze_issues_node(state: ImprovementState) -> ImprovementState:
@@ -164,12 +166,26 @@ def evaluate_quality_node(state: ImprovementState) -> ImprovementState:
     # Cap at 10
     score = min(10.0, max(0.0, score))
 
+    # Track if we're stuck (no improvement)
+    previous_score = state.get('previous_score', 5.0)
+    stuck_iterations = state.get('stuck_iterations', 0)
+
+    if score <= previous_score:
+        stuck_iterations += 1
+        print(f"   [WARNING] No score improvement for {stuck_iterations} consecutive iterations")
+    else:
+        stuck_iterations = 0
+
     # Determine if we should continue
     should_continue = (
         score < state['target_score'] and
         state['iteration'] < 10 and  # Max 10 iterations
-        state['fixes_applied'] > 0  # Only continue if we're making progress
+        state['fixes_applied'] > 0 and  # Only continue if we're making progress
+        stuck_iterations < 3  # Stop if stuck for 3 consecutive iterations
     )
+
+    if stuck_iterations >= 3:
+        print(f"   [STOP] Stopping: No improvement for {stuck_iterations} consecutive iterations")
 
     # Record iteration history
     history = state.get('iteration_history', [])
@@ -186,6 +202,8 @@ def evaluate_quality_node(state: ImprovementState) -> ImprovementState:
     return {
         **state,
         'current_score': score,
+        'previous_score': score,  # Store for next iteration comparison
+        'stuck_iterations': stuck_iterations,
         'should_continue': should_continue,
         'iteration_history': history
     }
@@ -303,11 +321,16 @@ def run_iterative_improvement(
         'total_fixes_applied': 0,
         'iteration_history': [],
         'should_continue': True,
-        'error_message': ''
+        'error_message': '',
+        'previous_score': initial_score,
+        'stuck_iterations': 0
     }
 
-    # Run workflow
-    config = {"configurable": {"thread_id": "improvement-session-1"}}
+    # Run workflow with increased recursion limit
+    config = {
+        "configurable": {"thread_id": "improvement-session-1"},
+        "recursion_limit": 50  # Increased from default 25 to allow more iterations
+    }
 
     try:
         final_state = None
