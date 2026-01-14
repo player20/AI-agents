@@ -438,7 +438,10 @@ CRITICAL - THESE ARE THE ONLY FILES ANALYZED:
 The experts ONLY analyzed the files listed above. Any issue mentioning a file NOT in this list is a HALLUCINATION and MUST be removed.
 
 Your role as Verifier (Hallucination Detector):
-1. FIRST: Check file path - is it in the analyzed files list above?
+1. FIRST: Check file path - is it SPECIFIC and in the analyzed files list above?
+   - If "Unknown" → REMOVE (invalid)
+   - If "Multiple files" → REMOVE (invalid)
+   - If "Across the UI" → REMOVE (too vague)
    - If NOT in list → REMOVE (hallucination)
    - If in list → Continue verification
 2. Fact-check every claim - is it verifiable from the code shown?
@@ -448,10 +451,12 @@ Your role as Verifier (Hallucination Detector):
 6. Remove issues based on imagined code or features that don't exist
 7. Validate severity ratings are justified by the actual impact
 
-EXAMPLES OF HALLUCINATIONS TO REMOVE:
-- Issue mentioning "core/orchestrator.py" when analyzing UI files
-- Issue mentioning "server/api.py" when only analyzing frontend files
-- Issue mentioning files not in the analyzed list above
+EXAMPLES OF ISSUES TO REMOVE:
+- FILE: Unknown (too vague - must specify exact file)
+- FILE: core/orchestrator.py (when analyzing UI files only)
+- FILE: server/api.py (when only analyzing frontend files)
+- FILE: Multiple files (must pick ONE specific file)
+- FILE: Across the UI (must pick ONE specific file)
 
 For VERIFIED issues (file IS in analyzed list AND claim is factual), output in EXACT format:
 ISSUE: [title]
@@ -651,6 +656,13 @@ REQUIREMENTS:
 3. No concluding sentences
 4. Use blank lines between issues
 5. Each issue MUST have all 5 fields: ISSUE, FILE, SEVERITY, DESCRIPTION, SUGGESTION
+6. FILE field MUST be a SPECIFIC file path from the analyzed files above
+   ❌ WRONG: FILE: Unknown
+   ❌ WRONG: FILE: Multiple files
+   ❌ WRONG: FILE: Across the UI
+   ✅ RIGHT: FILE: streamlit_ui/main_interface.py
+7. If an issue affects multiple files, create SEPARATE issues for each file
+8. DO NOT use vague file paths - pick the MOST RELEVANT specific file
 
 BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
 """
@@ -812,6 +824,8 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
         for issue in issues:
             file_path = issue.get('file', '')
             if not file_path or not Path(file_path).exists():
+                issue_title = issue.get('title', 'Unknown issue')
+                self._log(f"⚠ Skipping issue '{issue_title}': Invalid file path '{file_path}'", "warning")
                 continue
 
             # Skip directories
