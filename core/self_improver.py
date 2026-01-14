@@ -872,16 +872,21 @@ ISSUE: {issue.get('title', 'Unknown issue')}
 DESCRIPTION: {issue.get('description', '')}
 SUGGESTION: {issue.get('suggestion', '')}
 
-CURRENT CODE (first 3000 chars):
+CURRENT CODE (COMPLETE FILE - {len(current_content)} characters):
 ```
-{current_content[:3000]}
+{current_content}
 ```
+
+CRITICAL - YOU HAVE THE COMPLETE FILE ABOVE:
+The code shown above is the ENTIRE file from start to finish.
+Your output must also be the ENTIRE file from start to finish.
 
 INSTRUCTIONS:
 1. Fix the issue described above
-2. Output the ENTIRE fixed file (all lines, not just the changed part)
+2. Output the ENTIRE fixed file (every single line from start to finish)
 3. Wrap output in FILE_CONTENT_START and FILE_CONTENT_END markers
 4. NO explanations, NO prose, NO text before/after markers
+5. If the file is long, output ALL of it - DO NOT stop early
 
 REMINDER - YOUR OUTPUT MUST START WITH EXACTLY THIS:
 FILE_CONTENT_START
@@ -1102,19 +1107,24 @@ FILE: {file_path}
 ISSUE: {issue.get('title', 'Unknown issue')}
 DESCRIPTION: {issue.get('description', '')}
 
-ORIGINAL CODE:
+ORIGINAL CODE (COMPLETE FILE - {len(original_content)} characters):
 ```
-{original_content[:2000]}
+{original_content}
 ```
 
 PREVIOUS FIX FAILED WITH ERROR:
 {error_message}
+
+CRITICAL - YOU HAVE THE COMPLETE FILE ABOVE:
+The code shown above is the ENTIRE original file.
+Your output must also be the ENTIRE file from start to finish.
 
 WHAT TO DO:
 1. Understand WHY the error occurred
 2. Generate a NEW fix that DOES NOT have this error
 3. Ensure syntax is 100% valid Python
 4. Output ENTIRE file wrapped in FILE_CONTENT_START / FILE_CONTENT_END
+5. If the file is long, output ALL of it - DO NOT stop early
 
 Common issues to avoid:
 - 'await' outside async function
