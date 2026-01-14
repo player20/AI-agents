@@ -165,38 +165,52 @@ class SelfImprover:
     def _capture_app_screenshots(self) -> List[Dict]:
         """Capture screenshots of the running application for visual analysis"""
         try:
-            # Configure Playwright to capture screenshots of localhost:8505
-            playwright_config = {
-                'playwright': {
-                    'headless': True,
-                    'browser_type': 'chromium',
-                    'timeout': 30000,
-                    'viewport': {
-                        'desktop': {'width': 1920, 'height': 1080},
-                        'tablet': {'width': 768, 'height': 1024},
-                        'mobile': {'width': 375, 'height': 667}
-                    }
-                },
-                'server': {
-                    'max_startup_attempts': 3,
-                    'health_check_interval': 2
-                },
-                'screenshots_dir': str(self.base_dir / 'screenshots')
-            }
+            from playwright.sync_api import sync_playwright
+            import time
 
-            # Create runner pointing to localhost:8505 (Streamlit app)
-            runner = PlaywrightRunner(str(self.base_dir), playwright_config)
-            runner.server_url = "http://localhost:8505"  # Override - app already running
+            screenshots = []
+            screenshots_dir = self.base_dir / 'screenshots'
+            screenshots_dir.mkdir(exist_ok=True)
 
-            # Capture screenshots asynchronously
-            screenshots = asyncio.run(runner.capture_screenshots())
+            timestamp = int(time.time())
+            server_url = "http://localhost:8505"
+
+            # Use SYNC playwright to avoid event loop conflicts
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+
+                viewports = {
+                    'desktop': {'width': 1920, 'height': 1080},
+                    'tablet': {'width': 768, 'height': 1024},
+                    'mobile': {'width': 375, 'height': 667}
+                }
+
+                for viewport_name, viewport_size in viewports.items():
+                    try:
+                        page = browser.new_page(viewport=viewport_size)
+                        page.goto(server_url, wait_until="networkidle", timeout=30000)
+
+                        screenshot_filename = f"screenshot_{viewport_name}_{timestamp}.png"
+                        screenshot_path = screenshots_dir / screenshot_filename
+
+                        page.screenshot(path=str(screenshot_path), full_page=True)
+
+                        screenshots.append({
+                            "name": viewport_name.capitalize(),
+                            "path": str(screenshot_path),
+                            "viewport": viewport_size
+                        })
+
+                        page.close()
+                    except Exception as e:
+                        self._log(f"Failed to capture {viewport_name} screenshot: {e}", "warning")
+
+                browser.close()
+
             return screenshots
 
         except Exception as e:
-            import traceback
-            error_details = traceback.format_exc()
             self._log(f"Screenshot capture failed: {str(e)}", "warning")
-            self._log(f"Full error: {error_details}", "warning")
             return []
 
     def _get_files_to_analyze(self, target_files: Optional[List[str]] = None) -> List[Path]:
