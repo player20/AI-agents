@@ -114,9 +114,27 @@ class SelfImprover:
                 'issues': []
             }
 
-        # Prioritize and limit issues
-        prioritized_issues = self._prioritize_issues(issues)[:max_issues]
-        self._log(f"Prioritized top {len(prioritized_issues)} issues")
+        # Prioritize issues (includes complexity scoring)
+        prioritized_issues = self._prioritize_issues(issues)
+
+        # Adaptive batch size: more simple fixes, fewer complex fixes
+        simple_count = sum(1 for issue in prioritized_issues[:max_issues*2] if issue.get('complexity') == 'SIMPLE')
+        complex_count = sum(1 for issue in prioritized_issues[:max_issues*2] if issue.get('complexity') == 'COMPLEX')
+
+        # If mostly simple fixes, allow up to 10
+        # If mostly complex, stick to 5
+        # Mix: adjust dynamically
+        if simple_count > max_issues and complex_count <= 2:
+            adaptive_max = min(10, len(prioritized_issues))
+            self._log(f"📈 Adaptive batch: {simple_count} simple fixes detected, increasing batch to {adaptive_max}", "info")
+        elif complex_count >= 3:
+            adaptive_max = max(3, max_issues - 2)
+            self._log(f"📉 Adaptive batch: {complex_count} complex fixes detected, reducing batch to {adaptive_max}", "info")
+        else:
+            adaptive_max = max_issues
+
+        prioritized_issues = prioritized_issues[:adaptive_max]
+        self._log(f"Prioritized top {len(prioritized_issues)} issues (balanced mix of quick wins + important fixes)")
 
         # Step 3: Create Git branch for safety
         branch_name = f"self-improve-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
@@ -552,13 +570,90 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
 
         return issues
 
+    def _estimate_complexity(self, issue: Dict) -> str:
+        """
+        Estimate fix complexity based on issue description
+
+        Returns:
+            'SIMPLE', 'MODERATE', or 'COMPLEX'
+        """
+        description = (issue.get('description', '') + ' ' + issue.get('suggestion', '')).lower()
+
+        # Simple indicators
+        simple_keywords = [
+            'missing', 'add comment', 'typo', 'rename', 'remove unused',
+            'import statement', 'add docstring', 'fix spacing',
+            'add type hint', 'simple fix', 'quick fix'
+        ]
+
+        # Complex indicators
+        complex_keywords = [
+            'refactor', 'redesign', 'architecture', 'algorithm',
+            'entire codebase', 'multiple files', 'breaking change',
+            'major rewrite', 'comprehensive', 'fundamental'
+        ]
+
+        simple_count = sum(1 for kw in simple_keywords if kw in description)
+        complex_count = sum(1 for kw in complex_keywords if kw in description)
+
+        # Check description length (longer = more complex)
+        desc_length = len(description)
+
+        if simple_count > complex_count and desc_length < 200:
+            return 'SIMPLE'
+        elif complex_count > simple_count or desc_length > 400:
+            return 'COMPLEX'
+        else:
+            return 'MODERATE'
+
     def _prioritize_issues(self, issues: List[Dict]) -> List[Dict]:
-        """Prioritize issues by severity"""
-        severity_order = {'HIGH': 0, 'MEDIUM': 1, 'LOW': 2}
-        return sorted(
-            issues,
-            key=lambda x: severity_order.get(x.get('severity', 'MEDIUM'), 1)
-        )
+        """
+        Smart prioritization: balance quick wins with important fixes
+
+        Scoring system:
+        - Severity: HIGH=10, MEDIUM=5, LOW=2
+        - Complexity: SIMPLE=+5 bonus, MODERATE=0, COMPLEX=-3 penalty
+        - Result: Mix of high-impact AND easy fixes
+        """
+        severity_scores = {'HIGH': 10, 'MEDIUM': 5, 'LOW': 2}
+        complexity_scores = {'SIMPLE': 5, 'MODERATE': 0, 'COMPLEX': -3}
+
+        # Score each issue
+        scored_issues = []
+        for issue in issues:
+            severity = issue.get('severity', 'MEDIUM')
+            complexity = self._estimate_complexity(issue)
+
+            # Calculate priority score
+            score = severity_scores.get(severity, 5) + complexity_scores.get(complexity, 0)
+
+            # Store complexity for logging
+            issue['complexity'] = complexity
+
+            scored_issues.append({
+                'issue': issue,
+                'score': score,
+                'severity': severity,
+                'complexity': complexity
+            })
+
+        # Sort by score (highest first)
+        scored_issues.sort(key=lambda x: x['score'], reverse=True)
+
+        # Extract just the issues
+        prioritized = [item['issue'] for item in scored_issues]
+
+        # Log prioritization strategy
+        if scored_issues:
+            self._log("📊 Issue Prioritization:", "info")
+            for i, item in enumerate(scored_issues[:5]):
+                issue = item['issue']
+                self._log(
+                    f"  {i+1}. [{item['severity']}] {item['complexity']} (score: {item['score']}) - {issue.get('title', 'Untitled')[:60]}",
+                    "info"
+                )
+
+        return prioritized
 
     def _generate_fixes(self, issues: List[Dict], mode: str) -> List[Dict]:
         """Generate code fixes for identified issues"""
