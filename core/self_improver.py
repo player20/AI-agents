@@ -128,10 +128,10 @@ class SelfImprover:
         fixes = self._generate_fixes(prioritized_issues, mode)
         self._log(f"Generated {len(fixes)} fixes")
 
-        # Step 5: Apply fixes
-        self._log("💾 Applying fixes...")
-        applied_fixes = self._apply_fixes(fixes)
-        self._log(f"Applied {applied_fixes} fixes successfully")
+        # Step 5: Apply and test fixes with retest loop
+        self._log("💾 Applying and testing fixes...")
+        applied_fixes = self._apply_and_test_fixes(fixes, prioritized_issues, mode)
+        self._log(f"Applied {applied_fixes} fixes successfully (all passed tests)")
 
         # Step 6: Commit changes
         self._log("📝 Committing changes...")
@@ -648,6 +648,214 @@ End with: FILE_CONTENT_END
 
         return fixes
 
+    def _apply_and_test_fixes(self, fixes: List[Dict], issues: List[Dict], mode: str) -> int:
+        """
+        Apply fixes with test-fix-retest loop
+
+        For each fix:
+        1. Apply it
+        2. Test it (syntax + imports)
+        3. If fails → send back to Fixer agent with error
+        4. Retry up to 3 times
+        5. Keep only fixes that pass tests
+        """
+        applied = 0
+        max_retries = 3
+
+        for i, fix in enumerate(fixes):
+            file_path = fix['file']
+            issue = issues[i] if i < len(issues) else {}
+
+            self._log(f"📝 Fix {i+1}/{len(fixes)}: {Path(file_path).name}", "info")
+
+            # Try to get a working fix (up to max_retries attempts)
+            for attempt in range(1, max_retries + 1):
+                if attempt > 1:
+                    self._log(f"  🔄 Retry {attempt}/{max_retries}...", "info")
+
+                # Get the fix content (first attempt uses original, retries use regenerated)
+                if attempt == 1:
+                    fixed_content = fix['fixed_content']
+                else:
+                    # Regenerate fix with error feedback
+                    self._log(f"  → Asking Fixer agent to address test failure...", "info")
+                    fixed_content = self._regenerate_fix_with_feedback(
+                        file_path,
+                        fix['original_content'],
+                        issue,
+                        last_error,
+                        mode
+                    )
+
+                    if not fixed_content:
+                        self._log(f"  ⚠ Could not regenerate fix, skipping", "warning")
+                        break
+
+                # Apply the fix temporarily
+                original_content = self._backup_and_apply(file_path, fixed_content)
+
+                # Test the fix
+                test_passed, error_message = self._test_fix(file_path, fixed_content)
+
+                if test_passed:
+                    # Success! Keep the fix
+                    self._log(f"  ✓ Fix applied and tested successfully", "success")
+                    applied += 1
+                    break
+                else:
+                    # Test failed - rollback
+                    last_error = error_message
+                    self._log(f"  ✗ Test failed: {error_message[:100]}", "warning")
+                    self._rollback_fix(file_path, original_content)
+
+                    if attempt == max_retries:
+                        self._log(f"  ⚠ Max retries reached, skipping this fix", "warning")
+
+        return applied
+
+    def _backup_and_apply(self, file_path: str, content: str) -> str:
+        """Backup original content and apply new content"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                original = f.read()
+
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+            return original
+        except Exception as e:
+            self._log(f"Failed to apply fix to {file_path}: {e}", "error")
+            return ""
+
+    def _rollback_fix(self, file_path: str, original_content: str):
+        """Rollback to original content"""
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(original_content)
+        except Exception as e:
+            self._log(f"Failed to rollback {file_path}: {e}", "error")
+
+    def _test_fix(self, file_path: str, content: str) -> tuple[bool, str]:
+        """
+        Test if a fix is valid
+
+        Returns:
+            (passed, error_message)
+        """
+        # Test 1: Syntax validation
+        is_valid, error_msg = self._validate_python_syntax(file_path, content)
+        if not is_valid:
+            return (False, f"Syntax error: {error_msg}")
+
+        # Test 2: Import test (can the file be imported?)
+        if file_path.endswith('.py'):
+            import_ok = self._quick_import_test(file_path)
+            if not import_ok:
+                return (False, "Import failed - file cannot be compiled")
+
+        # All tests passed
+        return (True, "")
+
+    def _regenerate_fix_with_feedback(self, file_path: str, original_content: str,
+                                     issue: Dict, error_message: str, mode: str) -> str:
+        """
+        Ask Fixer agent to regenerate fix with error feedback
+
+        Returns:
+            New fixed content, or empty string if failed
+        """
+        # Select appropriate agent
+        agent_map = {
+            ImprovementMode.UI_UX: "Designs",
+            ImprovementMode.PERFORMANCE: "Senior",
+            ImprovementMode.AGENT_QUALITY: "Senior",
+            ImprovementMode.CODE_QUALITY: "Senior",
+            ImprovementMode.EVERYTHING: "Senior"
+        }
+
+        agent_id = agent_map.get(mode, "Senior")
+        fix_agent = create_agent_with_model(
+            agent_id,
+            MODEL_PRESETS[self.config['model']['default_preset']]
+        )
+
+        fix_prompt = f"""
+Your previous fix for this issue FAILED testing. Fix the error and try again.
+
+FILE: {file_path}
+ISSUE: {issue.get('title', 'Unknown issue')}
+DESCRIPTION: {issue.get('description', '')}
+
+ORIGINAL CODE:
+```
+{original_content[:2000]}
+```
+
+PREVIOUS FIX FAILED WITH ERROR:
+{error_message}
+
+==================== CRITICAL: FIX THE ERROR ====================
+
+Your previous fix had this error: {error_message}
+
+You MUST:
+1. Understand WHY the error occurred
+2. Generate a NEW fix that DOES NOT have this error
+3. Ensure syntax is 100% valid Python
+4. Make sure the file can be imported without errors
+
+Common issues to avoid:
+- 'await' outside async function → only use await inside 'async def'
+- Missing colons after if/for/while/def/class
+- Incorrect indentation
+- Unmatched parentheses/brackets
+
+==================== OUTPUT FORMAT ====================
+
+FILE_CONTENT_START
+[paste the COMPLETE fixed file - valid Python syntax]
+FILE_CONTENT_END
+
+BEGIN OUTPUT NOW (start with "FILE_CONTENT_START"):
+"""
+
+        try:
+            task = Task(
+                description=fix_prompt,
+                agent=fix_agent,
+                expected_output="Fixed file content between FILE_CONTENT_START and FILE_CONTENT_END"
+            )
+
+            crew = Crew(
+                agents=[fix_agent],
+                tasks=[task],
+                process=Process.sequential,
+                verbose=False
+            )
+
+            result = crew.kickoff()
+            result_text = result.raw if hasattr(result, 'raw') else str(result)
+
+            # Extract fixed content
+            if 'FILE_CONTENT_START' in result_text and 'FILE_CONTENT_END' in result_text:
+                start_idx = result_text.index('FILE_CONTENT_START') + len('FILE_CONTENT_START')
+                end_idx = result_text.index('FILE_CONTENT_END')
+                fixed_content = result_text[start_idx:end_idx].strip().strip('`').strip()
+
+                # Remove language identifier if present
+                first_line = fixed_content.split('\n')[0].strip().lower()
+                if first_line in ['python', 'py', 'javascript', 'js', 'typescript', 'ts']:
+                    fixed_content = '\n'.join(fixed_content.split('\n')[1:])
+
+                if len(fixed_content) > 50:
+                    return fixed_content
+
+            return ""
+
+        except Exception as e:
+            self._log(f"Fix regeneration failed: {e}", "error")
+            return ""
+
     def _validate_python_syntax(self, file_path: str, content: str) -> tuple[bool, str]:
         """
         Validate Python syntax without executing
@@ -669,57 +877,6 @@ End with: FILE_CONTENT_END
         except Exception as e:
             return (False, str(e))
 
-    def _apply_fixes(self, fixes: List[Dict]) -> int:
-        """Apply generated fixes to files with syntax validation"""
-        applied = 0
-        skipped = 0
-
-        for fix in fixes:
-            file_path = fix['file']
-            fixed_content = fix['fixed_content']
-
-            try:
-                # STEP 1: Validate syntax before applying (prevent breaking the codebase)
-                is_valid, error_msg = self._validate_python_syntax(file_path, fixed_content)
-
-                if not is_valid:
-                    self._log(f"  ⚠ Skipping {Path(file_path).name}: Syntax validation failed", "warning")
-                    self._log(f"    {error_msg}", "warning")
-                    skipped += 1
-                    continue
-
-                # STEP 2: Backup original (Git already has this, but extra safety)
-                backup_path = Path(file_path).with_suffix('.bak')
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    original = f.read()
-                with open(backup_path, 'w', encoding='utf-8') as f:
-                    f.write(original)
-
-                # STEP 3: Apply fix
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    f.write(fixed_content)
-
-                # STEP 4: Verify imports still work (quick smoke test)
-                if file_path.endswith('.py'):
-                    import_check = self._quick_import_test(file_path)
-                    if not import_check:
-                        self._log(f"  ⚠ Import test failed for {Path(file_path).name}, rolling back", "warning")
-                        # Rollback
-                        with open(file_path, 'w', encoding='utf-8') as f:
-                            f.write(original)
-                        skipped += 1
-                        continue
-
-                applied += 1
-                self._log(f"  ✓ Applied fix to {Path(file_path).name}", "success")
-
-            except Exception as e:
-                self._log(f"  ✗ Failed to apply fix to {file_path}: {e}", "error")
-
-        if skipped > 0:
-            self._log(f"⚠ Skipped {skipped} fixes due to validation failures", "warning")
-
-        return applied
 
     def _quick_import_test(self, file_path: str) -> bool:
         """Quick test to see if a Python file can be imported without errors"""
