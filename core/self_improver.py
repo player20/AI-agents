@@ -1413,67 +1413,72 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
 
             # For files ≤1000 lines, use full-file regeneration (best quality with Grok)
             # Generate fix with ULTRA-EXPLICIT format requirements
-            # Problem: Agent keeps adding explanations instead of using markers
-            # Solution: Put format requirements FIRST and make them UNMISSABLE
+            # Problem: Grok ignores format requirements and adds explanations
+            # Solution: Use XML tags and make it a code completion task, not a chat
             fix_prompt = f"""
-🚨 MANDATORY OUTPUT FORMAT 🚨
-Your response MUST start with: FILE_CONTENT_START
-Your response MUST end with: FILE_CONTENT_END
-Everything between these markers must be valid Python/JavaScript code - NO explanations, NO comments about the fix.
+YOU ARE A CODE FILE GENERATOR. YOUR ONLY JOB IS TO OUTPUT VALID CODE FILES.
 
-CORRECT FORMAT:
-FILE_CONTENT_START
+===================================================================================
+ABSOLUTE REQUIREMENT - NO EXCEPTIONS:
+===================================================================================
+
+Your ENTIRE response must be wrapped in these XML tags:
+<file_content>
+[COMPLETE FIXED FILE - NOTHING ELSE]
+</file_content>
+
+DO NOT write anything before <file_content>
+DO NOT write anything after </file_content>
+DO NOT explain what you did
+DO NOT say "Here's the fixed code"
+DO NOT add any prose or commentary
+
+ONLY output: <file_content> [code] </file_content>
+
+===================================================================================
+EXAMPLE OF CORRECT OUTPUT:
+===================================================================================
+
+<file_content>
 import streamlit as st
+
 def main():
-    st.title("Hello")
-FILE_CONTENT_END
+    st.title("Hello World")
+    st.write("This is the complete file")
 
-WRONG FORMAT (will be REJECTED):
-❌ "Here's the improved code with better accessibility..."
-❌ "The fix is provided above..."
-❌ Starting with explanation text
-❌ Ending with explanation text
-❌ Missing FILE_CONTENT_START or FILE_CONTENT_END markers
+if __name__ == "__main__":
+    main()
+</file_content>
 
-IF YOU DO NOT FOLLOW THIS FORMAT EXACTLY, YOUR FIX WILL BE REJECTED.
+THAT'S IT. Nothing before the opening tag. Nothing after the closing tag.
 
-===============================================================================
-TASK:
+===================================================================================
+YOUR TASK:
+===================================================================================
 
-FILE: {file_path}
+FILE TO FIX: {file_path}
 ISSUE: {issue.get('title', 'Unknown issue')}
-DESCRIPTION: {issue.get('description', '')}
-SUGGESTION: {issue.get('suggestion', '')}
+WHAT'S WRONG: {issue.get('description', '')}
+HOW TO FIX: {issue.get('suggestion', '')}
 
-CURRENT CODE (COMPLETE FILE - {len(current_content)} characters):
+CURRENT FILE CONTENT ({len(current_content)} chars - THIS IS THE COMPLETE FILE):
 ```
 {current_content}
 ```
 
-CRITICAL - YOU HAVE THE COMPLETE FILE ABOVE:
-The code shown above is the ENTIRE file from start to finish.
-Your output must also be the ENTIRE file from start to finish.
-
 INSTRUCTIONS:
-1. Fix the issue described above
-2. Output the ENTIRE fixed file (every single line from start to finish)
-3. Wrap output in FILE_CONTENT_START and FILE_CONTENT_END markers
-4. NO explanations, NO prose, NO text before/after markers
-5. If the file is long, output ALL of it - DO NOT stop early
+1. Apply the fix described above
+2. Output the ENTIRE fixed file (start to finish, every line)
+3. Wrap ONLY in <file_content></file_content> tags
+4. DO NOT add explanations, summaries, or any text outside the tags
 
-REMINDER - YOUR OUTPUT MUST START WITH EXACTLY THIS:
-FILE_CONTENT_START
-
-And end with exactly this:
-FILE_CONTENT_END
-
-BEGIN NOW - First word must be "FILE_CONTENT_START":
+START YOUR RESPONSE NOW WITH: <file_content>
 """
 
             task = Task(
                 description=fix_prompt,
                 agent=fix_agent,
-                expected_output="Your ENTIRE response must be:\nFILE_CONTENT_START\n[complete fixed file code - NO explanations]\nFILE_CONTENT_END\n\nFirst character: F (from FILE_CONTENT_START)\nLast word: FILE_CONTENT_END\nNO text before or after these markers."
+                expected_output="<file_content>\n[COMPLETE FILE CODE - NO EXPLANATIONS]\n</file_content>\n\nFirst word must be: <file_content>\nLast word must be: </file_content>\nNOTHING before or after these tags."
             )
 
             crew = Crew(
@@ -1522,18 +1527,19 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
                     self._log(f"  ❌ Failed to get response after {max_retries} retries", "error")
                     continue
 
-                # Extract fixed content with robust parsing
-                if 'FILE_CONTENT_START' in result_text and 'FILE_CONTENT_END' in result_text:
-                    start_idx = result_text.index('FILE_CONTENT_START') + len('FILE_CONTENT_START')
-                    end_idx = result_text.index('FILE_CONTENT_END')
+                # Extract fixed content with robust XML parsing
+                # Primary: Look for <file_content> tags (new XML format for Grok)
+                if '<file_content>' in result_text and '</file_content>' in result_text:
+                    start_idx = result_text.index('<file_content>') + len('<file_content>')
+                    end_idx = result_text.index('</file_content>')
                     fixed_content = result_text[start_idx:end_idx]
 
                     # Clean up content
                     fixed_content = fixed_content.strip()
-                    fixed_content = fixed_content.strip('`')  # Remove backticks
+                    fixed_content = fixed_content.strip('`')  # Remove backticks if present
                     fixed_content = fixed_content.strip()
 
-                    # Remove language identifier if present (e.g., "python" right after start marker)
+                    # Remove language identifier if present (e.g., "python" right after start tag)
                     first_line = fixed_content.split('\n')[0].strip().lower()
                     if first_line in ['python', 'py', 'javascript', 'js', 'typescript', 'ts', 'html', 'css']:
                         fixed_content = '\n'.join(fixed_content.split('\n')[1:])
@@ -1555,13 +1561,29 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
                     else:
                         self._log(f"  ⚠ Fix too short for {Path(file_path).name} ({len(fixed_content)} chars), skipping", "warning")
                         self._log(f"     Content received: {repr(fixed_content[:100])}", "warning")
-                else:
-                    # Fallback 1: Check if FILE_CONTENT_START exists without FILE_CONTENT_END
-                    # Agent sometimes outputs FILE_CONTENT_START but forgets FILE_CONTENT_END
-                    if 'FILE_CONTENT_START' in result_text:
-                        self._log(f"  ⚠ Found FILE_CONTENT_START but no FILE_CONTENT_END, extracting remaining content for {Path(file_path).name}", "info")
 
-                        start_idx = result_text.index('FILE_CONTENT_START') + len('FILE_CONTENT_START')
+                # Fallback: Legacy FILE_CONTENT_START/END markers (for backwards compatibility)
+                elif 'FILE_CONTENT_START' in result_text and 'FILE_CONTENT_END' in result_text:
+                    start_idx = result_text.index('FILE_CONTENT_START') + len('FILE_CONTENT_START')
+                    end_idx = result_text.index('FILE_CONTENT_END')
+                    fixed_content = result_text[start_idx:end_idx].strip()
+
+                    if len(fixed_content) > 50 and '...' not in fixed_content[:200]:
+                        fixes.append({
+                            'file': file_path,
+                            'issue': issue,
+                            'original_content': current_content,
+                            'fixed_content': fixed_content
+                        })
+                    else:
+                        self._log(f"  ⚠ Legacy marker extraction failed (too short or has placeholders)", "warning")
+                else:
+                    # Fallback 1: Check if XML tag exists without closing tag
+                    # Agent sometimes outputs <file_content> but forgets </file_content>
+                    if '<file_content>' in result_text:
+                        self._log(f"  ⚠ Found <file_content> but no </file_content>, extracting remaining content for {Path(file_path).name}", "info")
+
+                        start_idx = result_text.index('<file_content>') + len('<file_content>')
                         fixed_content = result_text[start_idx:].strip()
 
                         # Clean up
@@ -1571,7 +1593,7 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
 
                         # Validate
                         if '...' not in fixed_content[:200] and len(fixed_content) > 50:
-                            self._log(f"  ✓ Fallback extraction successful: {len(fixed_content)} chars from FILE_CONTENT_START to end", "info")
+                            self._log(f"  ✓ Fallback extraction successful: {len(fixed_content)} chars from <file_content> to end", "info")
                             fixes.append({
                                 'file': file_path,
                                 'issue': issue,
