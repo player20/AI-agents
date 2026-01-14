@@ -171,25 +171,53 @@ class SelfImprover:
         return files
 
     def _identify_issues(self, files: List[Path], mode: str) -> List[Dict]:
-        """Use appropriate specialized agent based on mode to identify issues"""
+        """Use specialized agent TEAMS based on mode to identify issues"""
         issues = []
 
-        # Select the right agent based on improvement mode
-        agent_mapping = {
-            ImprovementMode.UI_UX: "Designs",  # UI/UX Designer for UI/UX analysis
-            ImprovementMode.PERFORMANCE: "Senior",  # Senior Engineer for performance
-            ImprovementMode.AGENT_QUALITY: "Senior",  # Senior Engineer for agent quality
-            ImprovementMode.CODE_QUALITY: "Senior",  # Senior Engineer for code quality
-            ImprovementMode.EVERYTHING: "Senior"  # Senior Engineer for general analysis
+        # Define agent teams for each improvement mode
+        agent_teams = {
+            ImprovementMode.UI_UX: [
+                "Designs",  # UI/UX Designer - lead
+                "UIDesigner",  # UI-specific expertise
+                "UXResearcher",  # User research and testing
+                "AccessibilitySpecialist",  # WCAG compliance
+            ],
+            ImprovementMode.PERFORMANCE: [
+                "PerformanceEngineer",  # Performance specialist - lead
+                "Senior",  # Architecture review
+                "SRE",  # Reliability and optimization
+                "DatabaseAdmin",  # Database performance
+            ],
+            ImprovementMode.AGENT_QUALITY: [
+                "AIResearcher",  # AI/ML best practices - lead
+                "Senior",  # System architecture
+                "Verifier",  # Hallucination detection
+                "MLEngineer",  # Agent optimization
+            ],
+            ImprovementMode.CODE_QUALITY: [
+                "Senior",  # Code review - lead
+                "Architect",  # Architecture patterns
+                "TechnicalLead",  # Best practices
+                "Verifier",  # Quality verification
+            ],
+            ImprovementMode.EVERYTHING: [
+                "Senior",  # Lead coordinator
+                "Designs",  # UI/UX
+                "PerformanceEngineer",  # Performance
+                "SecurityEngineer",  # Security
+                "QA",  # Testing
+                "Verifier",  # Verification
+            ]
         }
 
-        agent_name = agent_mapping.get(mode, "Senior")
-        self._log(f"Using {agent_name} agent for {mode} analysis", "info")
+        team = agent_teams.get(mode, ["Senior"])
+        self._log(f"Using agent team for {mode}: {', '.join(team)}", "info")
 
-        analysis_agent = create_agent_with_model(
-            agent_name,
-            MODEL_PRESETS[self.config['model']['default_preset']]
-        )
+        # Create all agents in the team
+        analysis_agents = [
+            create_agent_with_model(agent_name, MODEL_PRESETS[self.config['model']['default_preset']])
+            for agent_name in team
+        ]
 
         # Analyze in batches (max 3 files at a time to avoid context limits)
         for i in range(0, len(files), 3):
@@ -211,16 +239,20 @@ class SelfImprover:
             # Mode-specific analysis prompts
             prompt = self._get_analysis_prompt(file_contents, mode)
 
-            # Execute analysis
-            task = Task(
-                description=prompt,
-                agent=analysis_agent,
-                expected_output="Issues in EXACT format: ISSUE: [title]\nFILE: [path]\nSEVERITY: [HIGH/MEDIUM/LOW]\nDESCRIPTION: [text]\nSUGGESTION: [text]\n(blank line between issues)"
-            )
+            # Create tasks for each agent to analyze from their perspective
+            tasks = []
+            for agent in analysis_agents:
+                task = Task(
+                    description=prompt,
+                    agent=agent,
+                    expected_output="Issues in EXACT format: ISSUE: [title]\nFILE: [path]\nSEVERITY: [HIGH/MEDIUM/LOW]\nDESCRIPTION: [text]\nSUGGESTION: [text]\n(blank line between issues)"
+                )
+                tasks.append(task)
 
+            # Run the crew with all agents working together
             crew = Crew(
-                agents=[analysis_agent],
-                tasks=[task],
+                agents=analysis_agents,
+                tasks=tasks,
                 process=Process.sequential,
                 verbose=False
             )
@@ -230,7 +262,7 @@ class SelfImprover:
                 result_text = result.raw if hasattr(result, 'raw') else str(result)
 
                 # Log the raw result for debugging
-                self._log(f"Senior agent returned {len(result_text)} characters", "info")
+                self._log(f"Agent team returned {len(result_text)} characters", "info")
 
                 # Parse issues from result
                 batch_issues = self._parse_issues(result_text, batch)
