@@ -648,33 +648,97 @@ End with: FILE_CONTENT_END
 
         return fixes
 
+    def _validate_python_syntax(self, file_path: str, content: str) -> tuple[bool, str]:
+        """
+        Validate Python syntax without executing
+
+        Returns:
+            (is_valid, error_message)
+        """
+        # Only validate Python files
+        if not file_path.endswith('.py'):
+            return (True, "")
+
+        try:
+            import ast
+            ast.parse(content)
+            return (True, "")
+        except SyntaxError as e:
+            error_msg = f"Syntax error at line {e.lineno}: {e.msg}"
+            return (False, error_msg)
+        except Exception as e:
+            return (False, str(e))
+
     def _apply_fixes(self, fixes: List[Dict]) -> int:
-        """Apply generated fixes to files"""
+        """Apply generated fixes to files with syntax validation"""
         applied = 0
+        skipped = 0
 
         for fix in fixes:
             file_path = fix['file']
             fixed_content = fix['fixed_content']
 
             try:
-                # Backup original (Git already has this, but extra safety)
+                # STEP 1: Validate syntax before applying (prevent breaking the codebase)
+                is_valid, error_msg = self._validate_python_syntax(file_path, fixed_content)
+
+                if not is_valid:
+                    self._log(f"  ⚠ Skipping {Path(file_path).name}: Syntax validation failed", "warning")
+                    self._log(f"    {error_msg}", "warning")
+                    skipped += 1
+                    continue
+
+                # STEP 2: Backup original (Git already has this, but extra safety)
                 backup_path = Path(file_path).with_suffix('.bak')
                 with open(file_path, 'r', encoding='utf-8') as f:
                     original = f.read()
                 with open(backup_path, 'w', encoding='utf-8') as f:
                     f.write(original)
 
-                # Apply fix
+                # STEP 3: Apply fix
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(fixed_content)
 
+                # STEP 4: Verify imports still work (quick smoke test)
+                if file_path.endswith('.py'):
+                    import_check = self._quick_import_test(file_path)
+                    if not import_check:
+                        self._log(f"  ⚠ Import test failed for {Path(file_path).name}, rolling back", "warning")
+                        # Rollback
+                        with open(file_path, 'w', encoding='utf-8') as f:
+                            f.write(original)
+                        skipped += 1
+                        continue
+
                 applied += 1
-                self._log(f"✓ Applied fix to {file_path}", "success")
+                self._log(f"  ✓ Applied fix to {Path(file_path).name}", "success")
 
             except Exception as e:
-                self._log(f"Failed to apply fix to {file_path}: {e}", "error")
+                self._log(f"  ✗ Failed to apply fix to {file_path}: {e}", "error")
+
+        if skipped > 0:
+            self._log(f"⚠ Skipped {skipped} fixes due to validation failures", "warning")
 
         return applied
+
+    def _quick_import_test(self, file_path: str) -> bool:
+        """Quick test to see if a Python file can be imported without errors"""
+        try:
+            import subprocess
+            import sys
+
+            # Try to compile the file (syntax + basic semantic checks)
+            result = subprocess.run(
+                [sys.executable, '-m', 'py_compile', file_path],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            return result.returncode == 0
+        except Exception:
+            # If test fails, be conservative and reject the fix
+            return False
 
     def _create_git_branch(self, branch_name: str) -> bool:
         """Create a new Git branch for safety"""
