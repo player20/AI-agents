@@ -29,6 +29,50 @@ def render_main_interface() -> None:
     This function sets up the user interface for the Code Weaver Pro tool,
     including input fields, options, and a progress tracker.
     """
+    # Add responsive CSS for mobile, tablet, desktop
+    st.markdown("""
+    <style>
+        /* Responsive container */
+        .main .block-container {
+            max-width: 100%;
+            padding: 1rem;
+        }
+
+        /* Mobile (< 768px) */
+        @media (max-width: 768px) {
+            .main .block-container {
+                padding: 0.5rem;
+            }
+
+            /* Stack columns vertically */
+            [data-testid="column"] {
+                width: 100% !important;
+                margin-bottom: 1rem;
+            }
+
+            /* Adjust text sizes */
+            h1 { font-size: 1.5rem !important; }
+            h2 { font-size: 1.3rem !important; }
+            h3 { font-size: 1.1rem !important; }
+        }
+
+        /* Tablet (768px - 1024px) */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            .main .block-container {
+                padding: 1rem;
+            }
+        }
+
+        /* Desktop (> 1024px) */
+        @media (min-width: 1024px) {
+            .main .block-container {
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
     # Introductory section with instructions
     st.markdown("## 🚀 Code Weaver Pro")
     st.markdown("Welcome to Code Weaver Pro! This tool helps you create a new project by providing market research, generating code, and more.")
@@ -53,15 +97,25 @@ def render_main_interface() -> None:
                 'padding': SPACING["md"],
                 'border-radius': DIMENSIONS["border_radius"],
                 'margin-top': SPACING["sm"],
-                'margin-bottom': SPACING["md"]
+                'margin-bottom': SPACING["md"],
+                'width': '100%',
+                'max-width': '800px'
             }
         )
+
+    # Validate project input
+    if not project_input.strip():
+        st.error("⚠️ Please provide a description of your project.")
+        st.stop()
 
     # Options - 2 rows for better mobile layout
     st.markdown("### Options")
 
-    # First row - checkboxes
-    col1, col2, col3 = st.columns(3)
+    # Responsive columns - adapt to screen size
+    # On mobile (< 768px): stack vertically
+    # On tablet (768-1024px): 2 columns
+    # On desktop (> 1024px): 3 columns
+    col1, col2, col3 = st.columns([1, 1, 1], gap="small")
 
     with col1:
         do_market_research = st.checkbox(
@@ -70,10 +124,11 @@ def render_main_interface() -> None:
             css={
                 'color': COLORS["text_primary"],
                 'background-color': COLORS["component_bg"],
-                'white-space': 'nowrap',
+                'white-space': 'normal',  # Allow wrapping on mobile
                 'height': DIMENSIONS["button_height"],
                 'font-size': '1rem',
-                'padding': f'{SPACING["sm"]} {SPACING["md"]}'
+                'padding': f'{SPACING["sm"]} {SPACING["md"]}',
+                'width': '100%'
             }
         )
 
@@ -88,10 +143,11 @@ def render_main_interface() -> None:
                 css={
                     'color': COLORS["text_secondary"],
                     'background-color': '#444444',
-                    'white-space': 'nowrap',
+                    'white-space': 'normal',  # Allow wrapping on mobile
                     'height': DIMENSIONS["button_height"],
                     'font-size': '1rem',
-                    'padding': f'{SPACING["sm"]} {SPACING["md"]}'
+                    'padding': f'{SPACING["sm"]} {SPACING["md"]}',
+                    'width': '100%'
                 }
             )
         else:
@@ -102,10 +158,11 @@ def render_main_interface() -> None:
                 css={
                     'color': COLORS["text_primary"],
                     'background-color': COLORS["component_bg"],
-                    'white-space': 'nowrap',
+                    'white-space': 'normal',  # Allow wrapping on mobile
                     'height': DIMENSIONS["button_height"],
                     'font-size': '1rem',
-                    'padding': f'{SPACING["sm"]} {SPACING["md"]}'
+                    'padding': f'{SPACING["sm"]} {SPACING["md"]}',
+                    'width': '100%'
                 }
             )
 
@@ -116,10 +173,11 @@ def render_main_interface() -> None:
             css={
                 'color': COLORS["text_primary"],
                 'background-color': COLORS["component_bg"],
-                'white-space': 'nowrap',
+                'white-space': 'normal',  # Allow wrapping on mobile
                 'height': DIMENSIONS["button_height"],
                 'font-size': '1rem',
-                'padding': f'{SPACING["sm"]} {SPACING["md"]}'
+                'padding': f'{SPACING["sm"]} {SPACING["md"]}',
+                'width': '100%'
             }
         )
 
@@ -135,7 +193,9 @@ def render_main_interface() -> None:
                 'background-color': COLORS["component_bg"],
                 'margin-top': SPACING["sm"],
                 'font-size': '1rem',
-                'padding': f'{SPACING["sm"]} {SPACING["md"]}'
+                'padding': f'{SPACING["sm"]} {SPACING["md"]}',
+                'width': '100%',
+                'max-width': '800px'
             }
         )
 
@@ -155,9 +215,10 @@ def render_main_interface() -> None:
                 'font-weight': 'bold',
                 'padding': f'{SPACING["sm"]} {SPACING["md"]}',
                 'border-radius': DIMENSIONS["border_radius"],
-                'white-space': 'nowrap',
+                'white-space': 'normal',  # Allow wrapping on mobile
                 'height': DIMENSIONS["button_height"],
-                'font-size': '1rem'
+                'font-size': '1rem',
+                'width': '100%'
             }
         )
 
@@ -182,6 +243,10 @@ def render_main_interface() -> None:
             # Display results
             display_results(progress_tracker)
         except Exception as e:
-            st.error(f"⚠️ An unexpected error occurred: {str(e)}")
+            if not ORCHESTRATOR_AVAILABLE:
+                st.error(f"⚠️ The Orchestrator is not available: {IMPORT_ERROR}")
+                st.error("Please check your configuration and try again later.")
+            else:
+                st.error(f"⚠️ An unexpected error occurred: {str(e)}")
             st.error("Please check your input and try again. If the issue persists, contact support for assistance.")
             st.stop()
