@@ -192,7 +192,7 @@ class SelfImprover:
             screenshots_dir = self.base_dir / 'screenshots'
             screenshots_dir.mkdir(exist_ok=True)
 
-            server_url = "http://localhost:8505"
+            server_url = "http://localhost:8501"
 
             self._log(f"Launching screenshot capture (separate process) for {server_url}...", "info")
 
