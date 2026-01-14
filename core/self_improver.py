@@ -1013,9 +1013,35 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
                         self._log(f"  ⚠ Fix too short for {Path(file_path).name} ({len(fixed_content)} chars), skipping", "warning")
                         self._log(f"     Content received: {repr(fixed_content[:100])}", "warning")
                 else:
-                    # Fallback: Try to extract code from markdown code blocks
+                    # Fallback 1: Check if FILE_CONTENT_START exists without FILE_CONTENT_END
+                    # Agent sometimes outputs FILE_CONTENT_START but forgets FILE_CONTENT_END
+                    if 'FILE_CONTENT_START' in result_text:
+                        self._log(f"  ⚠ Found FILE_CONTENT_START but no FILE_CONTENT_END, extracting remaining content for {Path(file_path).name}", "info")
+
+                        start_idx = result_text.index('FILE_CONTENT_START') + len('FILE_CONTENT_START')
+                        fixed_content = result_text[start_idx:].strip()
+
+                        # Clean up
+                        first_line = fixed_content.split('\n')[0].strip().lower()
+                        if first_line in ['python', 'py', 'javascript', 'js', 'typescript', 'ts', 'html', 'css']:
+                            fixed_content = '\n'.join(fixed_content.split('\n')[1:])
+
+                        # Validate
+                        if '...' not in fixed_content[:200] and len(fixed_content) > 50:
+                            self._log(f"  ✓ Fallback extraction successful: {len(fixed_content)} chars from FILE_CONTENT_START to end", "info")
+                            fixes.append({
+                                'file': file_path,
+                                'issue': issue,
+                                'original_content': current_content,
+                                'fixed_content': fixed_content
+                            })
+                            continue
+                        else:
+                            self._log(f"  ⚠ Extracted content invalid (too short or has placeholders)", "warning")
+
+                    # Fallback 2: Try to extract code from markdown code blocks
                     # Agent likes to output: ```python\n<code>\n``` followed by explanation
-                    self._log(f"  ⚠ No FILE_CONTENT_START/END markers, trying fallback extraction for {Path(file_path).name}", "info")
+                    self._log(f"  ⚠ No valid markers found, trying markdown code block extraction for {Path(file_path).name}", "info")
 
                     import re
                     # Look for the largest code block (likely the full file)
