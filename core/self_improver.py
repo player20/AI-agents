@@ -437,36 +437,54 @@ Review ALL findings from {len(domain_experts)} domain experts analyzing ONLY the
 CRITICAL - THESE ARE THE ONLY FILES ANALYZED:
 The experts ONLY analyzed the files listed above. Any issue mentioning a file NOT in this list is a HALLUCINATION and MUST be removed.
 
-Your role as Verifier (Hallucination Detector):
-1. FIRST: Check file path - is it SPECIFIC and EXACTLY ONE file from the analyzed list?
-   - If "Unknown" → REMOVE immediately (invalid - no file specified)
-   - If "Multiple files" → REMOVE immediately (invalid - must pick ONE file)
-   - If "Across the UI" → REMOVE immediately (too vague - must pick ONE file)
-   - If "All files" → REMOVE immediately (invalid - must pick ONE file)
-   - If NOT in list above → REMOVE immediately (hallucination - file not analyzed)
-   - If in list → Continue verification with steps 2-7
-2. Fact-check every claim - is it verifiable from the code shown?
-3. Check for exaggerations or assumptions not supported by evidence
-4. Verify line numbers are accurate (if mentioned)
-5. Ensure descriptions match what's actually in the code
-6. Remove issues based on imagined code or features that don't exist
-7. Validate severity ratings are justified by the actual impact
+Your role as Verifier (Hallucination Detector + Specificity Enforcer):
+
+STEP 1: FILE PATH VALIDATION (Most Important - Do This FIRST)
+✅ VALID: Exactly ONE file from the analyzed list above
+❌ INVALID - REMOVE IMMEDIATELY:
+- "FILE: Unknown"
+- "FILE: Multiple files"
+- "FILE: Across the UI"
+- "FILE: All files"
+- "FILE: streamlit_ui/main_interface.py, streamlit_ui/self_improvement.py" (multiple files listed)
+- "FILE: Multiple files (main_interface.py, results_display.py)" (multiple files in parentheses)
+- "FILE: streamlit_ui/*.py" (wildcard pattern)
+- Any file NOT in the analyzed list above
+
+If FILE is invalid → REMOVE the entire issue immediately, don't even read the rest.
+
+STEP 2: SPECIFICITY VALIDATION (Only if file path is valid)
+Issues must be CONCRETE and SPECIFIC, not vague architectural observations.
+✅ KEEP: "Button text wraps to 2 lines at 375px viewport in mobile view"
+✅ KEEP: "Missing alt attribute on screenshot image at line 45"
+✅ KEEP: "Color contrast 2.8:1 between button text and background fails WCAG AA"
+❌ REMOVE: "Lack of overall design system" (too architectural)
+❌ REMOVE: "Needs better mobile responsiveness" (too vague)
+❌ REMOVE: "Improve visual consistency" (too general)
+❌ REMOVE: "Better user flow needed" (opinion, not concrete issue)
+
+STEP 3: FACT-CHECK (Only if steps 1-2 passed)
+- Is the claim verifiable from the code shown?
+- Are line numbers accurate (if mentioned)?
+- Does the description match what's actually in the code?
+- Is the severity rating justified by actual impact?
 
 EXAMPLES OF ISSUES TO REMOVE:
-- FILE: Unknown (too vague - must specify exact file)
-- FILE: core/orchestrator.py (when analyzing UI files only)
-- FILE: server/api.py (when only analyzing frontend files)
-- FILE: Multiple files (must pick ONE specific file)
-- FILE: Across the UI (must pick ONE specific file)
+❌ FILE: Unknown (no file specified)
+❌ FILE: Multiple files (affects multiple files - must pick ONE)
+❌ FILE: streamlit_ui/main_interface.py, streamlit_ui/results_display.py (multiple files - pick ONE)
+❌ FILE: Across the UI (too vague)
+❌ ISSUE: Lack of overall design system (too architectural, not specific)
+❌ ISSUE: Needs better mobile responsiveness (too vague, not concrete)
 
-For VERIFIED issues (file IS in analyzed list AND claim is factual), output in EXACT format:
+OUTPUT FORMAT - For VERIFIED issues only:
 ISSUE: [title]
 FILE: [path]
 SEVERITY: [HIGH/MEDIUM/LOW]
 DESCRIPTION: [what's wrong]
 SUGGESTION: [how to fix]
 
-For UNVERIFIED issues (hallucinations, wrong files, unsubstantiated claims), REMOVE them completely.
+For INVALID issues (bad file path, too vague, hallucinations), REMOVE them completely - don't output them at all.
 """
 
             verifier_task = Task(
@@ -482,13 +500,34 @@ Apply final critical review to the verified findings for these files:
 
 {chr(10).join([f"FILE: {path}" for path in file_contents.keys()])}
 
-Your role as Critical Challenger (Devil's Advocate):
-1. Challenge each issue - is it REALLY worth fixing or just nitpicking?
-2. Question severity ratings - are they inflated?
-3. Check for false positives - could this be intentional design choice?
-4. Verify suggestions won't introduce new bugs or complexity
-5. Apply cost-benefit analysis - is the fix worth the development effort?
-6. Question assumptions and sacred cows
+Your role as Critical Challenger (Devil's Advocate + Specificity Enforcer):
+
+FIRST: Ensure issues are SPECIFIC and ACTIONABLE
+❌ REMOVE if vague or architectural:
+- "Lack of overall design system" → Too architectural, can't fix in one file
+- "Needs better mobile responsiveness" → Too vague, what specifically?
+- "Improve visual consistency" → Too general, what exactly is inconsistent?
+- "Better user flow" → Too broad, opinion not concrete issue
+- Any issue that can't be fixed by editing a single file
+
+✅ KEEP if specific and actionable:
+- "Button text wraps to 2 lines at 375px viewport" → Can measure and fix
+- "Missing alt attribute on screenshot image at line 45" → Can verify and fix
+- "Color contrast 2.8:1 fails WCAG AA (needs 4.5:1)" → Can measure and fix
+
+THEN: Apply critical scrutiny to remaining specific issues
+1. Is it REALLY worth fixing or just nitpicking?
+2. Is the severity rating inflated?
+3. Could this be an intentional design choice?
+4. Will the suggested fix introduce new bugs or complexity?
+5. Cost-benefit: Is the fix worth the development effort?
+6. Edge case: Does this actually affect users?
+
+CRITICAL FILTERS:
+- Reject vague architectural observations
+- Reject multi-file concerns disguised as single-file issues
+- Reject opinions disguised as problems
+- Keep only concrete, measurable, fixable issues
 
 For VALID issues that pass your critical scrutiny, output them in EXACT format:
 ISSUE: [title]
@@ -497,8 +536,8 @@ SEVERITY: [HIGH/MEDIUM/LOW]
 DESCRIPTION: [what's wrong]
 SUGGESTION: [how to fix]
 
-For INVALID issues (nitpicks, questionable value, edge cases), REMOVE them.
-Only output issues that are genuinely worth fixing.
+For INVALID issues (vague, architectural, nitpicks, questionable value), REMOVE them.
+Only output issues that are specific, concrete, and genuinely worth fixing.
 """
 
             challenger_task = Task(
@@ -578,13 +617,38 @@ Only output issues that are genuinely worth fixing.
 
         mode_focus = {
             ImprovementMode.UI_UX: """
-Focus on UI/UX improvements:
-- User experience clarity and flow
-- Visual consistency and design patterns
-- Accessibility (WCAG compliance)
-- Mobile responsiveness
-- Loading states and error messages
-- Intuitive interactions
+Focus on SPECIFIC, CONCRETE UI/UX issues that can be fixed in individual files:
+
+✅ GOOD ISSUES (Specific, measurable, fixable):
+- "Button text wraps to 2 lines on mobile viewport (375px)" - SPECIFIC visual problem
+- "Color contrast ratio 2.8:1 fails WCAG AA (needs 4.5:1)" - MEASURABLE accessibility issue
+- "No alt text on image at line 45" - CONCRETE missing attribute
+- "Input label 'Project Description' hidden from screen readers" - TESTABLE accessibility gap
+- "4-column layout breaks on tablet (768px), causes horizontal scroll" - SPECIFIC responsive issue
+- "Error message 'Error occurred' too vague for user" - CONCRETE UX problem
+- "Loading state missing during API call (lines 120-135)" - SPECIFIC missing state
+- "Checkbox disabled but no explanation shown to user" - CONCRETE feedback gap
+
+❌ BAD ISSUES (Vague, architectural, multi-file):
+- "Lack of overall design system" - TOO ARCHITECTURAL, affects multiple files
+- "Needs better mobile responsiveness" - TOO VAGUE, not specific enough
+- "Improve visual consistency" - TOO GENERAL, no concrete action
+- "Better user flow needed" - TOO BROAD, opinion not fact
+- "Add loading states" - TOO VAGUE, where specifically?
+
+CRITICAL RULES:
+1. Be SPECIFIC: Mention exact line numbers, exact measurements, exact elements
+2. Be CONCRETE: Describe observable, testable problems
+3. ONE FILE ONLY: Pick the most relevant file where the fix should go
+4. AVOID ARCHITECTURE: Don't suggest system-wide changes or new frameworks
+5. FIX NOT REDESIGN: Find issues that can be fixed, not concepts that need rethinking
+
+If you see a screenshot, look for SPECIFIC visual problems:
+- Text that wraps awkwardly (measure the viewport)
+- Buttons that are too small to tap (measure the pixels)
+- Colors with poor contrast (note the specific elements)
+- Layout that breaks at specific widths (note the breakpoint)
+- Missing visual feedback on interactions (note which button/input)
 """,
             ImprovementMode.PERFORMANCE: """
 Focus on performance improvements:
