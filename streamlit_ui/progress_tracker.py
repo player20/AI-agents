@@ -11,10 +11,10 @@ from typing import Dict, Optional
 
 class ProgressPhase(Enum):
     """4 phases of execution"""
-    PLANNING = ("Planning", "🔍")
-    DRAFTING = ("Drafting", "✏️")
-    TESTING = ("Testing", "🧪")
-    DONE = ("Done", "✅")
+    PROJECT_PLANNING = ("Project Planning", "🔍")
+    FEATURE_DRAFTING = ("Feature Drafting", "✏️")
+    TESTING_AND_VALIDATION = ("Testing & Validation", "🧪")
+    DEPLOYMENT_AND_LAUNCH = ("Deployment & Launch", "✅")
 
     def __init__(self, label, emoji):
         self.label = label
@@ -35,10 +35,10 @@ class ProgressTracker:
 
     def __init__(self):
         self.phases = {
-            ProgressPhase.PLANNING: PhaseProgress("Planning", 0.0, "pending", "🔍"),
-            ProgressPhase.DRAFTING: PhaseProgress("Drafting", 0.0, "pending", "✏️"),
-            ProgressPhase.TESTING: PhaseProgress("Testing", 0.0, "pending", "🧪"),
-            ProgressPhase.DONE: PhaseProgress("Done", 0.0, "pending", "✅")
+            ProgressPhase.PROJECT_PLANNING: PhaseProgress("Project Planning", 0.0, "pending", "🔍"),
+            ProgressPhase.FEATURE_DRAFTING: PhaseProgress("Feature Drafting", 0.0, "pending", "✏️"),
+            ProgressPhase.TESTING_AND_VALIDATION: PhaseProgress("Testing & Validation", 0.0, "pending", "🧪"),
+            ProgressPhase.DEPLOYMENT_AND_LAUNCH: PhaseProgress("Deployment & Launch", 0.0, "pending", "✅")
         }
         self.current_phase = None
         self.progress_bars = {}
@@ -99,16 +99,17 @@ class ProgressTracker:
                 # Phase header with status
                 col1, col2 = st.columns([5, 1])
                 with col1:
-                    st.markdown(f"**{phase_data.emoji} {phase_data.name}**")
+                    st.markdown(f"<div style='display: flex; align-items: center;'><div>{phase_data.emoji}</div><div style='margin-left: 0.5rem;'>{phase_data.name}</div></div>", unsafe_allow_html=True)
                 with col2:
-                    st.markdown(f"{color} {status_emoji}")
+                    st.markdown(f"<div style='display: flex; justify-content: end;'><div>{color} {status_emoji}</div></div>", unsafe_allow_html=True)
 
                 # Progress bar
                 st.progress(phase_data.progress, label=f"{int(phase_data.progress * 100)}%", css={
                     'background-color': '#333333',
                     'color': '#ffffff',
                     'height': '1.5rem',
-                    'border-radius': '0.5rem'
+                    'border-radius': '0.5rem',
+                    'margin-top': '0.5rem'
                 })
 
                 st.markdown("<br>", unsafe_allow_html=True)

@@ -66,7 +66,8 @@ def render_main_interface():
             help="Analyze competitors, TAM/SAM/SOM, and get go/no-go decision",
             css={
                 'color': '#ffffff',
-                'background-color': '#333333'
+                'background-color': '#333333',
+                'white-space': 'nowrap'  # Prevent text wrapping
             }
         )
 
@@ -80,7 +81,8 @@ def render_main_interface():
                 help="⚠️ Enable 'Market research' first to use this option",
                 css={
                     'color': '#999999',
-                    'background-color': '#444444'
+                    'background-color': '#444444',
+                    'white-space': 'nowrap'
                 }
             )
         else:
@@ -90,7 +92,8 @@ def render_main_interface():
                 help="Stop after market research - review results before building",
                 css={
                     'color': '#ffffff',
-                    'background-color': '#333333'
+                    'background-color': '#333333',
+                    'white-space': 'nowrap'
                 }
             )
 
@@ -100,7 +103,8 @@ def render_main_interface():
             help="Upload code to improve (paste or zip upload)",
             css={
                 'color': '#ffffff',
-                'background-color': '#333333'
+                'background-color': '#333333',
+                'white-space': 'nowrap'
             }
         )
 
@@ -131,7 +135,8 @@ def render_main_interface():
                 'border-color': '#007bff',
                 'font-weight': 'bold',
                 'padding': '0.5rem 1rem',
-                'border-radius': '0.5rem'
+                'border-radius': '0.5rem',
+                'white-space': 'nowrap'  # Prevent text wrapping
             }
         )
 
