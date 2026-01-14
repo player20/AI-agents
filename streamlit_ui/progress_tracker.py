@@ -1,20 +1,13 @@
 import streamlit as st
-from enum import Enum
 from dataclasses import dataclass
 from typing import Dict, Optional
 
 
-class ProgressPhase(Enum):
+class ProgressPhase:
     """4 phases of execution"""
-    PROJECT_PLANNING = ("Project Planning", "🔍")
-    FEATURE_DRAFTING = ("Feature Drafting", "✏️")
-    TESTING_AND_VALIDATION = ("Testing & Validation", "🧪")
-    DEPLOYMENT_AND_LAUNCH = ("Deployment & Launch", "✅")
-
     def __init__(self, label, emoji):
         self.label = label
         self.emoji = emoji
-
 
 @dataclass
 class PhaseProgress:
@@ -24,16 +17,15 @@ class PhaseProgress:
     status: str  # "pending", "active", "complete"
     emoji: str
 
-
 class ProgressTracker:
     """Tracks progress across 4 phases with live updates"""
 
     def __init__(self):
         self.phases = {
-            ProgressPhase.PROJECT_PLANNING: PhaseProgress("Project Planning", 0.0, "pending", "🔍"),
-            ProgressPhase.FEATURE_DRAFTING: PhaseProgress("Feature Drafting", 0.0, "pending", "✏️"),
-            ProgressPhase.TESTING_AND_VALIDATION: PhaseProgress("Testing & Validation", 0.0, "pending", "🧪"),
-            ProgressPhase.DEPLOYMENT_AND_LAUNCH: PhaseProgress("Deployment & Launch", 0.0, "pending", "✅")
+            ProgressPhase("Project Planning", "🔍"): PhaseProgress("Project Planning", 0.0, "pending", "🔍"),
+            ProgressPhase("Feature Drafting", "✏️"): PhaseProgress("Feature Drafting", 0.0, "pending", "✏️"),
+            ProgressPhase("Testing & Validation", "🧪"): PhaseProgress("Testing & Validation", 0.0, "pending", "🧪"),
+            ProgressPhase("Deployment & Launch", "✅"): PhaseProgress("Deployment & Launch", 0.0, "pending", "✅")
         }
         self.current_phase = None
         self.progress_bars = {}
@@ -42,7 +34,7 @@ class ProgressTracker:
     def set_phase(self, phase: ProgressPhase):
         """Activate a specific phase"""
         # Mark previous phases as complete
-        phase_order = list(ProgressPhase)
+        phase_order = list(self.phases.keys())
         current_index = phase_order.index(phase)
 
         for i, p in enumerate(phase_order):
@@ -77,9 +69,7 @@ class ProgressTracker:
             return
 
         with self.container.container():
-            for phase in ProgressPhase:
-                phase_data = self.phases[phase]
-
+            for phase, phase_data in self.phases.items():
                 # Status indicator
                 if phase_data.status == "complete":
                     status_emoji = "✅"

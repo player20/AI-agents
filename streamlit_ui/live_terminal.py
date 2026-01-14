@@ -3,7 +3,6 @@ from datetime import datetime
 from collections import deque
 from typing import Optional
 
-
 class LiveTerminalOutput:
     """Terminal-style output display with color coding"""
 
@@ -17,7 +16,7 @@ class LiveTerminalOutput:
         self.lines = deque(maxlen=max_lines)
         self.placeholder = None
 
-    def add_line(self, line: str, level: str = "info"):
+    def add_line(self, line: str, level: str = "info") -> None:
         """
         Add a line to terminal output
 
@@ -34,12 +33,12 @@ class LiveTerminalOutput:
         self.lines.append(formatted_line)
         self.render()
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all terminal output"""
         self.lines.clear()
         self.render()
 
-    def render(self):
+    def render(self) -> None:
         """Render terminal output with color coding"""
         if not self.placeholder:
             self.placeholder = st.empty()
@@ -70,27 +69,26 @@ class LiveTerminalOutput:
 
         self.placeholder.markdown(terminal_html, unsafe_allow_html=True)
 
-    def add_success(self, message: str):
+    def add_success(self, message: str) -> None:
         """Add a success message"""
         self.add_line(f"✓ {message}", "success")
 
-    def add_error(self, message: str):
+    def add_error(self, message: str) -> None:
         """Add an error message"""
         self.add_line(f"✗ {message}", "error")
 
-    def add_warning(self, message: str):
+    def add_warning(self, message: str) -> None:
         """Add a warning message"""
         self.add_line(f"⚠ {message}", "warning")
 
-    def add_info(self, message: str):
+    def add_info(self, message: str) -> None:
         """Add an info message"""
         self.add_line(f"• {message}", "info")
 
-    def add_system(self, message: str):
+    def add_system(self, message: str) -> None:
         """Add a system message"""
         self.add_line(f"[SYSTEM] {message}", "system")
 
-
-def create_terminal():
+def create_terminal() -> LiveTerminalOutput:
     """Factory function to create a new terminal instance"""
     return LiveTerminalOutput()

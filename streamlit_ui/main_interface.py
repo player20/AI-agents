@@ -21,9 +21,13 @@ except ImportError as e:
     ORCHESTRATOR_AVAILABLE = False
     IMPORT_ERROR = str(e)
 
-def render_main_interface():
-    """Render the main creation interface"""
+def render_main_interface() -> None:
+    """
+    Render the main creation interface.
 
+    This function sets up the user interface for the Code Weaver Pro tool,
+    including input fields, options, and a progress tracker.
+    """
     # Introductory section with instructions
     st.markdown("## 🚀 Code Weaver Pro")
     st.markdown("Welcome to Code Weaver Pro! This tool helps you create a new project by providing market research, generating code, and more.")
