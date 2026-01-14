@@ -85,35 +85,35 @@ class SelfImprover:
         Returns:
             Dictionary with cycle results
         """
-        self._log(f"🔄 Starting improvement cycle - Mode: {mode}")
+        self._log(f"[CYCLE] Starting improvement cycle - Mode: {mode}")
 
         # Step 1: Analyze codebase
-        self._log("📊 Analyzing codebase...")
+        self._log("[STATS] Analyzing codebase...")
         files_to_analyze = self._get_files_to_analyze(target_files, mode)
         # File count already logged by _get_files_to_analyze()
 
         # Step 1.5: Capture screenshots for UI/UX analysis
         screenshots = []
         if mode == ImprovementMode.UI_UX or mode == ImprovementMode.EVERYTHING:
-            self._log("📸 Capturing screenshots of running application...")
+            self._log("[CAPTURE] Capturing screenshots of running application...")
             screenshots = self._capture_app_screenshots()
             if screenshots:
-                self._log(f"✓ Captured {len(screenshots)} screenshots for visual analysis")
+                self._log(f"[+] Captured {len(screenshots)} screenshots for visual analysis")
             # Note: Empty screenshots list is handled gracefully - analysis continues without visual data
 
         # Step 2: Identify issues
-        self._log("🔍 Identifying issues...")
+        self._log("[ANALYZE] Identifying issues...")
         if suggest_enhancements:
-            self._log("💡 Enhancement mode enabled - Research/Ideas agents will suggest new features", "info")
+            self._log("[ENHANCEMENT] Enhancement mode enabled - Research/Ideas agents will suggest new features", "info")
         issues = self._identify_issues(files_to_analyze, mode, screenshots, suggest_enhancements)
 
         # Log issue breakdown by type
         bug_count = len([i for i in issues if i.get('type') == 'BUG'])
         enhancement_count = len([i for i in issues if i.get('type') == 'ENHANCEMENT'])
-        self._log(f"Found {len(issues)} total issues: {bug_count} bugs 🐛, {enhancement_count} enhancements 💡")
+        self._log(f"Found {len(issues)} total issues: {bug_count} bugs [BUG], {enhancement_count} enhancements [ENHANCEMENT]")
 
         if not issues:
-            self._log("✅ No issues found! Codebase is in great shape.", "success")
+            self._log("[OK] No issues found! Codebase is in great shape.", "success")
             return {
                 'files_analyzed': len(files_to_analyze),
                 'issues_found': 0,
@@ -137,10 +137,10 @@ class SelfImprover:
         # Mix: adjust dynamically
         if simple_count > max_issues and complex_count == 0:
             adaptive_max = min(3, len(prioritized_issues))
-            self._log(f"📈 Adaptive batch: {simple_count} simple fixes detected, increasing batch to {adaptive_max}", "info")
+            self._log(f"[UP] Adaptive batch: {simple_count} simple fixes detected, increasing batch to {adaptive_max}", "info")
         elif complex_count >= 2:
             adaptive_max = 1
-            self._log(f"📉 Adaptive batch: {complex_count} complex fixes detected, reducing batch to {adaptive_max}", "info")
+            self._log(f"[DOWN] Adaptive batch: {complex_count} complex fixes detected, reducing batch to {adaptive_max}", "info")
         else:
             adaptive_max = max_issues
 
@@ -149,28 +149,28 @@ class SelfImprover:
 
         # Step 3: Create Git branch for safety
         branch_name = f"self-improve-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-        self._log(f"🌿 Creating Git branch: {branch_name}")
+        self._log(f"[GIT] Creating Git branch: {branch_name}")
         self._create_git_branch(branch_name)
 
         # Step 4: Generate fixes
-        self._log("🔧 Generating fixes...")
+        self._log("[FIX] Generating fixes...")
         fixes = self._generate_fixes(prioritized_issues, mode)
         self._log(f"Generated {len(fixes)} fixes")
 
         # Step 5: Apply and test fixes with retest loop
-        self._log("💾 Applying and testing fixes...")
+        self._log("[APPLY] Applying and testing fixes...")
         applied_fixes = self._apply_and_test_fixes(fixes, prioritized_issues, mode)
         self._log(f"Applied {applied_fixes} fixes successfully (all passed tests)")
 
         # Step 6: Commit changes
-        self._log("📝 Committing changes...")
+        self._log("[COMMIT] Committing changes...")
         commit_hash = self._commit_changes(prioritized_issues, applied_fixes)
 
         # Step 7: Get diff
         diff_output = self._get_git_diff()
 
         # Step 8: Evaluate improvement
-        self._log("📊 Evaluating improvement...")
+        self._log("[STATS] Evaluating improvement...")
         scores = self._evaluate_improvement(diff_output, mode)
 
         # Step 9: Plan next iteration
@@ -188,7 +188,7 @@ class SelfImprover:
             'issues': [self._format_issue_summary(issue) for issue in prioritized_issues]
         }
 
-        self._log("✅ Improvement cycle complete!", "success")
+        self._log("[OK] Improvement cycle complete!", "success")
         return result
 
     def _capture_app_screenshots(self) -> List[Dict]:
@@ -223,23 +223,23 @@ class SelfImprover:
             if result.returncode == 0:
                 # Parse JSON output from subprocess
                 screenshots = json.loads(result.stdout)
-                self._log(f"✓ Captured {len(screenshots)} screenshots successfully", "info")
+                self._log(f"[+] Captured {len(screenshots)} screenshots successfully", "info")
                 for screenshot in screenshots:
                     self._log(f"  - {screenshot['name']}: {screenshot['path']}", "info")
                 return screenshots
             else:
                 # Subprocess failed
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
-                self._log(f"⚠️ Screenshot capture failed: {error_msg}", "warning")
+                self._log(f"[WARNING] Screenshot capture failed: {error_msg}", "warning")
                 self._log("   UI/UX analysis will continue without screenshots", "info")
                 return []
 
         except subprocess.TimeoutExpired:
-            self._log("⚠️ Screenshot capture timed out after 60 seconds", "warning")
+            self._log("[WARNING] Screenshot capture timed out after 60 seconds", "warning")
             self._log("   UI/UX analysis will continue without screenshots", "info")
             return []
         except FileNotFoundError:
-            self._log("⚠️ Could not find capture_screenshots.py script", "warning")
+            self._log("[WARNING] Could not find capture_screenshots.py script", "warning")
             return []
         except Exception as e:
             self._log(f"Screenshot capture failed: {type(e).__name__}: {str(e)}", "warning")
@@ -296,7 +296,7 @@ class SelfImprover:
         description = patterns['description']
 
         # Log what we're analyzing
-        self._log(f"📁 File Filter: {description}", "info")
+        self._log(f"[FILES] File Filter: {description}", "info")
         if include_dirs:
             self._log(f"  Including directories: {', '.join(include_dirs)}", "info")
         self._log(f"  File types: {', '.join(extensions)}", "info")
@@ -402,9 +402,9 @@ class SelfImprover:
             # Insert BEFORE domain experts (but keep Verifier and Challenger at the end)
             verifier_idx = team.index("Verifier") if "Verifier" in team else len(team)
             team = enhancement_agents + team[:verifier_idx] + team[verifier_idx:]
-            self._log(f"💡 Added Research/Ideas agents for feature suggestions", "info")
+            self._log(f"[ENHANCEMENT] Added Research/Ideas agents for feature suggestions", "info")
 
-        self._log(f"🤖 Specialized team for {mode}: {len(team)} agents", "info")
+        self._log(f"[TEAM] Specialized team for {mode}: {len(team)} agents", "info")
         self._log(f"   Team: {', '.join(team)}", "info")
 
         # Create all agents in the team
@@ -443,7 +443,7 @@ class SelfImprover:
                 continue
 
             # Show progress
-            self._log(f"📦 Analyzing batch {batch_num}/{total_batches} ({len(batch)} files)...", "info")
+            self._log(f"[BATCH] Analyzing batch {batch_num}/{total_batches} ({len(batch)} files)...", "info")
 
             # Mode-specific analysis prompts (include screenshots for UI/UX analysis)
             prompt = self._get_analysis_prompt(file_contents, mode, screenshots)
@@ -458,7 +458,7 @@ class SelfImprover:
             verifier_agent = analysis_agents[-2]   # Second-to-last agent
             challenger_agent = analysis_agents[-1]  # Last agent
 
-            self._log(f"  → Stage 1: {len(domain_experts)} domain experts analyzing independently (parallel mindset)", "info")
+            self._log(f"  -> Stage 1: {len(domain_experts)} domain experts analyzing independently (parallel mindset)", "info")
             self._log(f"     Experts: {', '.join([a.role for a in domain_experts])}", "info")
 
             # STAGE 1: Domain experts analyze independently (NO context = no bias)
@@ -499,8 +499,8 @@ The experts ONLY analyzed the files listed above. Any issue mentioning a file NO
 Your role as Verifier (Hallucination Detector + Specificity Enforcer):
 
 STEP 1: FILE PATH VALIDATION (Most Important - Do This FIRST)
-✅ VALID: Exactly ONE file from the analyzed list above
-❌ INVALID - REMOVE IMMEDIATELY:
+[OK] VALID: Exactly ONE file from the analyzed list above
+[X] INVALID - REMOVE IMMEDIATELY:
 - "FILE: Unknown"
 - "FILE: Multiple files"
 - "FILE: Across the UI"
@@ -510,17 +510,17 @@ STEP 1: FILE PATH VALIDATION (Most Important - Do This FIRST)
 - "FILE: streamlit_ui/*.py" (wildcard pattern)
 - Any file NOT in the analyzed list above
 
-If FILE is invalid → REMOVE the entire issue immediately, don't even read the rest.
+If FILE is invalid -> REMOVE the entire issue immediately, don't even read the rest.
 
 STEP 2: SPECIFICITY VALIDATION (Only if file path is valid)
 Issues must be CONCRETE and SPECIFIC, not vague architectural observations.
-✅ KEEP: "Button text wraps to 2 lines at 375px viewport in mobile view"
-✅ KEEP: "Missing alt attribute on screenshot image at line 45"
-✅ KEEP: "Color contrast 2.8:1 between button text and background fails WCAG AA"
-❌ REMOVE: "Lack of overall design system" (too architectural)
-❌ REMOVE: "Needs better mobile responsiveness" (too vague)
-❌ REMOVE: "Improve visual consistency" (too general)
-❌ REMOVE: "Better user flow needed" (opinion, not concrete issue)
+[OK] KEEP: "Button text wraps to 2 lines at 375px viewport in mobile view"
+[OK] KEEP: "Missing alt attribute on screenshot image at line 45"
+[OK] KEEP: "Color contrast 2.8:1 between button text and background fails WCAG AA"
+[X] REMOVE: "Lack of overall design system" (too architectural)
+[X] REMOVE: "Needs better mobile responsiveness" (too vague)
+[X] REMOVE: "Improve visual consistency" (too general)
+[X] REMOVE: "Better user flow needed" (opinion, not concrete issue)
 
 STEP 3: LIGHT FACT-CHECK (Be lenient - keep issues unless obviously wrong)
 - If the issue seems plausible, KEEP IT (benefit of the doubt)
@@ -529,16 +529,16 @@ STEP 3: LIGHT FACT-CHECK (Be lenient - keep issues unless obviously wrong)
 - Accept reasonable severity ratings even if subjective
 
 ONLY REMOVE IF:
-❌ FILE: Unknown/Missing (no file specified)
-❌ FILE: Multiple files listed (must pick ONE specific file)
-❌ FILE: Across the UI / Multiple components (too vague - need specific file)
-❌ ISSUE: References code/functions that don't exist in the analyzed files (hallucination)
+[X] FILE: Unknown/Missing (no file specified)
+[X] FILE: Multiple files listed (must pick ONE specific file)
+[X] FILE: Across the UI / Multiple components (too vague - need specific file)
+[X] ISSUE: References code/functions that don't exist in the analyzed files (hallucination)
 
-✅ KEEP EVERYTHING ELSE including:
-✅ Nitpicks and minor issues (we want perfection!)
-✅ Subjective improvements (readability, naming, style)
-✅ Issues without line numbers (general file-level issues are fine)
-✅ Slightly vague descriptions (if file is specific)
+[OK] KEEP EVERYTHING ELSE including:
+[OK] Nitpicks and minor issues (we want perfection!)
+[OK] Subjective improvements (readability, naming, style)
+[OK] Issues without line numbers (general file-level issues are fine)
+[OK] Slightly vague descriptions (if file is specific)
 
 OUTPUT FORMAT - For issues that pass minimal validation:
 ISSUE: [title]
@@ -566,9 +566,9 @@ Review the verified findings for these files and ADD MORE ISSUES:
 Your role as DEMANDING Quality Enforcer:
 
 CRITICAL MINDSET:
-⚠️ The verified issues are just the START. You need to find EVEN MORE issues to improve quality.
-⚠️ NITPICKING IS ENCOURAGED - we want PERFECTION, not "good enough"
-⚠️ Even small improvements count - anything that makes code 1% better is worth reporting
+[WARNING] The verified issues are just the START. You need to find EVEN MORE issues to improve quality.
+[WARNING] NITPICKING IS ENCOURAGED - we want PERFECTION, not "good enough"
+[WARNING] Even small improvements count - anything that makes code 1% better is worth reporting
 
 YOUR TASKS:
 1. KEEP all specific, actionable issues from the verifier
@@ -586,17 +586,17 @@ YOUR TASKS:
    - TODOs or FIXMEs
 
 ONLY REMOVE if:
-❌ Too vague: "Needs better responsiveness" (what specifically?)
-❌ Architectural: "Lacks overall design system" (affects multiple files)
-❌ Multi-file: Issue can't be fixed in a single specific file
-❌ Hallucination: References code that doesn't exist
+[X] Too vague: "Needs better responsiveness" (what specifically?)
+[X] Architectural: "Lacks overall design system" (affects multiple files)
+[X] Multi-file: Issue can't be fixed in a single specific file
+[X] Hallucination: References code that doesn't exist
 
-✅ KEEP EVERYTHING ELSE including:
-✅ Nitpicks and minor improvements
-✅ Code style issues
-✅ Documentation gaps
-✅ Small optimizations
-✅ Readability improvements
+[OK] KEEP EVERYTHING ELSE including:
+[OK] Nitpicks and minor improvements
+[OK] Code style issues
+[OK] Documentation gaps
+[OK] Small optimizations
+[OK] Readability improvements
 
 OUTPUT FORMAT:
 ISSUE: [title]
@@ -620,8 +620,8 @@ GOAL: Output ALL valid issues + any new ones you find. Be thorough and demanding
             all_tasks = stage1_tasks + [verifier_task, challenger_task]
 
             # Run the hybrid 3-stage crew
-            self._log(f"  → Stage 2: Verifier checking for hallucinations", "info")
-            self._log(f"  → Stage 3: Challenger applying critical filter", "info")
+            self._log(f"  -> Stage 2: Verifier checking for hallucinations", "info")
+            self._log(f"  -> Stage 3: Challenger applying critical filter", "info")
 
             crew = Crew(
                 agents=analysis_agents,
@@ -636,7 +636,7 @@ GOAL: Output ALL valid issues + any new ones you find. Be thorough and demanding
                 result_text = result.raw if hasattr(result, 'raw') else str(result)
 
                 # Log the raw result for debugging
-                self._log(f"  ✓ 3-stage pipeline complete: {len(domain_experts)} experts → Verifier → Challenger", "info")
+                self._log(f"  [+] 3-stage pipeline complete: {len(domain_experts)} experts -> Verifier -> Challenger", "info")
                 self._log(f"     Final output: {len(result_text)} characters from Challenger", "info")
 
                 # Parse issues from result
@@ -646,16 +646,16 @@ GOAL: Output ALL valid issues + any new ones you find. Be thorough and demanding
                     # Log what we found
                     bug_count = len([i for i in batch_issues if i.get('type') == 'BUG'])
                     enhancement_count = len([i for i in batch_issues if i.get('type') == 'ENHANCEMENT'])
-                    self._log(f"  ✓ Found {len(batch_issues)} issues in this batch: {bug_count} bugs, {enhancement_count} enhancements", "info")
+                    self._log(f"  [+] Found {len(batch_issues)} issues in this batch: {bug_count} bugs, {enhancement_count} enhancements", "info")
                     for idx, issue in enumerate(batch_issues[:3], 1):  # Show first 3
                         issue_type = issue.get('type', 'BUG')
-                        type_emoji = "🐛" if issue_type == "BUG" else "💡"
+                        type_emoji = "[BUG]" if issue_type == "BUG" else "[ENHANCEMENT]"
                         self._log(f"    {idx}. {type_emoji} [{issue.get('severity', 'UNKNOWN')}] {issue.get('title', 'Untitled')} ({issue.get('file', 'unknown file')})", "info")
                     if len(batch_issues) > 3:
                         self._log(f"    ... and {len(batch_issues) - 3} more", "info")
                 elif len(result_text) > 100:
                     # Agent returned content but parser found nothing - log for debugging
-                    self._log(f"  ⚠ WARNING: Parser found 0 issues from {len(result_text)} chars of agent output", "warning")
+                    self._log(f"  [!] WARNING: Parser found 0 issues from {len(result_text)} chars of agent output", "warning")
                     self._log(f"  First 300 chars: {result_text[:300]}", "warning")
 
                 issues.extend(batch_issues)
@@ -692,7 +692,7 @@ GOAL: Output ALL valid issues + any new ones you find. Be thorough and demanding
             ImprovementMode.UI_UX: """
 Focus on SPECIFIC, CONCRETE UI/UX issues that can be fixed in individual files:
 
-✅ GOOD ISSUES (Specific, measurable, fixable):
+[OK] GOOD ISSUES (Specific, measurable, fixable):
 - "Button text wraps to 2 lines on mobile viewport (375px)" - SPECIFIC visual problem
 - "Color contrast ratio 2.8:1 fails WCAG AA (needs 4.5:1)" - MEASURABLE accessibility issue
 - "No alt text on image at line 45" - CONCRETE missing attribute
@@ -702,7 +702,7 @@ Focus on SPECIFIC, CONCRETE UI/UX issues that can be fixed in individual files:
 - "Loading state missing during API call (lines 120-135)" - SPECIFIC missing state
 - "Checkbox disabled but no explanation shown to user" - CONCRETE feedback gap
 
-❌ BAD ISSUES (Vague, architectural, multi-file):
+[X] BAD ISSUES (Vague, architectural, multi-file):
 - "Lack of overall design system" - TOO ARCHITECTURAL, affects multiple files
 - "Needs better mobile responsiveness" - TOO VAGUE, not specific enough
 - "Improve visual consistency" - TOO GENERAL, no concrete action
@@ -769,7 +769,7 @@ Analyze all aspects:
 
 ==================== CRITICAL MINDSET ====================
 
-⚠️ BE EXTREMELY CRITICAL AND DEMANDING. This is a PROFESSIONAL codebase that needs to be PERFECT.
+[WARNING] BE EXTREMELY CRITICAL AND DEMANDING. This is a PROFESSIONAL codebase that needs to be PERFECT.
 
 MANDATORY REQUIREMENTS:
 1. You MUST find AT LEAST 3-5 issues per file analyzed
@@ -821,10 +821,10 @@ REQUIREMENTS:
 4. Use blank lines between issues
 5. Each issue MUST have all 5 fields: ISSUE, FILE, SEVERITY, DESCRIPTION, SUGGESTION
 6. FILE field MUST be a SPECIFIC file path from the analyzed files above
-   ❌ WRONG: FILE: Unknown
-   ❌ WRONG: FILE: Multiple files
-   ❌ WRONG: FILE: Across the UI
-   ✅ RIGHT: FILE: streamlit_ui/main_interface.py
+   [X] WRONG: FILE: Unknown
+   [X] WRONG: FILE: Multiple files
+   [X] WRONG: FILE: Across the UI
+   [OK] RIGHT: FILE: streamlit_ui/main_interface.py
 7. If an issue affects multiple files, create SEPARATE issues for each file
 8. DO NOT use vague file paths - pick the MOST RELEVANT specific file
 
@@ -970,7 +970,7 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
 
         # Log prioritization strategy
         if scored_issues:
-            self._log("📊 Issue Prioritization:", "info")
+            self._log("[STATS] Issue Prioritization:", "info")
             for i, item in enumerate(scored_issues[:5]):
                 issue = item['issue']
                 self._log(
@@ -991,7 +991,7 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
             Dict with 'changes' list, or None if generation failed
         """
         line_count = len(current_content.splitlines())
-        self._log(f"  🔧 Using diff-based approach for large file ({line_count} lines)", "info")
+        self._log(f"  [FIX] Using diff-based approach for large file ({line_count} lines)", "info")
 
         # Get relevant context around the issue
         # Show agent only the relevant section, not the entire file
@@ -1020,7 +1020,7 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
 
         # Generate diff-based fix
         diff_prompt = f"""
-⚠️⚠️⚠️ CRITICAL: DIFF-BASED FIX FORMAT REQUIRED ⚠️⚠️⚠️
+[WARNING][WARNING][WARNING] CRITICAL: DIFF-BASED FIX FORMAT REQUIRED [WARNING][WARNING][WARNING]
 
 This file is too large ({line_count} lines) to regenerate completely.
 You must provide TARGETED CHANGES using this exact format:
@@ -1113,21 +1113,21 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
 
                     if is_retryable and attempt < max_retries:
                         wait_time = retry_delay * (2 ** (attempt - 1))  # Exponential backoff
-                        self._log(f"  ⚠ API error (attempt {attempt}/{max_retries}): {error_str[:100]}", "warning")
-                        self._log(f"  ⏳ Retrying in {wait_time}s...", "info")
+                        self._log(f"  [!] API error (attempt {attempt}/{max_retries}): {error_str[:100]}", "warning")
+                        self._log(f"  [WAIT] Retrying in {wait_time}s...", "info")
                         import time
                         time.sleep(wait_time)
                     else:
                         # Non-retryable error or max retries reached
-                        self._log(f"  ❌ API error after {attempt} attempts: {error_str[:200]}", "error")
+                        self._log(f"  [X] API error after {attempt} attempts: {error_str[:200]}", "error")
                         raise
 
             if result_text is None:
-                self._log(f"  ❌ Failed to get response after {max_retries} retries", "error")
+                self._log(f"  [X] Failed to get response after {max_retries} retries", "error")
                 return None
 
             # Debug: Log what agent actually returned
-            self._log(f"  📄 Agent output preview (first 500 chars):", "info")
+            self._log(f"  [OUTPUT] Agent output preview (first 500 chars):", "info")
             self._log(f"     {result_text[:500]}", "info")
 
             # Parse the diff changes
@@ -1140,16 +1140,16 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
                 changes = self._parse_diff_changes(changes_text)
 
                 if changes:
-                    self._log(f"  ✓ Generated {len(changes)} targeted changes", "success")
+                    self._log(f"  [+] Generated {len(changes)} targeted changes", "success")
                     return {
                         'type': 'diff',
                         'changes': changes
                     }
                 else:
-                    self._log(f"  ⚠ Failed to parse diff changes", "warning")
+                    self._log(f"  [!] Failed to parse diff changes", "warning")
                     return None
             else:
-                self._log(f"  ⚠ Agent did not use DIFF_CHANGES format", "warning")
+                self._log(f"  [!] Agent did not use DIFF_CHANGES format", "warning")
                 self._log(f"     Searching for common format variations...", "info")
 
                 # Try to parse natural language instructions as fallback
@@ -1157,7 +1157,7 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
                 fallback_changes = self._parse_natural_language_changes(result_text, current_content)
 
                 if fallback_changes:
-                    self._log(f"  ✓ Parsed {len(fallback_changes)} changes from natural language", "success")
+                    self._log(f"  [+] Parsed {len(fallback_changes)} changes from natural language", "success")
                     return {
                         'type': 'diff',
                         'changes': fallback_changes
@@ -1166,7 +1166,7 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
                 return None
 
         except Exception as e:
-            self._log(f"  ❌ Diff-based fix generation failed: {e}", "error")
+            self._log(f"  [X] Diff-based fix generation failed: {e}", "error")
             return None
 
     def _parse_natural_language_changes(self, text: str, current_content: str) -> List[Dict]:
@@ -1283,7 +1283,7 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
                 action = change['action']
 
                 if line_num < 0 or line_num >= len(lines):
-                    self._log(f"    ⚠ Line {change['line']} out of range, skipping", "warning")
+                    self._log(f"    [!] Line {change['line']} out of range, skipping", "warning")
                     continue
 
                 if action == 'replace':
@@ -1293,22 +1293,22 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
 
                     if old_text in current_line or current_line in old_text:
                         lines[line_num] = change['new'] + '\n'
-                        self._log(f"    ✓ Replaced line {change['line']}", "info")
+                        self._log(f"    [+] Replaced line {change['line']}", "info")
                     else:
-                        self._log(f"    ⚠ Line {change['line']} doesn't match expected text, skipping", "warning")
+                        self._log(f"    [!] Line {change['line']} doesn't match expected text, skipping", "warning")
 
                 elif action == 'insert_after':
                     lines.insert(line_num + 1, change['new'] + '\n')
-                    self._log(f"    ✓ Inserted after line {change['line']}", "info")
+                    self._log(f"    [+] Inserted after line {change['line']}", "info")
 
                 elif action == 'delete':
                     del lines[line_num]
-                    self._log(f"    ✓ Deleted line {change['line']}", "info")
+                    self._log(f"    [+] Deleted line {change['line']}", "info")
 
             return ''.join(lines)
 
         except Exception as e:
-            self._log(f"    ❌ Failed to apply diff changes: {e}", "error")
+            self._log(f"    [X] Failed to apply diff changes: {e}", "error")
             return None
 
     def _generate_fixes(self, issues: List[Dict], mode: str) -> List[Dict]:
@@ -1335,8 +1335,8 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
             MODEL_PRESETS["Grok Reasoning"]  # Fast reasoning model with high rate limits
         )
 
-        self._log(f"🔧 Fix generation using Grok 4 Fast Reasoning (480 rpm, 4M tpm)", "info")
-        self._log(f"⚠️  No delays needed - Grok has 100x higher rate limits!", "info")
+        self._log(f"[FIX] Fix generation using Grok 4 Fast Reasoning (480 rpm, 4M tpm)", "info")
+        self._log(f"[WARNING]  No delays needed - Grok has 100x higher rate limits!", "info")
 
         for issue in issues:
             file_path_raw = issue.get('file', '')
@@ -1355,7 +1355,7 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
                         single_file_issue['file'] = fp
                         issues.append(single_file_issue)
                     else:
-                        self._log(f"   ⚠ File not found: {fp}", "warning")
+                        self._log(f"   [!] File not found: {fp}", "warning")
 
                 # Skip the original multi-file issue
                 continue
@@ -1363,7 +1363,7 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
             file_path = file_path_raw
             if not file_path or not Path(file_path).exists():
                 issue_title = issue.get('title', 'Unknown issue')
-                self._log(f"⚠ Skipping issue '{issue_title}': Invalid file path '{file_path}'", "warning")
+                self._log(f"[!] Skipping issue '{issue_title}': Invalid file path '{file_path}'", "warning")
                 continue
 
             # Skip directories
@@ -1405,10 +1405,10 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
                         })
                         continue
                     else:
-                        self._log(f"  ⚠ Diff-based fix failed to apply, skipping", "warning")
+                        self._log(f"  [!] Diff-based fix failed to apply, skipping", "warning")
                         continue
                 else:
-                    self._log(f"  ⚠ Diff-based fix generation failed, skipping", "warning")
+                    self._log(f"  [!] Diff-based fix generation failed, skipping", "warning")
                     continue
 
             # For files ≤1000 lines, use full-file regeneration (best quality with Grok)
@@ -1514,17 +1514,17 @@ START YOUR RESPONSE NOW WITH: <file_content>
 
                         if is_retryable and attempt < max_retries:
                             wait_time = retry_delay * (2 ** (attempt - 1))  # Exponential backoff
-                            self._log(f"  ⚠ API error (attempt {attempt}/{max_retries}): {error_str[:100]}", "warning")
-                            self._log(f"  ⏳ Retrying in {wait_time}s...", "info")
+                            self._log(f"  [!] API error (attempt {attempt}/{max_retries}): {error_str[:100]}", "warning")
+                            self._log(f"  [WAIT] Retrying in {wait_time}s...", "info")
                             import time
                             time.sleep(wait_time)
                         else:
                             # Non-retryable error or max retries reached
-                            self._log(f"  ❌ API error after {attempt} attempts: {error_str[:200]}", "error")
+                            self._log(f"  [X] API error after {attempt} attempts: {error_str[:200]}", "error")
                             raise
 
                 if result_text is None:
-                    self._log(f"  ❌ Failed to get response after {max_retries} retries", "error")
+                    self._log(f"  [X] Failed to get response after {max_retries} retries", "error")
                     continue
 
                 # Extract fixed content with robust XML parsing
@@ -1546,7 +1546,7 @@ START YOUR RESPONSE NOW WITH: <file_content>
 
                     # Validate - reject placeholder/truncated outputs
                     if '...' in fixed_content[:200] or '…' in fixed_content[:200]:  # Check first 200 chars
-                        self._log(f"  ⚠ Fix contains '...' placeholder for {Path(file_path).name}, rejecting", "warning")
+                        self._log(f"  [!] Fix contains '...' placeholder for {Path(file_path).name}, rejecting", "warning")
                         self._log(f"     Agent used prohibited abbreviation. First 150 chars: {repr(fixed_content[:150])}", "warning")
                         continue
 
@@ -1559,7 +1559,7 @@ START YOUR RESPONSE NOW WITH: <file_content>
                             'fixed_content': fixed_content
                         })
                     else:
-                        self._log(f"  ⚠ Fix too short for {Path(file_path).name} ({len(fixed_content)} chars), skipping", "warning")
+                        self._log(f"  [!] Fix too short for {Path(file_path).name} ({len(fixed_content)} chars), skipping", "warning")
                         self._log(f"     Content received: {repr(fixed_content[:100])}", "warning")
 
                 # Fallback: Legacy FILE_CONTENT_START/END markers (for backwards compatibility)
@@ -1576,12 +1576,12 @@ START YOUR RESPONSE NOW WITH: <file_content>
                             'fixed_content': fixed_content
                         })
                     else:
-                        self._log(f"  ⚠ Legacy marker extraction failed (too short or has placeholders)", "warning")
+                        self._log(f"  [!] Legacy marker extraction failed (too short or has placeholders)", "warning")
                 else:
                     # Fallback 1: Check if XML tag exists without closing tag
                     # Agent sometimes outputs <file_content> but forgets </file_content>
                     if '<file_content>' in result_text:
-                        self._log(f"  ⚠ Found <file_content> but no </file_content>, extracting remaining content for {Path(file_path).name}", "info")
+                        self._log(f"  [!] Found <file_content> but no </file_content>, extracting remaining content for {Path(file_path).name}", "info")
 
                         start_idx = result_text.index('<file_content>') + len('<file_content>')
                         fixed_content = result_text[start_idx:].strip()
@@ -1593,7 +1593,7 @@ START YOUR RESPONSE NOW WITH: <file_content>
 
                         # Validate
                         if '...' not in fixed_content[:200] and len(fixed_content) > 50:
-                            self._log(f"  ✓ Fallback extraction successful: {len(fixed_content)} chars from <file_content> to end", "info")
+                            self._log(f"  [+] Fallback extraction successful: {len(fixed_content)} chars from <file_content> to end", "info")
                             fixes.append({
                                 'file': file_path,
                                 'issue': issue,
@@ -1602,11 +1602,11 @@ START YOUR RESPONSE NOW WITH: <file_content>
                             })
                             continue
                         else:
-                            self._log(f"  ⚠ Extracted content invalid (too short or has placeholders)", "warning")
+                            self._log(f"  [!] Extracted content invalid (too short or has placeholders)", "warning")
 
                     # Fallback 2: Try to extract code from markdown code blocks
                     # Agent likes to output: ```python\n<code>\n``` followed by explanation
-                    self._log(f"  ⚠ No valid markers found, trying markdown code block extraction for {Path(file_path).name}", "info")
+                    self._log(f"  [!] No valid markers found, trying markdown code block extraction for {Path(file_path).name}", "info")
 
                     import re
                     # Look for the largest code block (likely the full file)
@@ -1619,12 +1619,12 @@ START YOUR RESPONSE NOW WITH: <file_content>
 
                         # Validate - reject placeholder/truncated outputs
                         if '...' in fixed_content[:200] or '…' in fixed_content[:200]:
-                            self._log(f"  ⚠ Fallback extraction found '...' placeholder, rejecting", "warning")
+                            self._log(f"  [!] Fallback extraction found '...' placeholder, rejecting", "warning")
                             continue
 
                         # Validate we got substantial content
                         if len(fixed_content) > 50:
-                            self._log(f"  ✓ Fallback extraction successful: {len(fixed_content)} chars from largest code block", "info")
+                            self._log(f"  [+] Fallback extraction successful: {len(fixed_content)} chars from largest code block", "info")
                             fixes.append({
                                 'file': file_path,
                                 'issue': issue,
@@ -1632,9 +1632,9 @@ START YOUR RESPONSE NOW WITH: <file_content>
                                 'fixed_content': fixed_content
                             })
                         else:
-                            self._log(f"  ⚠ Fallback extraction too short ({len(fixed_content)} chars)", "warning")
+                            self._log(f"  [!] Fallback extraction too short ({len(fixed_content)} chars)", "warning")
                     else:
-                        self._log(f"  ⚠ Could not find any code blocks in fix for {Path(file_path).name}", "warning")
+                        self._log(f"  [!] Could not find any code blocks in fix for {Path(file_path).name}", "warning")
                         # Show first 200 chars of output for debugging
                         self._log(f"  Agent output preview: {result_text[:200]}", "warning")
 
@@ -1644,7 +1644,7 @@ START YOUR RESPONSE NOW WITH: <file_content>
             # Grok has 480 rpm and 4M tpm - no delays needed!
             # Keeping this code commented for potential fallback to Anthropic
             # if len(fixes) < len(issues) - 1:
-            #     self._log(f"  ⏳ Waiting 15s before next fix (rate limit protection)...", "info")
+            #     self._log(f"  [WAIT] Waiting 15s before next fix (rate limit protection)...", "info")
             #     time.sleep(15)
 
         return fixes
@@ -1656,7 +1656,7 @@ START YOUR RESPONSE NOW WITH: <file_content>
         For each fix:
         1. Apply it
         2. Test it (syntax + imports)
-        3. If fails → send back to Fixer agent with error
+        3. If fails -> send back to Fixer agent with error
         4. Retry up to 3 times
         5. Keep only fixes that pass tests
         """
@@ -1670,25 +1670,25 @@ START YOUR RESPONSE NOW WITH: <file_content>
             file_path = fix['file']
             issue = issues[i] if i < len(issues) else {}
 
-            self._log(f"📝 Fix {i+1}/{len(fixes)}: {Path(file_path).name}", "info")
+            self._log(f"[COMMIT] Fix {i+1}/{len(fixes)}: {Path(file_path).name}", "info")
 
             # Check if this file was already modified
             if file_path in modified_files:
                 previous_fix_num = modified_files[file_path]
-                self._log(f"  ⚠️ WARNING: This file was already modified by Fix #{previous_fix_num}", "warning")
+                self._log(f"  [WARNING] WARNING: This file was already modified by Fix #{previous_fix_num}", "warning")
                 self._log(f"     This fix will OVERWRITE changes from Fix #{previous_fix_num}", "warning")
 
             # Try to get a working fix (up to max_retries attempts)
             for attempt in range(1, max_retries + 1):
                 if attempt > 1:
-                    self._log(f"  🔄 Retry {attempt}/{max_retries}...", "info")
+                    self._log(f"  [CYCLE] Retry {attempt}/{max_retries}...", "info")
 
                 # Get the fix content (first attempt uses original, retries use regenerated)
                 if attempt == 1:
                     fixed_content = fix['fixed_content']
                 else:
                     # Regenerate fix with error feedback
-                    self._log(f"  → Asking Fixer agent to address test failure...", "info")
+                    self._log(f"  -> Asking Fixer agent to address test failure...", "info")
                     fixed_content = self._regenerate_fix_with_feedback(
                         file_path,
                         fix['original_content'],
@@ -1698,7 +1698,7 @@ START YOUR RESPONSE NOW WITH: <file_content>
                     )
 
                     if not fixed_content:
-                        self._log(f"  ⚠ Could not regenerate fix, skipping", "warning")
+                        self._log(f"  [!] Could not regenerate fix, skipping", "warning")
                         break
 
                 # SAFETY CHECK: Validate fixed content isn't catastrophically shorter
@@ -1709,7 +1709,7 @@ START YOUR RESPONSE NOW WITH: <file_content>
                 # Reject if file shrunk by >30% (likely incomplete/truncated output)
                 if fixed_lines < original_lines * 0.7:
                     shrink_pct = int((1 - fixed_lines / original_lines) * 100)
-                    self._log(f"  ❌ REJECTED: File shrunk by {shrink_pct}% ({original_lines} → {fixed_lines} lines)", "error")
+                    self._log(f"  [X] REJECTED: File shrunk by {shrink_pct}% ({original_lines} -> {fixed_lines} lines)", "error")
                     self._log(f"     This looks like incomplete output. Refusing to apply destructive change.", "error")
                     break
 
@@ -1725,7 +1725,7 @@ START YOUR RESPONSE NOW WITH: <file_content>
 
                     # Show what changed
                     changes_summary = self._summarize_changes(original_content, fixed_content)
-                    self._log(f"  ✓ Fix applied and tested successfully", "success")
+                    self._log(f"  [+] Fix applied and tested successfully", "success")
                     self._log(f"     Changes: {changes_summary}", "info")
 
                     applied += 1
@@ -1737,7 +1737,7 @@ START YOUR RESPONSE NOW WITH: <file_content>
                     self._rollback_fix(file_path, original_content)
 
                     if attempt == max_retries:
-                        self._log(f"  ⚠ Max retries reached, skipping this fix", "warning")
+                        self._log(f"  [!] Max retries reached, skipping this fix", "warning")
 
         return applied
 
@@ -1849,7 +1849,7 @@ START YOUR RESPONSE NOW WITH: <file_content>
         )
 
         fix_prompt = f"""
-⚠️⚠️⚠️ CRITICAL FORMAT REQUIREMENT ⚠️⚠️⚠️
+[WARNING][WARNING][WARNING] CRITICAL FORMAT REQUIREMENT [WARNING][WARNING][WARNING]
 
 YOUR ENTIRE RESPONSE MUST BE:
 
@@ -2200,7 +2200,7 @@ REASONING: [why this is an improvement or not]
                 encoding='utf-8',
                 errors='replace'
             )
-            self._log("✓ Rolled back to main branch", "success")
+            self._log("[+] Rolled back to main branch", "success")
             return True
         except subprocess.CalledProcessError as e:
             self._log(f"Rollback failed: {e}", "error")

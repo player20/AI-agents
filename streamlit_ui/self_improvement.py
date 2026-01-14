@@ -99,6 +99,17 @@ def render_self_improvement():
     else:
         st.info("🔄 **Single-Pass Mode**: System will run one improvement cycle and stop.")
 
+    # Enhancement suggestions toggle
+    st.markdown("#### Enhancement Options")
+    suggest_enhancements = st.checkbox(
+        "💡 Include Feature Suggestions",
+        value=False,
+        help="Add Research & Ideas agents to suggest new features and enhancements (in addition to finding bugs)"
+    )
+
+    if suggest_enhancements:
+        st.info("💡 **Enhancement Mode**: Research & Ideas agents will analyze the codebase and suggest new features to add.")
+
     # Forever mode checkbox
     forever_mode = st.checkbox(
         "🔁 Forever mode (manual control)",
@@ -133,14 +144,14 @@ def render_self_improvement():
     # Execution
     if start_button:
         if forever_mode:
-            run_forever_mode(selected_mode, target_files)
+            run_forever_mode(selected_mode, target_files, suggest_enhancements)
         elif iterative_mode:
-            run_iterative_mode(selected_mode, target_score, target_files)
+            run_iterative_mode(selected_mode, target_score, target_files, suggest_enhancements)
         else:
-            run_single_cycle(selected_mode, target_files)
+            run_single_cycle(selected_mode, target_files, suggest_enhancements)
 
 
-def run_single_cycle(mode: str, target_files: list = None):
+def run_single_cycle(mode: str, target_files: list = None, suggest_enhancements: bool = False):
     """Run a single improvement cycle"""
     st.markdown("---")
     st.markdown("### 📋 Improvement Cycle Results")
@@ -193,7 +204,8 @@ def run_single_cycle(mode: str, target_files: list = None):
         result = improver.run_cycle(
             mode=mode,
             target_files=target_files,
-            max_issues=5
+            max_issues=5,
+            suggest_enhancements=suggest_enhancements
         )
 
         progress_bar.progress(1.0, text="Complete!")
@@ -209,7 +221,7 @@ def run_single_cycle(mode: str, target_files: list = None):
         st.code(traceback.format_exc())
 
 
-def run_iterative_mode(mode: str, target_score: float, target_files: list = None):
+def run_iterative_mode(mode: str, target_score: float, target_files: list = None, suggest_enhancements: bool = False):
     """Run iterative improvement cycles until quality threshold is met"""
     st.markdown("---")
     st.markdown("### 🔄 Iterative Improvement - LangGraph Powered")
@@ -281,7 +293,8 @@ def run_iterative_mode(mode: str, target_score: float, target_files: list = None
         final_state = run_iterative_improvement(
             mode=mode_str,
             target_score=target_score,
-            initial_score=5.0
+            initial_score=5.0,
+            suggest_enhancements=suggest_enhancements
         )
 
         progress_bar.progress(1.0, text="Complete!")
@@ -335,7 +348,7 @@ def run_iterative_mode(mode: str, target_score: float, target_files: list = None
         st.code(traceback.format_exc())
 
 
-def run_forever_mode(mode: str, target_files: list = None):
+def run_forever_mode(mode: str, target_files: list = None, suggest_enhancements: bool = False):
     """Run continuous improvement cycles"""
     st.markdown("---")
     st.markdown("### 🔁 Forever Mode - Continuous Improvement")
@@ -396,7 +409,8 @@ def run_forever_mode(mode: str, target_files: list = None):
             result = improver.run_cycle(
                 mode=mode,
                 target_files=target_files,
-                max_issues=3  # Fewer issues per cycle in forever mode
+                max_issues=3,  # Fewer issues per cycle in forever mode
+                suggest_enhancements=suggest_enhancements
             )
 
             st.session_state['forever_cycles'] = cycle_num

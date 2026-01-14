@@ -49,7 +49,7 @@ def analyze_issues_node(state: ImprovementState) -> ImprovementState:
     from core.self_improver import SelfImprover, ImprovementMode
     from core.config import load_config
 
-    print(f"\n🔍 Iteration {state['iteration']}: Analyzing codebase...")
+    print(f"\n[ANALYZE] Iteration {state['iteration']}: Analyzing codebase...")
 
     config = load_config()
     improver = SelfImprover(config)
@@ -88,7 +88,7 @@ def generate_and_apply_fixes_node(state: ImprovementState) -> ImprovementState:
     from core.self_improver import SelfImprover, ImprovementMode
     from core.config import load_config
 
-    print(f"\n🔧 Iteration {state['iteration']}: Generating and applying fixes...")
+    print(f"\n[FIX] Iteration {state['iteration']}: Generating and applying fixes...")
 
     if not state['issues_found']:
         print("   No issues to fix!")
@@ -145,7 +145,7 @@ def evaluate_quality_node(state: ImprovementState) -> ImprovementState:
     from core.self_improver import SelfImprover
     from core.config import load_config
 
-    print(f"\n📊 Iteration {state['iteration']}: Evaluating quality...")
+    print(f"\n[EVALUATE] Iteration {state['iteration']}: Evaluating quality...")
 
     # Simple heuristic scoring
     # Start at current score, add points for fixes, subtract for remaining high-priority issues
@@ -262,7 +262,7 @@ def run_iterative_improvement(
         Final state with results and history
     """
     print("=" * 80)
-    print("🚀 Starting Iterative Self-Improvement (LangGraph-powered)")
+    print("[START] Starting Iterative Self-Improvement (LangGraph-powered)")
     print("=" * 80)
     print(f"Mode: {mode}")
     print(f"Target Score: {target_score}/10")
@@ -308,7 +308,7 @@ def run_iterative_improvement(
 
         # Print summary
         print("\n" + "=" * 80)
-        print("✅ Iterative Improvement Complete!")
+        print("[COMPLETE] Iterative Improvement Complete!")
         print("=" * 80)
         print(f"Total Iterations: {len(final_state.get('iteration_history', []))}")
         print(f"Final Score: {final_state.get('current_score', 0):.1f}/10")
@@ -325,7 +325,7 @@ def run_iterative_improvement(
         return final_state
 
     except Exception as e:
-        print(f"\n❌ Error during improvement: {e}")
+        print(f"\n[ERROR] Error during improvement: {e}")
         import traceback
         traceback.print_exc()
         return {

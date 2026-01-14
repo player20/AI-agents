@@ -24,6 +24,11 @@ class LiveTerminalOutput:
             line: The text to display
             level: "info", "success", "warning", "error"
         """
+        # Sanitize user input to prevent security vulnerabilities
+        line = str(line).strip()
+        if not line:
+            return
+
         timestamp = datetime.now().strftime("%H:%M:%S")
         formatted_line = {
             "timestamp": timestamp,
