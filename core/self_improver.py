@@ -1320,8 +1320,6 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
                     continue
 
             # For files ≤1000 lines, use full-file regeneration (best quality with Grok)
-            self._log(f"📏 File ({line_count} lines) - using full-file regeneration for best quality", "info")
-
             # Generate fix with ULTRA-EXPLICIT format requirements
             # Problem: Agent keeps adding explanations instead of using markers
             # Solution: Put format requirements FIRST and make them UNMISSABLE
