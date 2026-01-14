@@ -233,6 +233,8 @@ def run_forever_mode(mode: str, target_files: list = None):
             if result['issues_found'] == 0:
                 terminal_callback("🎉 No more issues found! Codebase is optimized.", "success")
                 st.session_state['forever_mode_active'] = False
+                # Force UI update to show final counter
+                st.rerun()
                 break
 
             # Rerun to update UI

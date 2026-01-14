@@ -215,8 +215,19 @@ class SelfImprover:
 
             try:
                 result = crew.kickoff()
+                result_text = result.raw if hasattr(result, 'raw') else str(result)
+
+                # Log the raw result for debugging
+                self._log(f"Senior agent returned {len(result_text)} characters", "info")
+
                 # Parse issues from result
-                batch_issues = self._parse_issues(result.raw if hasattr(result, 'raw') else str(result), batch)
+                batch_issues = self._parse_issues(result_text, batch)
+
+                if not batch_issues and len(result_text) > 100:
+                    # Agent returned content but parser found nothing - log for debugging
+                    self._log(f"WARNING: Parser found 0 issues from {len(result_text)} chars of agent output", "warning")
+                    self._log(f"First 500 chars: {result_text[:500]}", "warning")
+
                 issues.extend(batch_issues)
             except Exception as e:
                 self._log(f"Analysis failed for batch: {e}", "error")
@@ -300,7 +311,7 @@ Limit to the most impactful improvements.
         return prompt
 
     def _parse_issues(self, analysis_result: str, files: List[Path]) -> List[Dict]:
-        """Parse issues from Senior agent's analysis"""
+        """Parse issues from Senior agent's analysis - now more flexible!"""
         issues = []
         lines = analysis_result.split('\n')
 
@@ -308,19 +319,38 @@ Limit to the most impactful improvements.
         for line in lines:
             line = line.strip()
 
-            if line.startswith('ISSUE:'):
-                if current_issue:
+            # More flexible matching - handle variations
+            if line.upper().startswith('ISSUE:') or line.upper().startswith('**ISSUE:'):
+                if current_issue and 'title' in current_issue:
                     issues.append(current_issue)
-                current_issue = {'title': line.split(':', 1)[1].strip()}
-            elif line.startswith('FILE:'):
-                current_issue['file'] = line.split(':', 1)[1].strip()
-            elif line.startswith('SEVERITY:'):
-                severity = line.split(':', 1)[1].strip().upper()
-                current_issue['severity'] = severity if severity in ['HIGH', 'MEDIUM', 'LOW'] else 'MEDIUM'
-            elif line.startswith('DESCRIPTION:'):
-                current_issue['description'] = line.split(':', 1)[1].strip()
-            elif line.startswith('SUGGESTION:'):
-                current_issue['suggestion'] = line.split(':', 1)[1].strip()
+                # Remove markdown formatting if present
+                title = line.split(':', 1)[1].strip().strip('*').strip()
+                current_issue = {'title': title}
+
+            elif line.upper().startswith('FILE:') or line.upper().startswith('**FILE:'):
+                file_path = line.split(':', 1)[1].strip().strip('*').strip()
+                current_issue['file'] = file_path
+
+            elif line.upper().startswith('SEVERITY:') or line.upper().startswith('**SEVERITY:'):
+                severity_text = line.split(':', 1)[1].strip().strip('*').strip().upper()
+                # Extract just the severity level
+                if 'HIGH' in severity_text:
+                    severity = 'HIGH'
+                elif 'MEDIUM' in severity_text:
+                    severity = 'MEDIUM'
+                elif 'LOW' in severity_text:
+                    severity = 'LOW'
+                else:
+                    severity = 'MEDIUM'
+                current_issue['severity'] = severity
+
+            elif line.upper().startswith('DESCRIPTION:') or line.upper().startswith('**DESCRIPTION:'):
+                desc = line.split(':', 1)[1].strip().strip('*').strip()
+                current_issue['description'] = desc
+
+            elif line.upper().startswith('SUGGESTION:') or line.upper().startswith('**SUGGESTION:'):
+                sugg = line.split(':', 1)[1].strip().strip('*').strip()
+                current_issue['suggestion'] = sugg
 
         # Add last issue
         if current_issue and 'title' in current_issue:
