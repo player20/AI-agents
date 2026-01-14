@@ -1225,16 +1225,10 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
         # Strategy: Process fewer issues, add delays between requests
         import time
 
-        # Use appropriate agents based on mode
-        agent_map = {
-            ImprovementMode.UI_UX: "Designs",
-            ImprovementMode.PERFORMANCE: "Senior",
-            ImprovementMode.AGENT_QUALITY: "Senior",
-            ImprovementMode.CODE_QUALITY: "Senior",
-            ImprovementMode.EVERYTHING: "Senior"
-        }
-
-        agent_id = agent_map.get(mode, "Senior")
+        # Use Senior Engineer for ALL fix generation (not "Designs" agent)
+        # "Designs" agent creates wireframes/documentation, not code fixes
+        # Senior Engineer agent writes actual code implementations
+        agent_id = "Senior"
 
         # Use Sonnet for fix generation (better quality than Haiku)
         # Analysis stays on Haiku (fast), but fixes need higher quality output
@@ -1324,27 +1318,29 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
             # Problem: Agent keeps adding explanations instead of using markers
             # Solution: Put format requirements FIRST and make them UNMISSABLE
             fix_prompt = f"""
-⚠️⚠️⚠️ CRITICAL FORMAT REQUIREMENT - READ THIS FIRST ⚠️⚠️⚠️
+🚨 MANDATORY OUTPUT FORMAT 🚨
+Your response MUST start with: FILE_CONTENT_START
+Your response MUST end with: FILE_CONTENT_END
+Everything between these markers must be valid Python/JavaScript code - NO explanations, NO comments about the fix.
 
-YOUR ENTIRE RESPONSE MUST BE IN THIS EXACT FORMAT:
-
+CORRECT FORMAT:
 FILE_CONTENT_START
-[complete fixed file code here]
+import streamlit as st
+def main():
+    st.title("Hello")
 FILE_CONTENT_END
 
-NOTHING ELSE. NO TEXT BEFORE. NO TEXT AFTER. NO EXPLANATIONS.
+WRONG FORMAT (will be REJECTED):
+❌ "Here's the improved code with better accessibility..."
+❌ "The fix is provided above..."
+❌ Starting with explanation text
+❌ Ending with explanation text
+❌ Missing FILE_CONTENT_START or FILE_CONTENT_END markers
 
-❌ WRONG: "The fixed code with improved accessibility is provided above..."
-❌ WRONG: "Here's the fixed code..."
-❌ WRONG: Starting with anything other than "FILE_CONTENT_START"
-❌ WRONG: Ending with anything other than "FILE_CONTENT_END"
-✅ RIGHT: First line is "FILE_CONTENT_START", last line is "FILE_CONTENT_END"
-
-If you output ANYTHING except this format, your response will be REJECTED.
+IF YOU DO NOT FOLLOW THIS FORMAT EXACTLY, YOUR FIX WILL BE REJECTED.
 
 ===============================================================================
-
-Now, here's the fix task:
+TASK:
 
 FILE: {file_path}
 ISSUE: {issue.get('title', 'Unknown issue')}
@@ -1379,7 +1375,7 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
             task = Task(
                 description=fix_prompt,
                 agent=fix_agent,
-                expected_output="FILE_CONTENT_START\n[complete fixed file]\nFILE_CONTENT_END\n\nNOTHING ELSE. First line MUST be FILE_CONTENT_START. Last line MUST be FILE_CONTENT_END. No explanations."
+                expected_output="Your ENTIRE response must be:\nFILE_CONTENT_START\n[complete fixed file code - NO explanations]\nFILE_CONTENT_END\n\nFirst character: F (from FILE_CONTENT_START)\nLast word: FILE_CONTENT_END\nNO text before or after these markers."
             )
 
             crew = Crew(
@@ -1785,7 +1781,7 @@ BEGIN NOW:
             task = Task(
                 description=fix_prompt,
                 agent=fix_agent,
-                expected_output="FILE_CONTENT_START\n[complete fixed file]\nFILE_CONTENT_END\n\nNOTHING ELSE. First line MUST be FILE_CONTENT_START. Last line MUST be FILE_CONTENT_END. No explanations."
+                expected_output="Your ENTIRE response must be:\nFILE_CONTENT_START\n[complete fixed file code - NO explanations]\nFILE_CONTENT_END\n\nFirst character: F (from FILE_CONTENT_START)\nLast word: FILE_CONTENT_END\nNO text before or after these markers."
             )
 
             crew = Crew(
