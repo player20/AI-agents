@@ -7,9 +7,13 @@ import streamlit as st
 from pathlib import Path
 import sys
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 # Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+if TYPE_CHECKING:
+    from core.self_improver import SelfImprover, ImprovementMode
 
 try:
     from core.self_improver import SelfImprover, ImprovementMode
@@ -18,6 +22,7 @@ try:
 except ImportError as e:
     IMPROVER_AVAILABLE = False
     IMPORT_ERROR = str(e)
+    SelfImprover = None  # Define as None for type hints if import fails
 
 
 def render_self_improvement():
@@ -245,7 +250,7 @@ def run_forever_mode(mode: str, target_files: list = None):
         st.session_state['forever_mode_active'] = False
 
 
-def display_improvement_results(result: dict, improver: SelfImprover):
+def display_improvement_results(result: dict, improver: 'SelfImprover'):
     """Display improvement cycle results"""
     st.markdown("---")
 
