@@ -45,7 +45,13 @@ def render_main_interface():
         height=120,
         key="project_input",
         label_visibility="visible",
-        help="Be specific about features, target users, and key functionality"
+        help="Be specific about features, target users, and key functionality",
+        css={
+            'color': '#ffffff',
+            'background-color': '#333333',
+            'padding': '1rem',
+            'border-radius': '0.5rem'
+        }
     )
 
     # Options - 2 rows for better mobile layout
@@ -57,7 +63,11 @@ def render_main_interface():
     with col1:
         do_market_research = st.checkbox(
             "📊 Market research",
-            help="Analyze competitors, TAM/SAM/SOM, and get go/no-go decision"
+            help="Analyze competitors, TAM/SAM/SOM, and get go/no-go decision",
+            css={
+                'color': '#ffffff',
+                'background-color': '#333333'
+            }
         )
 
     with col2:
@@ -67,19 +77,31 @@ def render_main_interface():
                 "🔍 Research only",
                 value=False,
                 disabled=True,
-                help="⚠️ Enable 'Market research' first to use this option"
+                help="⚠️ Enable 'Market research' first to use this option",
+                css={
+                    'color': '#999999',
+                    'background-color': '#444444'
+                }
             )
         else:
             research_only = st.checkbox(
                 "🔍 Research only",
                 value=False,
-                help="Stop after market research - review results before building"
+                help="Stop after market research - review results before building",
+                css={
+                    'color': '#ffffff',
+                    'background-color': '#333333'
+                }
             )
 
     with col3:
         has_existing_code = st.checkbox(
             "📦 Upgrade code",
-            help="Upload code to improve (paste or zip upload)"
+            help="Upload code to improve (paste or zip upload)",
+            css={
+                'color': '#ffffff',
+                'background-color': '#333333'
+            }
         )
 
     # Second row - platforms
@@ -87,7 +109,11 @@ def render_main_interface():
         "🎯 Target Platforms",
         ["Website", "Web App", "iOS", "Android"],
         default=["Web App"],
-        help="Select one or more platforms to build for"
+        help="Select one or more platforms to build for",
+        css={
+            'color': '#ffffff',
+            'background-color': '#333333'
+        }
     )
 
     # Start button and progress tracker
@@ -98,7 +124,15 @@ def render_main_interface():
             use_container_width=True,
             type="primary",
             disabled=not project_input.strip(),  # Disable if empty
-            help="Describe your project above to get started" if not project_input.strip() else None
+            help="Describe your project above to get started" if not project_input.strip() else None,
+            css={
+                'color': '#ffffff',
+                'background-color': '#007bff',
+                'border-color': '#007bff',
+                'font-weight': 'bold',
+                'padding': '0.5rem 1rem',
+                'border-radius': '0.5rem'
+            }
         )
 
     # Validation message

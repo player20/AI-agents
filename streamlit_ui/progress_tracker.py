@@ -104,8 +104,11 @@ class ProgressTracker:
                     st.markdown(f"{color} {status_emoji}")
 
                 # Progress bar
-                st.progress(phase_data.progress)
+                st.progress(phase_data.progress, label=f"{int(phase_data.progress * 100)}%", css={
+                    'background-color': '#333333',
+                    'color': '#ffffff',
+                    'height': '1.5rem',
+                    'border-radius': '0.5rem'
+                })
 
-                # Percentage
-                st.caption(f"{int(phase_data.progress * 100)}%")
                 st.markdown("<br>", unsafe_allow_html=True)
