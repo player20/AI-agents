@@ -98,7 +98,8 @@ class SelfImprover:
                 'fixes_applied': 0,
                 'diff': '',
                 'scores': {'before': 10, 'after': 10, 'improvement': 0},
-                'next_focus': 'Code quality is excellent'
+                'next_focus': 'Code quality is excellent',
+                'issues': []
             }
 
         # Prioritize and limit issues
@@ -203,7 +204,7 @@ class SelfImprover:
             task = Task(
                 description=prompt,
                 agent=senior_agent,
-                expected_output="List of issues with severity and file locations"
+                expected_output="Issues in EXACT format: ISSUE: [title]\nFILE: [path]\nSEVERITY: [HIGH/MEDIUM/LOW]\nDESCRIPTION: [text]\nSUGGESTION: [text]\n(blank line between issues)"
             )
 
             crew = Crew(
@@ -291,15 +292,15 @@ Analyze all aspects:
         }
 
         prompt = f"""
-Analyze these files for improvement opportunities:
-
 {files_summary}
 
 {mode_focus.get(mode, mode_focus[ImprovementMode.EVERYTHING])}
 
-CRITICAL: You MUST use this EXACT format for each issue. Do NOT use prose or narrative format.
+==================== CRITICAL OUTPUT FORMAT REQUIREMENTS ====================
 
-FORMAT EXAMPLE:
+YOU MUST OUTPUT IN THIS EXACT FORMAT. NO EXCEPTIONS. NO PROSE. NO NARRATIVE.
+
+CORRECT FORMAT:
 ISSUE: Button text wrapping causes poor UX
 FILE: streamlit_ui/main_interface.py
 SEVERITY: MEDIUM
@@ -312,10 +313,18 @@ SEVERITY: HIGH
 DESCRIPTION: API calls lack try-catch blocks, causing crashes on network failures
 SUGGESTION: Wrap API calls in try-except blocks with user-friendly error messages
 
-NOW ANALYZE THE FILES ABOVE AND REPORT ISSUES IN THIS EXACT FORMAT.
-DO NOT write "Based on my review" or any introductory text.
-START IMMEDIATELY with "ISSUE:" for the first issue.
-Use blank lines between issues.
+WRONG FORMAT (DO NOT USE):
+"The analysis of the provided files has identified..."
+"Based on my review, the key improvement opportunities are..."
+
+REQUIREMENTS:
+1. First line MUST start with "ISSUE:"
+2. No introductory sentences
+3. No concluding sentences
+4. Use blank lines between issues
+5. Each issue MUST have all 5 fields: ISSUE, FILE, SEVERITY, DESCRIPTION, SUGGESTION
+
+BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
 """
 
         return prompt
