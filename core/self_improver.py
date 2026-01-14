@@ -884,10 +884,10 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
 
     def _generate_diff_based_fix(self, issue: Dict, file_path: str, current_content: str, fix_agent) -> Dict:
         """
-        Generate a diff-based fix for large files (>1000 lines)
+        Generate a diff-based fix for extremely large files (>1000 lines)
 
         Instead of regenerating the entire file, generate specific line-by-line changes.
-        This avoids token output limits for large files.
+        With Grok's 4M tokens/min, this is only needed for files >1000 lines.
 
         Returns:
             Dict with 'changes' list, or None if generation failed
@@ -1290,9 +1290,10 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
             # Check file size - use diff-based approach for large files
             line_count = len(current_content.splitlines())
 
-            # Threshold for diff-based approach: files >300 lines
-            # Even 339-line files hit Sonnet's token limits with verbose prompts
-            if line_count > 300:
+            # Threshold for diff-based approach: files >1000 lines
+            # With Grok's 4M tokens/min, we can handle full rewrites up to 1000 lines for best quality
+            # Only use diff-based for extremely large files to save tokens
+            if line_count > 1000:
                 self._log(f"📏 Large file detected ({line_count} lines) - using diff-based approach", "info")
 
                 # Generate diff-based fix
@@ -1318,8 +1319,8 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
                     self._log(f"  ⚠ Diff-based fix generation failed, skipping", "warning")
                     continue
 
-            # For smaller files (<1000 lines), use full-file regeneration
-            self._log(f"📏 Small file ({line_count} lines) - using full-file regeneration", "info")
+            # For files ≤1000 lines, use full-file regeneration (best quality with Grok)
+            self._log(f"📏 File ({line_count} lines) - using full-file regeneration for best quality", "info")
 
             # Generate fix with ULTRA-EXPLICIT format requirements
             # Problem: Agent keeps adding explanations instead of using markers
