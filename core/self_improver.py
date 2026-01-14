@@ -5,6 +5,7 @@ Analyzes and improves its own codebase using AI agents
 
 import os
 import subprocess
+import asyncio
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
@@ -14,6 +15,7 @@ import difflib
 # Import agent infrastructure
 from multi_agent_team import load_agent_configs, create_agent_with_model, MODEL_PRESETS
 from crewai import Agent, Task, Crew, Process
+from core.playwright_runner import PlaywrightRunner
 
 
 class ImprovementMode:
@@ -85,9 +87,19 @@ class SelfImprover:
         files_to_analyze = self._get_files_to_analyze(target_files)
         self._log(f"Found {len(files_to_analyze)} files to analyze")
 
+        # Step 1.5: Capture screenshots for UI/UX analysis
+        screenshots = []
+        if mode == ImprovementMode.UI_UX or mode == ImprovementMode.EVERYTHING:
+            self._log("📸 Capturing screenshots of running application...")
+            screenshots = self._capture_app_screenshots()
+            if screenshots:
+                self._log(f"Captured {len(screenshots)} screenshots")
+            else:
+                self._log("⚠️ No screenshots captured (app may not be running)", "warning")
+
         # Step 2: Identify issues
         self._log("🔍 Identifying issues...")
-        issues = self._identify_issues(files_to_analyze, mode)
+        issues = self._identify_issues(files_to_analyze, mode, screenshots)
         self._log(f"Found {len(issues)} issues")
 
         if not issues:
@@ -150,6 +162,40 @@ class SelfImprover:
         self._log("✅ Improvement cycle complete!", "success")
         return result
 
+    def _capture_app_screenshots(self) -> List[Dict]:
+        """Capture screenshots of the running application for visual analysis"""
+        try:
+            # Configure Playwright to capture screenshots of localhost:8505
+            playwright_config = {
+                'playwright': {
+                    'headless': True,
+                    'browser_type': 'chromium',
+                    'timeout': 30000,
+                    'viewport': {
+                        'desktop': {'width': 1920, 'height': 1080},
+                        'tablet': {'width': 768, 'height': 1024},
+                        'mobile': {'width': 375, 'height': 667}
+                    }
+                },
+                'server': {
+                    'max_startup_attempts': 3,
+                    'health_check_interval': 2
+                },
+                'screenshots_dir': str(self.base_dir / 'screenshots')
+            }
+
+            # Create runner pointing to localhost:8505 (Streamlit app)
+            runner = PlaywrightRunner(str(self.base_dir), playwright_config)
+            runner.server_url = "http://localhost:8505"  # Override - app already running
+
+            # Capture screenshots asynchronously
+            screenshots = asyncio.run(runner.capture_screenshots())
+            return screenshots
+
+        except Exception as e:
+            self._log(f"Screenshot capture failed: {e}", "warning")
+            return []
+
     def _get_files_to_analyze(self, target_files: Optional[List[str]] = None) -> List[Path]:
         """Get list of files to analyze"""
         if target_files:
@@ -170,19 +216,22 @@ class SelfImprover:
 
         return files
 
-    def _identify_issues(self, files: List[Path], mode: str) -> List[Dict]:
+    def _identify_issues(self, files: List[Path], mode: str, screenshots: List[Dict] = None) -> List[Dict]:
         """Use specialized agent TEAMS based on mode to identify issues"""
         issues = []
+        if screenshots is None:
+            screenshots = []
 
         # Define agent teams for each improvement mode
+        # IMPORTANT: Verifier is ALWAYS second-to-last for hallucination detection
         # IMPORTANT: Challenger is ALWAYS last as the devil's advocate to challenge findings
-        # Verifier is included when hallucination detection is needed
         agent_teams = {
             ImprovementMode.UI_UX: [
                 "Designs",  # UI/UX Designer - lead
                 "UIDesigner",  # UI-specific expertise
                 "UXResearcher",  # User research and testing
                 "AccessibilitySpecialist",  # WCAG compliance
+                "Verifier",  # Hallucination detection - ensures claims are factual
                 "Challenger",  # Devil's advocate - challenges false positives & UX assumptions
             ],
             ImprovementMode.PERFORMANCE: [
@@ -190,20 +239,21 @@ class SelfImprover:
                 "Senior",  # Architecture review
                 "SRE",  # Reliability and optimization
                 "DatabaseAdmin",  # Database performance
+                "Verifier",  # Hallucination detection - ensures performance claims are real
                 "Challenger",  # Devil's advocate - ensures real performance issues, not micro-optimizations
             ],
             ImprovementMode.AGENT_QUALITY: [
                 "AIResearcher",  # AI/ML best practices - lead
                 "Senior",  # System architecture
                 "MLEngineer",  # Agent optimization
-                "Verifier",  # Hallucination detection
+                "Verifier",  # Hallucination detection - critical for AI/agent claims
                 "Challenger",  # Devil's advocate - challenges agent design assumptions
             ],
             ImprovementMode.CODE_QUALITY: [
                 "Senior",  # Code review - lead
                 "Architect",  # Architecture patterns
                 "TechnicalLead",  # Best practices
-                "Verifier",  # Ensures accuracy of claims
+                "Verifier",  # Hallucination detection - ensures accuracy of code quality claims
                 "Challenger",  # Devil's advocate - challenges over-engineering claims
             ],
             ImprovementMode.EVERYTHING: [
@@ -212,7 +262,7 @@ class SelfImprover:
                 "PerformanceEngineer",  # Performance
                 "SecurityEngineer",  # Security
                 "QA",  # Testing
-                "Verifier",  # Hallucination detection
+                "Verifier",  # Hallucination detection - comprehensive fact-checking
                 "Challenger",  # Devil's advocate - final critical review
             ]
         }
@@ -243,8 +293,8 @@ class SelfImprover:
             if not file_contents:
                 continue
 
-            # Mode-specific analysis prompts
-            prompt = self._get_analysis_prompt(file_contents, mode)
+            # Mode-specific analysis prompts (include screenshots for UI/UX analysis)
+            prompt = self._get_analysis_prompt(file_contents, mode, screenshots)
 
             # Create tasks: analysis agents find issues, Verifier challenges them
             tasks = []
@@ -321,12 +371,29 @@ Only output issues that are genuinely worth fixing.
 
         return issues
 
-    def _get_analysis_prompt(self, file_contents: Dict[str, str], mode: str) -> str:
+    def _get_analysis_prompt(self, file_contents: Dict[str, str], mode: str, screenshots: List[Dict] = None) -> str:
         """Generate mode-specific analysis prompt"""
+        if screenshots is None:
+            screenshots = []
+
         files_summary = "\n\n".join([
             f"FILE: {path}\n```\n{content[:1500]}\n```"
             for path, content in file_contents.items()
         ])
+
+        # Add screenshot information for visual analysis
+        screenshots_summary = ""
+        if screenshots:
+            screenshots_summary = "\n\n==================== SCREENSHOTS (ACTUAL UI) ====================\n\n"
+            screenshots_summary += "IMPORTANT: You can SEE the actual rendered UI in these screenshots:\n\n"
+            for screenshot in screenshots:
+                screenshots_summary += f"{screenshot['name']} View: {screenshot['path']}\n"
+                screenshots_summary += f"   Viewport: {screenshot['viewport']['width']}x{screenshot['viewport']['height']}\n\n"
+            screenshots_summary += "Analyze the VISUAL output, not just the code. Look for:\n"
+            screenshots_summary += "- Visual inconsistencies (text wrapping, alignment, spacing)\n"
+            screenshots_summary += "- Button/component styling issues\n"
+            screenshots_summary += "- Color contrast problems\n"
+            screenshots_summary += "- Responsive design issues across viewports\n\n"
 
         mode_focus = {
             ImprovementMode.UI_UX: """
@@ -379,7 +446,7 @@ Analyze all aspects:
 
         prompt = f"""
 {files_summary}
-
+{screenshots_summary}
 {mode_focus.get(mode, mode_focus[ImprovementMode.EVERYTHING])}
 
 ==================== CRITICAL OUTPUT FORMAT REQUIREMENTS ====================
