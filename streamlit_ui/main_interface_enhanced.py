@@ -16,6 +16,13 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 
+# Import constants
+try:
+    from streamlit_ui.constants import COLORS, SPACING, DIMENSIONS
+    CONSTANTS_AVAILABLE = True
+except ImportError:
+    CONSTANTS_AVAILABLE = False
+
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -42,13 +49,23 @@ def render_enhanced_interface():
         return
 
     # Main input - LARGE and inviting
-    st.markdown("""
+    if CONSTANTS_AVAILABLE:
+        label_html = f"""
+        <div style='margin: {SPACING['xl']} 0;'>
+            <label style='font-size: 16px; font-weight: 600; color: {COLORS['text_primary']}; margin-bottom: 12px; display: block;'>
+                💭 Your Idea
+            </label>
+        </div>
+        """
+    else:
+        label_html = """
         <div style='margin: 20px 0;'>
             <label style='font-size: 16px; font-weight: 600; color: #e8eaf6; margin-bottom: 12px; display: block;'>
                 💭 Your Idea
             </label>
         </div>
-    """, unsafe_allow_html=True)
+        """
+    st.markdown(label_html, unsafe_allow_html=True)
 
     project_input = st.text_area(
         "Tell me your big idea (in plain English, no tech talk needed)",
@@ -62,13 +79,23 @@ def render_enhanced_interface():
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Options grid (4 columns for checkboxes)
-    st.markdown("""
+    if CONSTANTS_AVAILABLE:
+        options_html = f"""
+        <div style='margin: {SPACING['xxl']} 0 {SPACING['lg']} 0;'>
+            <label style='font-size: 16px; font-weight: 600; color: {COLORS['text_primary']};'>
+                🎛️ Options
+            </label>
+        </div>
+        """
+    else:
+        options_html = """
         <div style='margin: 24px 0 16px 0;'>
             <label style='font-size: 16px; font-weight: 600; color: #e8eaf6;'>
                 🎛️ Options
             </label>
         </div>
-    """, unsafe_allow_html=True)
+        """
+    st.markdown(options_html, unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
 
