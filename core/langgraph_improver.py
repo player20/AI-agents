@@ -191,6 +191,16 @@ def evaluate_quality_node(state: ImprovementState) -> ImprovementState:
     }
 
 
+def increment_iteration(state: ImprovementState) -> ImprovementState:
+    """
+    Increment iteration counter before looping back
+    """
+    return {
+        **state,
+        'iteration': state['iteration'] + 1
+    }
+
+
 def should_continue_improvement(state: ImprovementState) -> str:
     """
     Decision node: Continue improving or stop?
@@ -200,7 +210,6 @@ def should_continue_improvement(state: ImprovementState) -> str:
         "end" if quality threshold reached or max iterations hit
     """
     if state['should_continue']:
-        # Increment iteration counter for next loop
         return "continue"
     else:
         return "end"
@@ -224,6 +233,7 @@ def create_improvement_graph() -> StateGraph:
     workflow.add_node("analyze_issues", analyze_issues_node)
     workflow.add_node("generate_and_apply_fixes", generate_and_apply_fixes_node)
     workflow.add_node("evaluate_quality", evaluate_quality_node)
+    workflow.add_node("increment_iteration", increment_iteration)
 
     # Define edges
     workflow.set_entry_point("analyze_issues")
@@ -235,10 +245,13 @@ def create_improvement_graph() -> StateGraph:
         "evaluate_quality",
         should_continue_improvement,
         {
-            "continue": "analyze_issues",  # Loop back
+            "continue": "increment_iteration",  # Increment before looping back
             "end": END  # Stop
         }
     )
+
+    # After incrementing, loop back to analyze
+    workflow.add_edge("increment_iteration", "analyze_issues")
 
     return workflow
 

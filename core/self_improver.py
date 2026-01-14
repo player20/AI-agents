@@ -1379,11 +1379,18 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
                 self._log(f"Could not read {file_path}: {e}", "error")
                 continue
 
-            # Check file size - use diff-based approach for large files
+            # Check file size - skip files that are too large for reliable full rewrites
             line_count = len(current_content.splitlines())
 
+            # Skip files over 800 lines - Grok consistently outputs incomplete rewrites for large files
+            if line_count > 800:
+                issue_title = issue.get('title', 'Unknown issue')
+                self._log(f"[!] Skipping issue '{issue_title}': File too large ({line_count} lines, max 800)", "warning")
+                self._log(f"    Large file: {Path(file_path).name} - Consider breaking into smaller modules", "info")
+                continue
+
             # Threshold for diff-based approach: DISABLED (Grok handles full rewrites better)
-            # With Grok's 4M tokens/min and 480 rpm, we can do full rewrites for all files
+            # With Grok's 4M tokens/min and 480 rpm, we can do full rewrites for all files under 800 lines
             # Diff-based approach was causing Grok to ignore format requirements
             if False:  # Disabled - always use full rewrites
                 self._log(f"[SIZE] Large file detected ({line_count} lines) - using diff-based approach", "info")
