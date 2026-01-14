@@ -992,6 +992,10 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
             result = crew.kickoff()
             result_text = str(result)
 
+            # Debug: Log what agent actually returned
+            self._log(f"  📄 Agent output preview (first 500 chars):", "info")
+            self._log(f"     {result_text[:500]}", "info")
+
             # Parse the diff changes
             if "DIFF_CHANGES_START" in result_text and "DIFF_CHANGES_END" in result_text:
                 start_idx = result_text.find("DIFF_CHANGES_START") + len("DIFF_CHANGES_START")
@@ -1012,11 +1016,79 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
                     return None
             else:
                 self._log(f"  ⚠ Agent did not use DIFF_CHANGES format", "warning")
+                self._log(f"     Searching for common format variations...", "info")
+
+                # Try to parse natural language instructions as fallback
+                # Look for patterns like "line 123", "change line 456", etc.
+                fallback_changes = self._parse_natural_language_changes(result_text, current_content)
+
+                if fallback_changes:
+                    self._log(f"  ✓ Parsed {len(fallback_changes)} changes from natural language", "success")
+                    return {
+                        'type': 'diff',
+                        'changes': fallback_changes
+                    }
+
                 return None
 
         except Exception as e:
             self._log(f"  ❌ Diff-based fix generation failed: {e}", "error")
             return None
+
+    def _parse_natural_language_changes(self, text: str, current_content: str) -> List[Dict]:
+        """
+        Fallback parser: Try to extract changes from natural language instructions
+
+        Looks for patterns like:
+        - "line 123: change X to Y"
+        - "replace line 456 with Z"
+        - "add after line 789: W"
+        """
+        changes = []
+        import re
+
+        lines = current_content.splitlines()
+
+        # Pattern 1: "line N" or "Line N" followed by instructions
+        line_patterns = [
+            r'(?:line|Line)\s+(\d+):\s*(?:change|replace|modify)\s+["\']?(.+?)["\']?\s+(?:to|with)\s+["\']?(.+?)["\']?(?:\.|$)',
+            r'(?:replace|change)\s+line\s+(\d+)\s+with\s+["\']?(.+?)["\']?(?:\.|$)',
+            r'(?:line|Line)\s+(\d+):\s*["\']?(.+?)["\']?(?:\.|$)',  # Simple format: "Line N: new content"
+        ]
+
+        for pattern in line_patterns:
+            matches = re.finditer(pattern, text, re.IGNORECASE | re.MULTILINE)
+            for match in matches:
+                groups = match.groups()
+                if len(groups) >= 2:
+                    line_num = int(groups[0])
+                    if line_num <= 0 or line_num > len(lines):
+                        continue
+
+                    change = {
+                        'line': line_num,
+                        'action': 'replace',
+                        'old': lines[line_num - 1].strip() if line_num <= len(lines) else '',
+                    }
+
+                    # Extract new content from groups
+                    if len(groups) == 3:
+                        change['new'] = groups[2].strip()
+                    else:
+                        change['new'] = groups[1].strip()
+
+                    if change['new']:
+                        changes.append(change)
+
+        # Deduplicate by line number
+        seen_lines = set()
+        unique_changes = []
+        for change in changes:
+            if change['line'] not in seen_lines:
+                seen_lines.add(change['line'])
+                unique_changes.append(change)
+
+        return unique_changes
 
     def _parse_diff_changes(self, changes_text: str) -> List[Dict]:
         """Parse diff changes from agent output"""
