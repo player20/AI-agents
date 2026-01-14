@@ -7,7 +7,7 @@ import streamlit as st
 from pathlib import Path
 import sys
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, List, Dict, Any, Callable
 from .constants import COLORS, DIMENSIONS
 
 # Add parent directory for imports
@@ -30,7 +30,7 @@ except ImportError as e:
     SelfImprover = None  # Define as None for type hints if import fails
 
 
-def create_terminal_callback(terminal_placeholder):
+def create_terminal_callback(terminal_placeholder: Any) -> Callable[[str, str], None]:
     """
     Create a terminal callback function with session state persistence.
 
@@ -40,7 +40,7 @@ def create_terminal_callback(terminal_placeholder):
     Returns:
         Function that logs messages to terminal with color-coded levels
     """
-    def terminal_callback(message: str, level: str = "info"):
+    def terminal_callback(message: str, level: str = "info") -> None:
         """Update terminal output with session state persistence"""
         # Initialize session state if needed (defensive check)
         if 'terminal_messages' not in st.session_state:
@@ -83,7 +83,7 @@ def create_terminal_callback(terminal_placeholder):
     return terminal_callback
 
 
-def render_self_improvement():
+def render_self_improvement() -> None:
     """Render the self-improvement interface"""
 
     st.markdown("### 🔄 Meta Self-Improvement")
@@ -209,7 +209,7 @@ def render_self_improvement():
             run_single_cycle(selected_mode, target_files, suggest_enhancements)
 
 
-def run_single_cycle(mode: str, target_files: list = None, suggest_enhancements: bool = False):
+def run_single_cycle(mode: str, target_files: Optional[List[str]] = None, suggest_enhancements: bool = False) -> None:
     """Run a single improvement cycle"""
     st.markdown("---")
     st.markdown("### 📋 Improvement Cycle Results")
@@ -261,7 +261,7 @@ def run_single_cycle(mode: str, target_files: list = None, suggest_enhancements:
         st.code(traceback.format_exc())
 
 
-def run_iterative_mode(mode: str, target_score: float, target_files: list = None, suggest_enhancements: bool = False):
+def run_iterative_mode(mode: str, target_score: float, target_files: Optional[List[str]] = None, suggest_enhancements: bool = False) -> None:
     """Run iterative improvement cycles until quality threshold is met"""
     st.markdown("---")
     st.markdown("### 🔄 Iterative Improvement - LangGraph Powered")
@@ -370,7 +370,7 @@ def run_iterative_mode(mode: str, target_score: float, target_files: list = None
         st.code(traceback.format_exc())
 
 
-def run_forever_mode(mode: str, target_files: list = None, suggest_enhancements: bool = False):
+def run_forever_mode(mode: str, target_files: Optional[List[str]] = None, suggest_enhancements: bool = False) -> None:
     """Run continuous improvement cycles"""
     st.markdown("---")
     st.markdown("### 🔁 Forever Mode - Continuous Improvement")
@@ -436,7 +436,7 @@ def run_forever_mode(mode: str, target_files: list = None, suggest_enhancements:
         st.session_state['forever_mode_active'] = False
 
 
-def generate_markdown_report(result: dict) -> str:
+def generate_markdown_report(result: Dict[str, Any]) -> str:
     """Generate a comprehensive markdown report of improvement results"""
     from datetime import datetime
 
@@ -537,7 +537,7 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
     return report
 
 
-def generate_json_report(result: dict) -> str:
+def generate_json_report(result: Dict[str, Any]) -> str:
     """Generate a JSON report of improvement results"""
     import json
     from datetime import datetime
@@ -561,7 +561,7 @@ def generate_json_report(result: dict) -> str:
     return json.dumps(report_data, indent=2)
 
 
-def display_improvement_results(result: dict, improver: 'SelfImprover'):
+def display_improvement_results(result: Dict[str, Any], improver: 'SelfImprover') -> None:
     """Display improvement cycle results"""
     st.markdown("---")
 
@@ -706,7 +706,7 @@ def display_improvement_results(result: dict, improver: 'SelfImprover'):
             st.error("❌ Rollback failed")
 
 
-def merge_to_main(branch_name: str):
+def merge_to_main(branch_name: str) -> None:
     """Merge improvement branch to main"""
     import subprocess
 

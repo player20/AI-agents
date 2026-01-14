@@ -1,25 +1,20 @@
-"""
-Enhanced Interface - Execution Module
-Handles orchestrator execution with comprehensive error handling
-"""
-
 import streamlit as st
 import sys
 from pathlib import Path
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Callable, Optional, Any
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def run_enhanced_execution():
+def run_enhanced_execution() -> None:
     """
     Run the complete execution flow with all features - ROUTED THROUGH ORCHESTRATOR.
     Includes comprehensive error handling for all API calls and operations.
     """
 
-    params = st.session_state['exec_params']
+    params: Dict = st.session_state['exec_params']
 
     # Create containers for live updates
     st.markdown("---")
@@ -34,18 +29,12 @@ def run_enhanced_execution():
         """, unsafe_allow_html=True)
 
         # Create 4 progress bars
-        phases = {
-            'planning': st.empty(),
-            'drafting': st.empty(),
-            'testing': st.empty(),
-            'done': st.empty()
+        phases: Dict[str, st.ProgressBar] = {
+            'planning': st.progress(0.0, text="Loading..."),
+            'drafting': st.progress(0.0, text="Loading..."),
+            'testing': st.progress(0.0, text="Loading..."),
+            'done': st.progress(0.0, text="Loading...")
         }
-
-        # Initialize progress
-        for phase_name, placeholder in phases.items():
-            with placeholder:
-                st.markdown(f"**{phase_name.title()}**")
-                st.progress(0.0, text="Waiting...")
 
     # Terminal output with accessibility
     terminal_container = st.container()
@@ -61,7 +50,7 @@ def run_enhanced_execution():
     results_container = st.container()
 
     # Helper function to update terminal
-    def add_terminal_line(message: str, level: str = "info"):
+    def add_terminal_line(message: str, level: str = "info") -> None:
         """Add a line to the terminal output"""
         if 'terminal_lines' not in st.session_state:
             st.session_state.terminal_lines = []
@@ -92,7 +81,7 @@ def run_enhanced_execution():
         terminal_placeholder.markdown(terminal_html, unsafe_allow_html=True)
 
     # Progress callback for orchestrator
-    def update_progress(phase: str, progress: float):
+    def update_progress(phase: str, progress: float) -> None:
         """
         Callback for orchestrator to update UI progress.
 
@@ -108,7 +97,7 @@ def run_enhanced_execution():
             add_terminal_line(f"⚠️ Progress update failed for {phase}: {str(e)}", "warning")
 
     # Terminal callback for orchestrator
-    def terminal_callback(message: str, level: str = "info"):
+    def terminal_callback(message: str, level: str = "info") -> None:
         """
         Callback for orchestrator to log terminal messages.
 
@@ -147,8 +136,8 @@ def run_enhanced_execution():
             return
 
         # Add UI callbacks to config
-        config['orchestration']['progress_callback'] = update_progress
-        config['orchestration']['terminal_callback'] = terminal_callback
+        config['orchestration']['progress_callback'] = update_progress  # type: ignore
+        config['orchestration']['terminal_callback'] = terminal_callback  # type: ignore
 
         add_terminal_line("🔧 Initializing orchestrator with UI callbacks...", "info")
 
@@ -160,7 +149,7 @@ def run_enhanced_execution():
             return
 
         # Prepare parameters for orchestrator
-        orchestrator_params = {
+        orchestrator_params: Dict = {
             'platforms': params['platforms'],
             'do_market_research': params['do_market_research'],
             'research_only': params['research_only'],
@@ -174,7 +163,7 @@ def run_enhanced_execution():
 
         # RUN THROUGH ORCHESTRATOR with error handling
         try:
-            result = orchestrator.run(
+            result: Dict = orchestrator.run(
                 user_input=params['project_input'],
                 **orchestrator_params
             )

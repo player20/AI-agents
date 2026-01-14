@@ -6,7 +6,7 @@ Handles user input and form rendering with full accessibility support
 import streamlit as st
 import sys
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 
 # Import constants
 try:
@@ -27,7 +27,7 @@ except ImportError as e:
     IMPORT_ERROR = str(e)
 
 
-def render_enhanced_interface():
+def render_enhanced_interface() -> None:
     """
     Render the main creation interface with all features.
     Includes full accessibility support (ARIA labels, keyboard navigation, focus management).
@@ -366,7 +366,7 @@ def render_enhanced_interface():
         run_enhanced_execution()
 
 
-def render_clarification_flow():
+def render_clarification_flow() -> None:
     """
     Render clarification questions when system needs more info.
     Includes full accessibility support.

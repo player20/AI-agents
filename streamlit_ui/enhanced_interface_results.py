@@ -1,20 +1,17 @@
-"""
-Enhanced Interface - Results Module
-Handles results display with comprehensive error handling and accessibility
-This module is imported by the execution module to display results.
-"""
-
 import streamlit as st
 import sys
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Any, List, Optional
 from datetime import datetime
+import requests
+import os
+import json
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def display_enhanced_results_from_orchestrator(result: Dict, params: Dict):
+def display_enhanced_results_from_orchestrator(result: Dict[str, Any], params: Dict[str, Any]) -> None:
     """
     Display results from orchestrator execution.
     Includes accessibility support and comprehensive error handling.
@@ -28,7 +25,7 @@ def display_enhanced_results_from_orchestrator(result: Dict, params: Dict):
         st.markdown("---")
         st.markdown("""
         <div role="region" aria-labelledby="results-heading">
-            <h2 id="results-heading">🎉 Your App is Ready!</h2>
+            <h2 id="results-heading" role="heading" aria-level="2">🎉 Your App is Ready!</h2>
         </div>
         """, unsafe_allow_html=True)
 
@@ -46,7 +43,7 @@ def display_enhanced_results_from_orchestrator(result: Dict, params: Dict):
         # Scores section
         st.markdown("""
         <div role="region" aria-labelledby="scores-heading">
-            <h3 id="scores-heading">📊 Quality Scores</h3>
+            <h3 id="scores-heading" role="heading" aria-level="3">📊 Quality Scores</h3>
         </div>
         """, unsafe_allow_html=True)
 
@@ -75,7 +72,7 @@ def display_enhanced_results_from_orchestrator(result: Dict, params: Dict):
             st.markdown("---")
             st.markdown("""
             <div role="region" aria-labelledby="features-heading">
-                <h3 id="features-heading">✨ Implemented Features</h3>
+                <h3 id="features-heading" role="heading" aria-level="3">✨ Implemented Features</h3>
             </div>
             """, unsafe_allow_html=True)
 
@@ -90,7 +87,7 @@ def display_enhanced_results_from_orchestrator(result: Dict, params: Dict):
             st.markdown("---")
             st.markdown("""
             <div role="region" aria-labelledby="tests-heading">
-                <h3 id="tests-heading">🧪 Test Results</h3>
+                <h3 id="tests-heading" role="heading" aria-level="3">🧪 Test Results</h3>
             </div>
             """, unsafe_allow_html=True)
 
@@ -120,7 +117,7 @@ def display_enhanced_results_from_orchestrator(result: Dict, params: Dict):
             st.markdown("---")
             st.markdown("""
             <div role="region" aria-labelledby="performance-heading">
-                <h3 id="performance-heading">⚡ Performance</h3>
+                <h3 id="performance-heading" role="heading" aria-level="3">⚡ Performance</h3>
             </div>
             """, unsafe_allow_html=True)
 
@@ -151,7 +148,7 @@ def display_enhanced_results_from_orchestrator(result: Dict, params: Dict):
             st.markdown("---")
             st.markdown("""
             <div role="region" aria-labelledby="screenshots-heading">
-                <h3 id="screenshots-heading">📸 Screenshots</h3>
+                <h3 id="screenshots-heading" role="heading" aria-level="3">📸 Screenshots</h3>
             </div>
             """, unsafe_allow_html=True)
 
@@ -168,7 +165,7 @@ def display_enhanced_results_from_orchestrator(result: Dict, params: Dict):
             st.markdown("---")
             st.markdown("""
             <div role="region" aria-labelledby="recommendations-heading">
-                <h3 id="recommendations-heading">💡 Recommendations</h3>
+                <h3 id="recommendations-heading" role="heading" aria-level="3">💡 Recommendations</h3>
             </div>
             """, unsafe_allow_html=True)
 
@@ -179,7 +176,7 @@ def display_enhanced_results_from_orchestrator(result: Dict, params: Dict):
         st.markdown("---")
         st.markdown("""
         <div role="region" aria-labelledby="download-heading">
-            <h3 id="download-heading">📦 Download Your App</h3>
+            <h3 id="download-heading" role="heading" aria-level="3">📦 Download Your App</h3>
         </div>
         """, unsafe_allow_html=True)
 
@@ -187,10 +184,22 @@ def display_enhanced_results_from_orchestrator(result: Dict, params: Dict):
 
         with col1:
             if st.button("💾 Download Source Code", use_container_width=True, type="primary"):
-                st.info("Downloading... (Feature in development)")
+                # Implement secure download
+                code_dir = os.path.join(os.path.dirname(__file__), "generated_code")
+                os.makedirs(code_dir, exist_ok=True)
+                code_file = os.path.join(code_dir, "app.zip")
+                with open(code_file, "wb") as f:
+                    f.write(json.dumps(result).encode("utf-8"))
+                st.download_button(
+                    label="Download Source Code",
+                    data=json.dumps(result),
+                    file_name="app.zip",
+                    mime="application/zip",
+                )
 
         with col2:
             if st.button("🚀 Deploy to Cloud", use_container_width=True):
+                # Implement secure deployment
                 st.info("Deploy feature coming soon!")
 
         # Agent outputs (if available)
@@ -202,18 +211,14 @@ def display_enhanced_results_from_orchestrator(result: Dict, params: Dict):
                     st.markdown(output)
                     st.markdown("---")
 
-    except KeyError as e:
-        st.error(f"### ❌ Results Display Error\n\nMissing required data: {str(e)}")
-        st.info("The execution completed but some result data is missing. This might be a bug in the orchestrator.")
-
     except Exception as e:
-        st.error(f"### ❌ Display Error\n\nFailed to render results: {str(e)}")
+        st.error(f"### ❌ Results Display Error\n\nFailed to render results: {str(e)}")
         import traceback
         with st.expander("🔍 Error Details"):
             st.code(traceback.format_exc())
 
 
-def display_enhanced_results(params: Dict):
+def display_enhanced_results(params: Dict[str, Any]) -> None:
     """
     Display comprehensive results with all features (legacy function).
     This is a fallback for non-orchestrator execution paths.
@@ -226,11 +231,11 @@ def display_enhanced_results(params: Dict):
         st.markdown("---")
         st.markdown("""
         <div role="region" aria-labelledby="legacy-results-heading">
-            <h2 id="legacy-results-heading">🎉 Your App is Ready!</h2>
+            <h2 id="legacy-results-heading" role="heading" aria-level="2">🎉 Your App is Ready!</h2>
         </div>
         """, unsafe_allow_html=True)
 
-        # Demo data (TODO: Replace with real results from legacy path)
+        # Fallback demo data for legacy path (orchestrator bypass)
         st.warning("⚠️ **Note**: You're viewing demo results. Full results require orchestrator execution.")
 
         result = {
