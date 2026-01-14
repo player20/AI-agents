@@ -180,73 +180,52 @@ class SelfImprover:
         return result
 
     def _capture_app_screenshots(self) -> List[Dict]:
-        """Capture screenshots of the running application for visual analysis"""
-        try:
-            from playwright.sync_api import sync_playwright
-            import time
-            import sys
+        """Capture screenshots of the running application for visual analysis
 
-            screenshots = []
+        Runs screenshot capture in a separate Python process to avoid Windows
+        asyncio event loop conflicts with Streamlit.
+        """
+        try:
+            import subprocess
+            import json
+
             screenshots_dir = self.base_dir / 'screenshots'
             screenshots_dir.mkdir(exist_ok=True)
 
-            timestamp = int(time.time())
             server_url = "http://localhost:8505"
 
-            self._log(f"Launching browser to capture screenshots from {server_url}...", "info")
+            self._log(f"Launching screenshot capture (separate process) for {server_url}...", "info")
 
-            # Fix for Windows asyncio subprocess limitation
-            # Streamlit's event loop doesn't support subprocesses on Windows
-            if sys.platform == 'win32':
-                import asyncio
-                # Try to set ProactorEventLoop for subprocess support
-                try:
-                    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-                except Exception:
-                    pass  # If that fails, we'll catch it below
+            # Run screenshot capture in separate process with its own event loop
+            capture_script = self.base_dir / 'core' / 'capture_screenshots.py'
 
-            # Use SYNC playwright to avoid event loop conflicts
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                self._log("Browser launched successfully", "info")
+            result = subprocess.run(
+                ['python', str(capture_script), server_url, str(screenshots_dir)],
+                capture_output=True,
+                text=True,
+                timeout=60  # 60 second timeout
+            )
 
-                viewports = {
-                    'desktop': {'width': 1920, 'height': 1080},
-                    'tablet': {'width': 768, 'height': 1024},
-                    'mobile': {'width': 375, 'height': 667}
-                }
+            if result.returncode == 0:
+                # Parse JSON output from subprocess
+                screenshots = json.loads(result.stdout)
+                self._log(f"✓ Captured {len(screenshots)} screenshots successfully", "info")
+                for screenshot in screenshots:
+                    self._log(f"  - {screenshot['name']}: {screenshot['path']}", "info")
+                return screenshots
+            else:
+                # Subprocess failed
+                error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+                self._log(f"⚠️ Screenshot capture failed: {error_msg}", "warning")
+                self._log("   UI/UX analysis will continue without screenshots", "info")
+                return []
 
-                for viewport_name, viewport_size in viewports.items():
-                    try:
-                        self._log(f"Capturing {viewport_name} screenshot ({viewport_size['width']}x{viewport_size['height']})...", "info")
-                        page = browser.new_page(viewport=viewport_size)
-                        page.goto(server_url, wait_until="networkidle", timeout=30000)
-
-                        screenshot_filename = f"screenshot_{viewport_name}_{timestamp}.png"
-                        screenshot_path = screenshots_dir / screenshot_filename
-
-                        page.screenshot(path=str(screenshot_path), full_page=True)
-
-                        screenshots.append({
-                            "name": viewport_name.capitalize(),
-                            "path": str(screenshot_path),
-                            "viewport": viewport_size
-                        })
-
-                        self._log(f"✓ {viewport_name} screenshot saved to {screenshot_path}", "info")
-                        page.close()
-                    except Exception as e:
-                        self._log(f"Failed to capture {viewport_name} screenshot: {type(e).__name__}: {str(e)}", "warning")
-
-                browser.close()
-                self._log(f"Browser closed. Captured {len(screenshots)} screenshots total", "info")
-
-            return screenshots
-
-        except NotImplementedError as e:
-            # Windows asyncio subprocess limitation - skip screenshots gracefully
-            self._log("⚠️ Screenshot capture skipped: Windows asyncio limitation (Streamlit event loop doesn't support subprocesses)", "warning")
-            self._log("   UI/UX analysis will continue without screenshots (agents will analyze code only)", "info")
+        except subprocess.TimeoutExpired:
+            self._log("⚠️ Screenshot capture timed out after 60 seconds", "warning")
+            self._log("   UI/UX analysis will continue without screenshots", "info")
+            return []
+        except FileNotFoundError:
+            self._log("⚠️ Could not find capture_screenshots.py script", "warning")
             return []
         except Exception as e:
             self._log(f"Screenshot capture failed: {type(e).__name__}: {str(e)}", "warning")
