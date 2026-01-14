@@ -438,12 +438,13 @@ CRITICAL - THESE ARE THE ONLY FILES ANALYZED:
 The experts ONLY analyzed the files listed above. Any issue mentioning a file NOT in this list is a HALLUCINATION and MUST be removed.
 
 Your role as Verifier (Hallucination Detector):
-1. FIRST: Check file path - is it SPECIFIC and in the analyzed files list above?
-   - If "Unknown" → REMOVE (invalid)
-   - If "Multiple files" → REMOVE (invalid)
-   - If "Across the UI" → REMOVE (too vague)
-   - If NOT in list → REMOVE (hallucination)
-   - If in list → Continue verification
+1. FIRST: Check file path - is it SPECIFIC and EXACTLY ONE file from the analyzed list?
+   - If "Unknown" → REMOVE immediately (invalid - no file specified)
+   - If "Multiple files" → REMOVE immediately (invalid - must pick ONE file)
+   - If "Across the UI" → REMOVE immediately (too vague - must pick ONE file)
+   - If "All files" → REMOVE immediately (invalid - must pick ONE file)
+   - If NOT in list above → REMOVE immediately (hallucination - file not analyzed)
+   - If in list → Continue verification with steps 2-7
 2. Fact-check every claim - is it verifiable from the code shown?
 3. Check for exaggerations or assumptions not supported by evidence
 4. Verify line numbers are accurate (if mentioned)
