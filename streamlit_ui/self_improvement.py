@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 from datetime import datetime
 from typing import TYPE_CHECKING
+from .constants import COLORS, DIMENSIONS
 
 # Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -173,16 +174,16 @@ def run_single_cycle(mode: str, target_files: list = None, suggest_enhancements:
         """Update terminal output"""
         timestamp = datetime.now().strftime("%H:%M:%S")
         color = {
-            "info": "#00ff00",
-            "success": "#44ff44",
-            "warning": "#ffaa44",
-            "error": "#ff4444"
-        }.get(level, "#00ff00")
+            "info": COLORS["info"],
+            "success": COLORS["success"],
+            "warning": COLORS["warning"],
+            "error": COLORS["error"]
+        }.get(level, COLORS["info"])
 
         terminal_messages.append(f'<span style="color: {color};">[{timestamp}] {message}</span>')
 
         terminal_html = f"""
-        <div style="background-color: #1a1d29; border-radius: 8px; padding: 16px;
+        <div style="background-color: {COLORS['terminal_bg']}; border-radius: 8px; padding: 16px;
                     font-family: 'Courier New', monospace; height: 300px; overflow-y: auto;">
             {'<br>'.join(terminal_messages[-20:])}
         </div>
@@ -247,16 +248,16 @@ def run_iterative_mode(mode: str, target_score: float, target_files: list = None
         """Update terminal output"""
         timestamp = datetime.now().strftime("%H:%M:%S")
         color = {
-            "info": "#00ff00",
-            "success": "#44ff44",
-            "warning": "#ffaa44",
-            "error": "#ff4444"
-        }.get(level, "#00ff00")
+            "info": COLORS["info"],
+            "success": COLORS["success"],
+            "warning": COLORS["warning"],
+            "error": COLORS["error"]
+        }.get(level, COLORS["info"])
 
         terminal_messages.append(f'<span style="color: {color};">[{timestamp}] {message}</span>')
 
         terminal_html = f"""
-        <div style="background-color: #1a1d29; border-radius: 8px; padding: 16px;
+        <div style="background-color: {COLORS['terminal_bg']}; border-radius: 8px; padding: 16px;
                     font-family: 'Courier New', monospace; height: 400px; overflow-y: auto;">
             {'<br>'.join(terminal_messages[-30:])}
         </div>
@@ -380,16 +381,16 @@ def run_forever_mode(mode: str, target_files: list = None, suggest_enhancements:
         """Update terminal output"""
         timestamp = datetime.now().strftime("%H:%M:%S")
         color = {
-            "info": "#00ff00",
-            "success": "#44ff44",
-            "warning": "#ffaa44",
-            "error": "#ff4444"
-        }.get(level, "#00ff00")
+            "info": COLORS["info"],
+            "success": COLORS["success"],
+            "warning": COLORS["warning"],
+            "error": COLORS["error"]
+        }.get(level, COLORS["info"])
 
         terminal_messages.append(f'<span style="color: {color};">[{timestamp}] {message}</span>')
 
         terminal_html = f"""
-        <div style="background-color: #1a1d29; border-radius: 8px; padding: 16px;
+        <div style="background-color: {COLORS['terminal_bg']}; border-radius: 8px; padding: 16px;
                     font-family: 'Courier New', monospace; height: 400px; overflow-y: auto;">
             {'<br>'.join(terminal_messages[-30:])}
         </div>
@@ -581,10 +582,10 @@ def display_improvement_results(result: dict, improver: 'SelfImprover'):
         for i, issue in enumerate(result['issues'], 1):
             severity = issue['severity']
             severity_color = {
-                'HIGH': '#ff4444',
-                'MEDIUM': '#ffaa44',
-                'LOW': '#44ff44'
-            }.get(severity, '#ffffff')
+                'HIGH': COLORS["severity_high"],
+                'MEDIUM': COLORS["severity_medium"],
+                'LOW': COLORS["severity_low"]
+            }.get(severity, COLORS["text_primary"])
 
             with st.expander(f"{i}. [{severity}] {issue['title']}", expanded=i == 1):
                 st.markdown(f"**File:** `{issue['file']}`")

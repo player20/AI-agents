@@ -23,6 +23,11 @@ COLORS = {
     "test_failed": "#ff4444",
     "test_skipped": "#888888",
     "test_warning": "#ffaa44",
+
+    # Severity Levels (for issues/bugs)
+    "severity_high": "#ff4444",
+    "severity_medium": "#ffaa44",
+    "severity_low": "#44ff44",
 }
 
 # Typography & Spacing
