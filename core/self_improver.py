@@ -259,7 +259,8 @@ class SelfImprover:
                 'extensions': ['.py', '.json'],
                 'include_dirs': ['core'],
                 'exclude_dirs': {'streamlit_ui', 'workflow_builder', 'server', 'tests', 'node_modules', 'venv'},
-                'description': 'Agent-related files (agent configs, orchestration)'
+                'file_patterns': ['*agent*.py', '*improver*.py', 'agents.config.json'],
+                'description': 'Agent-related files only (agent configs, orchestration, improvement logic)'
             },
             ImprovementMode.CODE_QUALITY: {
                 'extensions': ['.py', '.js', '.ts', '.tsx', '.jsx'],
@@ -301,6 +302,14 @@ class SelfImprover:
                 # If include_dirs specified, only include files in those directories
                 if include_dirs:
                     if not any(included in file_path.parts for included in include_dirs):
+                        continue
+
+                # If file_patterns specified, only include matching filenames
+                file_patterns = patterns.get('file_patterns')
+                if file_patterns:
+                    from fnmatch import fnmatch
+                    filename = file_path.name
+                    if not any(fnmatch(filename, pattern) for pattern in file_patterns):
                         continue
 
                 files.append(file_path)
