@@ -13,6 +13,10 @@ from .constants import COLORS, DIMENSIONS
 # Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Initialize session state for terminal (persistent across reruns)
+if 'terminal_messages' not in st.session_state:
+    st.session_state.terminal_messages = []
+
 if TYPE_CHECKING:
     from core.self_improver import SelfImprover, ImprovementMode
 
@@ -24,6 +28,59 @@ except ImportError as e:
     IMPROVER_AVAILABLE = False
     IMPORT_ERROR = str(e)
     SelfImprover = None  # Define as None for type hints if import fails
+
+
+def create_terminal_callback(terminal_placeholder):
+    """
+    Create a terminal callback function with session state persistence.
+
+    Args:
+        terminal_placeholder: Streamlit empty placeholder for terminal output
+
+    Returns:
+        Function that logs messages to terminal with color-coded levels
+    """
+    def terminal_callback(message: str, level: str = "info"):
+        """Update terminal output with session state persistence"""
+        # Initialize session state if needed (defensive check)
+        if 'terminal_messages' not in st.session_state:
+            st.session_state.terminal_messages = []
+
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        color = {
+            "info": COLORS["info"],
+            "success": COLORS["success"],
+            "warning": COLORS["warning"],
+            "error": COLORS["error"]
+        }.get(level, COLORS["info"])
+
+        # Store in session state for persistence
+        st.session_state.terminal_messages.append(
+            f'<span style="color: {color};">[{timestamp}] {message}</span>'
+        )
+
+        # Keep last 50 messages (increased for better history)
+        if len(st.session_state.terminal_messages) > 50:
+            st.session_state.terminal_messages = st.session_state.terminal_messages[-50:]
+
+        # Update display with auto-scroll
+        terminal_html = f"""
+        <div id="terminal-output" style="background-color: {COLORS['terminal_bg']}; border-radius: 8px; padding: 16px;
+                    font-family: 'Courier New', monospace; height: 300px; overflow-y: auto;
+                    border: 1px solid #444;">
+            {'<br>'.join(st.session_state.terminal_messages)}
+        </div>
+        <script>
+            // Auto-scroll to bottom
+            var terminalDiv = document.getElementById('terminal-output');
+            if (terminalDiv) {{
+                terminalDiv.scrollTop = terminalDiv.scrollHeight;
+            }}
+        </script>
+        """
+        terminal_placeholder.markdown(terminal_html, unsafe_allow_html=True)
+
+    return terminal_callback
 
 
 def render_self_improvement():
@@ -168,27 +225,9 @@ def run_single_cycle(mode: str, target_files: list = None, suggest_enhancements:
     with terminal_container:
         st.markdown("#### 💻 Live Output")
         terminal_placeholder = st.empty()
-        terminal_messages = []
 
-    def terminal_callback(message: str, level: str = "info"):
-        """Update terminal output"""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        color = {
-            "info": COLORS["info"],
-            "success": COLORS["success"],
-            "warning": COLORS["warning"],
-            "error": COLORS["error"]
-        }.get(level, COLORS["info"])
-
-        terminal_messages.append(f'<span style="color: {color};">[{timestamp}] {message}</span>')
-
-        terminal_html = f"""
-        <div style="background-color: {COLORS['terminal_bg']}; border-radius: 8px; padding: 16px;
-                    font-family: 'Courier New', monospace; height: 300px; overflow-y: auto;">
-            {'<br>'.join(terminal_messages[-20:])}
-        </div>
-        """
-        terminal_placeholder.markdown(terminal_html, unsafe_allow_html=True)
+    # Create terminal callback with session state persistence
+    terminal_callback = create_terminal_callback(terminal_placeholder)
 
     try:
         # Load config
@@ -242,27 +281,9 @@ def run_iterative_mode(mode: str, target_score: float, target_files: list = None
     with terminal_container:
         st.markdown("#### 💻 Live Output")
         terminal_placeholder = st.empty()
-        terminal_messages = []
 
-    def terminal_callback(message: str, level: str = "info"):
-        """Update terminal output"""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        color = {
-            "info": COLORS["info"],
-            "success": COLORS["success"],
-            "warning": COLORS["warning"],
-            "error": COLORS["error"]
-        }.get(level, COLORS["info"])
-
-        terminal_messages.append(f'<span style="color: {color};">[{timestamp}] {message}</span>')
-
-        terminal_html = f"""
-        <div style="background-color: {COLORS['terminal_bg']}; border-radius: 8px; padding: 16px;
-                    font-family: 'Courier New', monospace; height: 400px; overflow-y: auto;">
-            {'<br>'.join(terminal_messages[-30:])}
-        </div>
-        """
-        terminal_placeholder.markdown(terminal_html, unsafe_allow_html=True)
+    # Create terminal callback with session state persistence
+    terminal_callback = create_terminal_callback(terminal_placeholder)
 
     try:
         # Import LangGraph workflow
@@ -375,27 +396,9 @@ def run_forever_mode(mode: str, target_files: list = None, suggest_enhancements:
 
     # Terminal
     terminal_placeholder = st.empty()
-    terminal_messages = []
 
-    def terminal_callback(message: str, level: str = "info"):
-        """Update terminal output"""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        color = {
-            "info": COLORS["info"],
-            "success": COLORS["success"],
-            "warning": COLORS["warning"],
-            "error": COLORS["error"]
-        }.get(level, COLORS["info"])
-
-        terminal_messages.append(f'<span style="color: {color};">[{timestamp}] {message}</span>')
-
-        terminal_html = f"""
-        <div style="background-color: {COLORS['terminal_bg']}; border-radius: 8px; padding: 16px;
-                    font-family: 'Courier New', monospace; height: 400px; overflow-y: auto;">
-            {'<br>'.join(terminal_messages[-30:])}
-        </div>
-        """
-        terminal_placeholder.markdown(terminal_html, unsafe_allow_html=True)
+    # Create terminal callback with session state persistence
+    terminal_callback = create_terminal_callback(terminal_placeholder)
 
     try:
         config = load_config()
@@ -437,6 +440,33 @@ def generate_markdown_report(result: dict) -> str:
     """Generate a comprehensive markdown report of improvement results"""
     from datetime import datetime
 
+    all_issues = result.get('all_issues', [])
+
+    # Handle "no issues" case with a positive report
+    if not all_issues:
+        report = f"""# Code Improvement Report
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+## Summary
+- **Files Analyzed:** {result['files_analyzed']}
+- **Issues Found:** 0
+- **Assessment:** ✅ Code quality is excellent!
+
+## Analysis Details
+{result['files_analyzed']} files were thoroughly analyzed by specialized AI agents.
+No bugs or enhancements were identified. Your codebase follows best practices.
+
+**Score:** {result['scores']['after']}/10
+
+**Next Focus:** {result.get('next_focus', 'Maintain current quality standards')}
+
+---
+
+*Report generated by Code Weaver Pro Self-Improvement System*
+"""
+        return report
+
+    # Normal report when issues exist
     report = f"""# Code Improvement Report
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
@@ -452,12 +482,11 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 ---
 
-## All Issues Found ({len(result.get('all_issues', []))})
+## All Issues Found ({len(all_issues)})
 
 """
 
     # Group by type and severity
-    all_issues = result.get('all_issues', [])
     bugs = [i for i in all_issues if i.get('type') == 'BUG']
     enhancements = [i for i in all_issues if i.get('type') == 'ENHANCEMENT']
 
@@ -548,32 +577,42 @@ def display_improvement_results(result: dict, improver: 'SelfImprover'):
         delta=f"{improvement}/10"
     )
 
-    # Export buttons
-    if result.get('all_issues'):
-        st.markdown("### 📥 Export Reports")
-        cols = st.columns(2, gap="small")
+    # Export buttons - ALWAYS show (even if no issues found)
+    st.markdown("---")
+    st.markdown("### 📥 Export Reports")
 
-        # Generate reports
-        markdown_report = generate_markdown_report(result)
-        json_report = generate_json_report(result)
+    # Generate reports
+    markdown_report = generate_markdown_report(result)
+    json_report = generate_json_report(result)
 
-        with cols[0]:
-            st.download_button(
-                label="📄 Download Markdown Report",
-                data=markdown_report,
-                file_name=f"improvement_report_{result.get('branch_name', 'report')}.md",
-                mime="text/markdown",
-                use_container_width=True
-            )
+    # Show issue count with appropriate message
+    issue_count = len(result.get('all_issues', []))
+    if issue_count > 0:
+        st.info(f"📊 **{issue_count} issues found** - Download comprehensive reports below")
+    else:
+        st.success("✅ **No issues found!** Your codebase is in excellent shape. Download report for details.")
 
-        with cols[1]:
-            st.download_button(
-                label="📊 Download JSON Report",
-                data=json_report,
-                file_name=f"improvement_report_{result.get('branch_name', 'report')}.json",
-                mime="application/json",
-                use_container_width=True
-            )
+    cols = st.columns(2, gap="small")
+
+    with cols[0]:
+        st.download_button(
+            label="📄 Download Markdown Report",
+            data=markdown_report,
+            file_name=f"improvement_report_{result.get('branch_name', 'report')}.md",
+            mime="text/markdown",
+            use_container_width=True,
+            help="Human-readable report with all findings and suggestions"
+        )
+
+    with cols[1]:
+        st.download_button(
+            label="📊 Download JSON Report",
+            data=json_report,
+            file_name=f"improvement_report_{result.get('branch_name', 'report')}.json",
+            mime="application/json",
+            use_container_width=True,
+            help="Machine-readable report for programmatic analysis"
+        )
 
     # Issues found (prioritized for fixing)
     if result['issues']:

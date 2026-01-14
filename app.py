@@ -247,6 +247,39 @@ def main():
         * {
             transition: all 0.3s ease;
         }
+
+        /* Responsive navigation tabs */
+        @media (max-width: 768px) {
+            /* On mobile, make buttons full width and stack */
+            .stButton > button {
+                width: 100% !important;
+                margin: 0.5rem 0 !important;
+                font-size: 18px !important;
+                padding: 16px 24px !important;
+            }
+
+            /* Remove side padding on mobile */
+            [data-testid="column"] {
+                padding: 0 0.25rem !important;
+            }
+
+            /* Title smaller on mobile */
+            h1 {
+                font-size: 32px !important;
+            }
+
+            .subtitle {
+                font-size: 14px !important;
+            }
+        }
+
+        @media (min-width: 768px) {
+            /* On desktop, center navigation with max width */
+            .navigation-container {
+                max-width: 800px;
+                margin: 0 auto;
+            }
+        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -266,21 +299,33 @@ def main():
         </div>
     """, unsafe_allow_html=True)
 
-    # Mode selector (elegant toggle)
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        mode_cols = st.columns(2)
-        with mode_cols[0]:
-            if st.button("✨ Create App", key="mode_create", use_container_width=True,
-                        type="primary" if st.session_state.mode == 'create' else "secondary"):
-                st.session_state.mode = 'create'
-                st.rerun()
-        with mode_cols[1]:
-            if st.button("🔄 Self-Improve", key="mode_improve", use_container_width=True,
-                        type="primary" if st.session_state.mode == 'self_improve' else "secondary"):
-                st.session_state.mode = 'self_improve'
-                st.rerun()
+    # Mode selector (responsive toggle with container for centering)
+    st.markdown('<div class="navigation-container">', unsafe_allow_html=True)
 
+    # Use 2 equal columns instead of [1,2,1] centering for better mobile responsiveness
+    mode_cols = st.columns(2)
+
+    with mode_cols[0]:
+        if st.button(
+            "✨ Create App",
+            key="mode_create",
+            use_container_width=True,
+            type="primary" if st.session_state.mode == 'create' else "secondary"
+        ):
+            st.session_state.mode = 'create'
+            st.rerun()
+
+    with mode_cols[1]:
+        if st.button(
+            "🔄 Self-Improve",
+            key="mode_improve",
+            use_container_width=True,
+            type="primary" if st.session_state.mode == 'self_improve' else "secondary"
+        ):
+            st.session_state.mode = 'self_improve'
+            st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Render appropriate interface based on mode
