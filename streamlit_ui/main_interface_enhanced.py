@@ -88,15 +88,6 @@ def check_module_availability():
     return all_available
 
 
-# Main entry point - check modules and render
-if __name__ == "__main__" or st.session_state.get("_is_running_with_streamlit", True):
-    if not check_module_availability():
-        st.info("💡 **Troubleshooting**: Ensure all module files exist in the `streamlit_ui/` directory and have no syntax errors.")
-    else:
-        # Modules loaded successfully - delegate to input module
-        if INPUT_MODULE_AVAILABLE:
-            render_enhanced_interface()
-
 # Export functions for backward compatibility
 __all__ = [
     'render_enhanced_interface',
