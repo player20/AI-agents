@@ -93,9 +93,8 @@ class SelfImprover:
             self._log("📸 Capturing screenshots of running application...")
             screenshots = self._capture_app_screenshots()
             if screenshots:
-                self._log(f"Captured {len(screenshots)} screenshots")
-            else:
-                self._log("⚠️ No screenshots captured (app may not be running)", "warning")
+                self._log(f"✓ Captured {len(screenshots)} screenshots for visual analysis")
+            # Note: Empty screenshots list is handled gracefully - analysis continues without visual data
 
         # Step 2: Identify issues
         self._log("🔍 Identifying issues...")
@@ -185,6 +184,7 @@ class SelfImprover:
         try:
             from playwright.sync_api import sync_playwright
             import time
+            import sys
 
             screenshots = []
             screenshots_dir = self.base_dir / 'screenshots'
@@ -194,6 +194,16 @@ class SelfImprover:
             server_url = "http://localhost:8505"
 
             self._log(f"Launching browser to capture screenshots from {server_url}...", "info")
+
+            # Fix for Windows asyncio subprocess limitation
+            # Streamlit's event loop doesn't support subprocesses on Windows
+            if sys.platform == 'win32':
+                import asyncio
+                # Try to set ProactorEventLoop for subprocess support
+                try:
+                    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                except Exception:
+                    pass  # If that fails, we'll catch it below
 
             # Use SYNC playwright to avoid event loop conflicts
             with sync_playwright() as p:
@@ -233,10 +243,14 @@ class SelfImprover:
 
             return screenshots
 
+        except NotImplementedError as e:
+            # Windows asyncio subprocess limitation - skip screenshots gracefully
+            self._log("⚠️ Screenshot capture skipped: Windows asyncio limitation (Streamlit event loop doesn't support subprocesses)", "warning")
+            self._log("   UI/UX analysis will continue without screenshots (agents will analyze code only)", "info")
+            return []
         except Exception as e:
             self._log(f"Screenshot capture failed: {type(e).__name__}: {str(e)}", "warning")
-            import traceback
-            self._log(f"Traceback: {traceback.format_exc()}", "warning")
+            self._log("   UI/UX analysis will continue without screenshots", "info")
             return []
 
     def _get_files_to_analyze(self, target_files: Optional[List[str]] = None, mode: str = None) -> List[Path]:
