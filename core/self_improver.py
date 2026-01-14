@@ -881,6 +881,230 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
 
         return prioritized
 
+    def _generate_diff_based_fix(self, issue: Dict, file_path: str, current_content: str, fix_agent) -> Dict:
+        """
+        Generate a diff-based fix for large files (>1000 lines)
+
+        Instead of regenerating the entire file, generate specific line-by-line changes.
+        This avoids token output limits for large files.
+
+        Returns:
+            Dict with 'changes' list, or None if generation failed
+        """
+        line_count = len(current_content.splitlines())
+        self._log(f"  🔧 Using diff-based approach for large file ({line_count} lines)", "info")
+
+        # Get relevant context around the issue
+        # Show agent only the relevant section, not the entire file
+        lines = current_content.splitlines()
+
+        # Try to find issue location hint
+        issue_line = issue.get('line', None)
+        context_start = 0
+        context_end = len(lines)
+
+        # If we have a line number, show context around it
+        if issue_line:
+            context_start = max(0, issue_line - 50)
+            context_end = min(len(lines), issue_line + 50)
+            context_lines = lines[context_start:context_end]
+            context_snippet = '\n'.join(f"{i+context_start+1}: {line}" for i, line in enumerate(context_lines))
+        else:
+            # Show first 100 and last 100 lines as context
+            context_snippet = (
+                "FIRST 100 LINES:\n" +
+                '\n'.join(f"{i+1}: {line}" for i, line in enumerate(lines[:100])) +
+                "\n\n... [middle section omitted] ...\n\n" +
+                "LAST 100 LINES:\n" +
+                '\n'.join(f"{i+len(lines)-100+1}: {line}" for i, line in enumerate(lines[-100:]))
+            )
+
+        # Generate diff-based fix
+        diff_prompt = f"""
+⚠️⚠️⚠️ CRITICAL: DIFF-BASED FIX FORMAT REQUIRED ⚠️⚠️⚠️
+
+This file is too large ({line_count} lines) to regenerate completely.
+You must provide TARGETED CHANGES using this exact format:
+
+DIFF_CHANGES_START
+CHANGE 1:
+Line: <line_number>
+Action: <replace|insert_after|delete>
+Old: <original_text_if_replace>
+New: <new_text>
+
+CHANGE 2:
+Line: <line_number>
+Action: <replace|insert_after|delete>
+Old: <original_text_if_replace>
+New: <new_text>
+
+[... more changes ...]
+DIFF_CHANGES_END
+
+RULES:
+1. Each change must specify exact line number
+2. Action must be: replace, insert_after, or delete
+3. For "replace": include both Old and New
+4. For "insert_after": only include New (what to insert)
+5. For "delete": only include Old (what to delete)
+6. Be specific - include enough of the original line to match uniquely
+7. NO explanations outside markers
+8. First line MUST be "DIFF_CHANGES_START"
+9. Last line MUST be "DIFF_CHANGES_END"
+
+===============================================================================
+
+FILE: {file_path}
+SIZE: {line_count} lines
+
+ISSUE: {issue.get('title', 'Unknown issue')}
+DESCRIPTION: {issue.get('description', '')}
+SUGGESTION: {issue.get('suggestion', '')}
+
+RELEVANT CODE SECTION:
+```
+{context_snippet}
+```
+
+YOUR TASK:
+1. Identify the specific lines that need to change
+2. Provide TARGETED changes in the format above
+3. DO NOT regenerate the entire file
+4. Be precise with line numbers and old/new text
+
+BEGIN NOW - First line must be "DIFF_CHANGES_START":
+"""
+
+        try:
+            task = Task(
+                description=diff_prompt,
+                agent=fix_agent,
+                expected_output="DIFF_CHANGES_START\n[changes]\nDIFF_CHANGES_END"
+            )
+
+            crew = Crew(
+                agents=[fix_agent],
+                tasks=[task],
+                verbose=False
+            )
+
+            result = crew.kickoff()
+            result_text = str(result)
+
+            # Parse the diff changes
+            if "DIFF_CHANGES_START" in result_text and "DIFF_CHANGES_END" in result_text:
+                start_idx = result_text.find("DIFF_CHANGES_START") + len("DIFF_CHANGES_START")
+                end_idx = result_text.find("DIFF_CHANGES_END")
+                changes_text = result_text[start_idx:end_idx].strip()
+
+                # Parse individual changes
+                changes = self._parse_diff_changes(changes_text)
+
+                if changes:
+                    self._log(f"  ✓ Generated {len(changes)} targeted changes", "success")
+                    return {
+                        'type': 'diff',
+                        'changes': changes
+                    }
+                else:
+                    self._log(f"  ⚠ Failed to parse diff changes", "warning")
+                    return None
+            else:
+                self._log(f"  ⚠ Agent did not use DIFF_CHANGES format", "warning")
+                return None
+
+        except Exception as e:
+            self._log(f"  ❌ Diff-based fix generation failed: {e}", "error")
+            return None
+
+    def _parse_diff_changes(self, changes_text: str) -> List[Dict]:
+        """Parse diff changes from agent output"""
+        changes = []
+
+        # Split by "CHANGE N:" markers
+        import re
+        change_blocks = re.split(r'CHANGE \d+:', changes_text)
+
+        for block in change_blocks:
+            if not block.strip():
+                continue
+
+            change = {}
+
+            # Extract line number
+            line_match = re.search(r'Line:\s*(\d+)', block)
+            if line_match:
+                change['line'] = int(line_match.group(1))
+
+            # Extract action
+            action_match = re.search(r'Action:\s*(replace|insert_after|delete)', block, re.IGNORECASE)
+            if action_match:
+                change['action'] = action_match.group(1).lower()
+
+            # Extract old text
+            old_match = re.search(r'Old:\s*(.+?)(?=\nNew:|\nCHANGE|\Z)', block, re.DOTALL)
+            if old_match:
+                change['old'] = old_match.group(1).strip()
+
+            # Extract new text
+            new_match = re.search(r'New:\s*(.+?)(?=\nCHANGE|\Z)', block, re.DOTALL)
+            if new_match:
+                change['new'] = new_match.group(1).strip()
+
+            # Validate change has required fields
+            if 'line' in change and 'action' in change:
+                if change['action'] == 'replace' and 'old' in change and 'new' in change:
+                    changes.append(change)
+                elif change['action'] == 'insert_after' and 'new' in change:
+                    changes.append(change)
+                elif change['action'] == 'delete' and 'old' in change:
+                    changes.append(change)
+
+        return changes
+
+    def _apply_diff_based_fix(self, file_path: str, changes: List[Dict]) -> str:
+        """Apply diff-based changes to a file and return the new content"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+            # Sort changes by line number (descending) to avoid line number shifts
+            changes_sorted = sorted(changes, key=lambda x: x['line'], reverse=True)
+
+            for change in changes_sorted:
+                line_num = change['line'] - 1  # Convert to 0-indexed
+                action = change['action']
+
+                if line_num < 0 or line_num >= len(lines):
+                    self._log(f"    ⚠ Line {change['line']} out of range, skipping", "warning")
+                    continue
+
+                if action == 'replace':
+                    # Verify old text matches (fuzzy match - strip whitespace)
+                    old_text = change.get('old', '').strip()
+                    current_line = lines[line_num].strip()
+
+                    if old_text in current_line or current_line in old_text:
+                        lines[line_num] = change['new'] + '\n'
+                        self._log(f"    ✓ Replaced line {change['line']}", "info")
+                    else:
+                        self._log(f"    ⚠ Line {change['line']} doesn't match expected text, skipping", "warning")
+
+                elif action == 'insert_after':
+                    lines.insert(line_num + 1, change['new'] + '\n')
+                    self._log(f"    ✓ Inserted after line {change['line']}", "info")
+
+                elif action == 'delete':
+                    del lines[line_num]
+                    self._log(f"    ✓ Deleted line {change['line']}", "info")
+
+            return ''.join(lines)
+
+        except Exception as e:
+            self._log(f"    ❌ Failed to apply diff changes: {e}", "error")
+            return None
+
     def _generate_fixes(self, issues: List[Dict], mode: str) -> List[Dict]:
         """Generate code fixes for identified issues"""
         fixes = []
@@ -925,14 +1149,38 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
                 self._log(f"Could not read {file_path}: {e}", "error")
                 continue
 
-            # Check file size and warn if large
+            # Check file size - use diff-based approach for large files
             line_count = len(current_content.splitlines())
-            if line_count > 2500:
-                self._log(f"⚠️  Large file detected ({line_count} lines)", "warning")
-                self._log(f"   File may exceed Sonnet's output limit (~3000 lines)", "warning")
-                self._log(f"   If fix is incomplete, consider splitting the file", "info")
-            elif line_count > 1500:
-                self._log(f"📏 Moderate file size ({line_count} lines) - Sonnet should handle this", "info")
+
+            # Threshold for diff-based approach: files >1000 lines
+            if line_count > 1000:
+                self._log(f"📏 Large file detected ({line_count} lines) - using diff-based approach", "info")
+
+                # Generate diff-based fix
+                diff_fix = self._generate_diff_based_fix(issue, file_path, current_content, fix_agent)
+
+                if diff_fix and diff_fix.get('type') == 'diff':
+                    # Apply diff changes to get fixed content
+                    fixed_content = self._apply_diff_based_fix(file_path, diff_fix['changes'])
+
+                    if fixed_content:
+                        fixes.append({
+                            'file': file_path,
+                            'issue': issue,
+                            'original_content': current_content,
+                            'fixed_content': fixed_content,
+                            'fix_type': 'diff'
+                        })
+                        continue
+                    else:
+                        self._log(f"  ⚠ Diff-based fix failed to apply, skipping", "warning")
+                        continue
+                else:
+                    self._log(f"  ⚠ Diff-based fix generation failed, skipping", "warning")
+                    continue
+
+            # For smaller files (<1000 lines), use full-file regeneration
+            self._log(f"📏 Small file ({line_count} lines) - using full-file regeneration", "info")
 
             # Generate fix with ULTRA-EXPLICIT format requirements
             # Problem: Agent keeps adding explanations instead of using markers
