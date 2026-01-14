@@ -74,11 +74,11 @@ class ProgressTracker:
             progress: Progress value (0.0 to 1.0)
 
         Raises:
-            TypeError: If progress is not numeric
+            ValueError: If progress is not a valid numeric value between 0.0 and 1.0
         """
         # Validate input
-        if not isinstance(progress, (int, float)):
-            raise TypeError(f"Progress must be numeric, got {type(progress)}")
+        if not isinstance(progress, (int, float)) or progress < 0.0 or progress > 1.0:
+            raise ValueError(f"Progress must be a numeric value between 0.0 and 1.0, got {progress}")
 
         if self.current_phase:
             # Clamp to valid range [0.0, 1.0]

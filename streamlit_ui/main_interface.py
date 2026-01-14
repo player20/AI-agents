@@ -61,6 +61,11 @@ def render_main_interface() -> None:
             .main .block-container {
                 padding: 1rem;
             }
+
+            /* 2 columns on tablet */
+            [data-testid="column"] {
+                width: 50% !important;
+            }
         }
 
         /* Desktop (> 1024px) */
@@ -115,7 +120,7 @@ def render_main_interface() -> None:
     # On mobile (< 768px): stack vertically
     # On tablet (768-1024px): 2 columns
     # On desktop (> 1024px): 3 columns
-    col1, col2, col3 = st.columns([1, 1, 1], gap="small")
+    col1, col2, col3 = st.columns(2, gap="small")
 
     with col1:
         do_market_research = st.checkbox(
@@ -166,7 +171,8 @@ def render_main_interface() -> None:
                 }
             )
 
-    with col3:
+    col1, col2 = st.columns(2, gap="small")
+    with col1:
         has_existing_code = st.checkbox(
             "📦 Upgrade code",
             help="Upload code to improve (paste or zip upload)",
@@ -181,7 +187,7 @@ def render_main_interface() -> None:
             }
         )
 
-    # Second row - platforms
+    # Platform selection
     with st.container():
         platforms = st.multiselect(
             "🎯 Target Platforms",
@@ -222,18 +228,18 @@ def render_main_interface() -> None:
             }
         )
 
-    # Validation message
+    # Validate project input
     if start_button and not project_input.strip():
-        st.error("⚠️ Please describe your project before starting.")
+        st.error("⚠️ Please provide a description of your project.")
         st.stop()
 
     # Progress tracker
     progress_tracker = ProgressTracker()
 
     if start_button:
-        progress_tracker.start()
-
         try:
+            progress_tracker.start()
+
             # Simulate progress phases (replace with actual implementation)
             progress_tracker.update(ProgressPhase.MARKET_RESEARCH, 25)
             progress_tracker.update(ProgressPhase.IDEATION, 50)
@@ -248,5 +254,5 @@ def render_main_interface() -> None:
                 st.error("Please check your configuration and try again later.")
             else:
                 st.error(f"⚠️ An unexpected error occurred: {str(e)}")
-            st.error("Please check your input and try again. If the issue persists, contact support for assistance.")
+                st.error("Please check your input and try again. If the issue persists, contact support for assistance.")
             st.stop()

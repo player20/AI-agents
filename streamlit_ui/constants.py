@@ -9,7 +9,7 @@ COLORS = {
     "terminal_bg": "#1a1d29",
     "component_bg": "#333333",
     "text_primary": "#ffffff",
-    "text_secondary": "#888888",
+    "text_secondary": "#d9d9d9",  # Adjusted to have higher contrast ratio (4.5:1)
 
     # Status Colors (consistent across all components)
     "success": "#44ff44",
@@ -21,7 +21,7 @@ COLORS = {
     # Test Results
     "test_passed": "#44ff44",
     "test_failed": "#ff4444",
-    "test_skipped": "#888888",
+    "test_skipped": "#d9d9d9",
     "test_warning": "#ffaa44",
 
     # Severity Levels (for issues/bugs)
@@ -44,7 +44,8 @@ SPACING = {
 DIMENSIONS = {
     "terminal_height": "400px",
     "progress_bar_height": "1.5rem",
-    "button_height": "2.5rem",
+    "button_height": "3rem",  # Increased button height to 3rem
+    "button_font_size": "1rem",  # Increased button font size to 1rem
     "border_radius": "0.5rem",
     "border_radius_lg": "0.8rem",
 }

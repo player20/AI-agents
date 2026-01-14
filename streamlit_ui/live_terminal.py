@@ -2,11 +2,12 @@ import streamlit as st
 from datetime import datetime
 from collections import deque
 from .constants import COLORS, DIMENSIONS
+import re
 
 class LiveTerminalOutput:
-    """Terminal-style output display with color coding"""
+    """Terminal-style output display with color coding and input validation"""
 
-    def __init__(self, max_lines: int = 100):
+    def __init__(self, max_lines: int = 100) -> None:
         """
         Initialize terminal output
 
@@ -18,25 +19,43 @@ class LiveTerminalOutput:
 
     def add_line(self, line: str, level: str = "info") -> None:
         """
-        Add a line to terminal output
+        Add a line to terminal output with input validation
 
         Args:
             line: The text to display
             level: "info", "success", "warning", "error"
         """
-        # Sanitize user input to prevent security vulnerabilities
-        line = str(line).strip()
-        if not line:
-            return
+        try:
+            # Sanitize user input to prevent security vulnerabilities
+            line = str(line).strip()
+            if not line:
+                return
 
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        formatted_line = {
-            "timestamp": timestamp,
-            "text": line,
-            "level": level
-        }
-        self.lines.append(formatted_line)
-        self.render()
+            # Validate input to prevent injection attacks
+            line = self._sanitize_input(line)
+
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            formatted_line = {
+                "timestamp": timestamp,
+                "text": line,
+                "level": level
+            }
+            self.lines.append(formatted_line)
+            self.render()
+        except Exception as e:
+            self.add_error(f"Error adding line to terminal: {str(e)}")
+
+    def _sanitize_input(self, text: str) -> str:
+        """
+        Sanitize user input to prevent security vulnerabilities
+        """
+        # Remove HTML tags
+        text = re.sub(r'<[^>]+>', '', text)
+
+        # Remove JavaScript and other harmful content
+        text = re.sub(r'javascript:|alert\(|onclick=', '', text, flags=re.IGNORECASE)
+
+        return text
 
     def clear(self) -> None:
         """Clear all terminal output"""
@@ -48,31 +67,34 @@ class LiveTerminalOutput:
         if not self.placeholder:
             self.placeholder = st.empty()
 
-        # Define colors based on level
-        color_map = {
-            "info": COLORS["info"],
-            "success": COLORS["success"],
-            "warning": COLORS["warning"],
-            "error": COLORS["error"],
-            "system": COLORS["system"]
-        }
+        try:
+            # Define colors based on level
+            color_map = {
+                "info": COLORS["info"],
+                "success": COLORS["success"],
+                "warning": COLORS["warning"],
+                "error": COLORS["error"],
+                "system": COLORS["system"]
+            }
 
-        # Build HTML for terminal display
-        terminal_html = f"<div style='background-color: {COLORS['terminal_bg']}; border-radius: 8px; padding: 16px; font-family: \"Courier New\", monospace; height: {DIMENSIONS['terminal_height']}; overflow-y: auto; margin: 16px 0;'>"
+            # Build HTML for terminal display
+            terminal_html = f"<div style='background-color: {COLORS['terminal_bg']}; border-radius: 8px; padding: 16px; font-family: \"Courier New\", monospace; height: {DIMENSIONS['terminal_height']}; overflow-y: auto; margin: 16px 0;'>"
 
-        for line_data in self.lines:
-            color = color_map.get(line_data["level"], "#00ff00")
-            timestamp = line_data["timestamp"]
-            text = line_data["text"]
+            for line_data in self.lines:
+                color = color_map.get(line_data["level"], "#00ff00")
+                timestamp = line_data["timestamp"]
+                text = line_data["text"]
 
-            # HTML escape the text
-            text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                # HTML escape the text
+                text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-            terminal_html += f"<div style='color: {color}; margin-bottom: 4px;'>[{timestamp}] {text}</div>"
+                terminal_html += f"<div style='color: {color}; margin-bottom: 4px;'>[{timestamp}] {text}</div>"
 
-        terminal_html += "</div>"
+            terminal_html += "</div>"
 
-        self.placeholder.markdown(terminal_html, unsafe_allow_html=True)
+            self.placeholder.markdown(terminal_html, unsafe_allow_html=True)
+        except Exception as e:
+            self.add_error(f"Error rendering terminal output: {str(e)}")
 
     def add_success(self, message: str) -> None:
         """Add a success message"""
