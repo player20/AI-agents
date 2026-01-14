@@ -193,9 +193,12 @@ class SelfImprover:
             timestamp = int(time.time())
             server_url = "http://localhost:8505"
 
+            self._log(f"Launching browser to capture screenshots from {server_url}...", "info")
+
             # Use SYNC playwright to avoid event loop conflicts
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
+                self._log("Browser launched successfully", "info")
 
                 viewports = {
                     'desktop': {'width': 1920, 'height': 1080},
@@ -205,6 +208,7 @@ class SelfImprover:
 
                 for viewport_name, viewport_size in viewports.items():
                     try:
+                        self._log(f"Capturing {viewport_name} screenshot ({viewport_size['width']}x{viewport_size['height']})...", "info")
                         page = browser.new_page(viewport=viewport_size)
                         page.goto(server_url, wait_until="networkidle", timeout=30000)
 
@@ -219,16 +223,20 @@ class SelfImprover:
                             "viewport": viewport_size
                         })
 
+                        self._log(f"✓ {viewport_name} screenshot saved to {screenshot_path}", "info")
                         page.close()
                     except Exception as e:
-                        self._log(f"Failed to capture {viewport_name} screenshot: {e}", "warning")
+                        self._log(f"Failed to capture {viewport_name} screenshot: {type(e).__name__}: {str(e)}", "warning")
 
                 browser.close()
+                self._log(f"Browser closed. Captured {len(screenshots)} screenshots total", "info")
 
             return screenshots
 
         except Exception as e:
-            self._log(f"Screenshot capture failed: {str(e)}", "warning")
+            self._log(f"Screenshot capture failed: {type(e).__name__}: {str(e)}", "warning")
+            import traceback
+            self._log(f"Traceback: {traceback.format_exc()}", "warning")
             return []
 
     def _get_files_to_analyze(self, target_files: Optional[List[str]] = None, mode: str = None) -> List[Path]:
