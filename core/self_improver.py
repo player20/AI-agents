@@ -225,53 +225,41 @@ class SelfImprover:
         if screenshots is None:
             screenshots = []
 
-        # Define agent teams for each improvement mode
+        # Define CORE agent teams (fast, focused)
+        # Core teams: Lead + Verifier + Challenger (3 agents instead of 6)
         # IMPORTANT: Verifier is ALWAYS second-to-last for hallucination detection
         # IMPORTANT: Challenger is ALWAYS last as the devil's advocate to challenge findings
-        agent_teams = {
+        core_agent_teams = {
             ImprovementMode.UI_UX: [
                 "Designs",  # UI/UX Designer - lead
-                "UIDesigner",  # UI-specific expertise
-                "UXResearcher",  # User research and testing
-                "AccessibilitySpecialist",  # WCAG compliance
                 "Verifier",  # Hallucination detection - ensures claims are factual
                 "Challenger",  # Devil's advocate - challenges false positives & UX assumptions
             ],
             ImprovementMode.PERFORMANCE: [
                 "PerformanceEngineer",  # Performance specialist - lead
-                "Senior",  # Architecture review
-                "SRE",  # Reliability and optimization
-                "DatabaseAdmin",  # Database performance
                 "Verifier",  # Hallucination detection - ensures performance claims are real
                 "Challenger",  # Devil's advocate - ensures real performance issues, not micro-optimizations
             ],
             ImprovementMode.AGENT_QUALITY: [
                 "AIResearcher",  # AI/ML best practices - lead
-                "Senior",  # System architecture
-                "MLEngineer",  # Agent optimization
                 "Verifier",  # Hallucination detection - critical for AI/agent claims
                 "Challenger",  # Devil's advocate - challenges agent design assumptions
             ],
             ImprovementMode.CODE_QUALITY: [
                 "Senior",  # Code review - lead
-                "Architect",  # Architecture patterns
-                "TechnicalLead",  # Best practices
                 "Verifier",  # Hallucination detection - ensures accuracy of code quality claims
                 "Challenger",  # Devil's advocate - challenges over-engineering claims
             ],
             ImprovementMode.EVERYTHING: [
                 "Senior",  # Lead coordinator
-                "Designs",  # UI/UX
-                "PerformanceEngineer",  # Performance
-                "SecurityEngineer",  # Security
-                "QA",  # Testing
                 "Verifier",  # Hallucination detection - comprehensive fact-checking
                 "Challenger",  # Devil's advocate - final critical review
             ]
         }
 
-        team = agent_teams.get(mode, ["Senior"])
-        self._log(f"Using agent team for {mode}: {', '.join(team)}", "info")
+        team = core_agent_teams.get(mode, ["Senior", "Verifier", "Challenger"])
+        self._log(f"Using OPTIMIZED core team for {mode}: {', '.join(team)}", "info")
+        self._log(f"  (Reduced from 6 agents to {len(team)} agents for faster analysis)", "info")
 
         # Create all agents in the team
         analysis_agents = [
@@ -279,11 +267,12 @@ class SelfImprover:
             for agent_name in team
         ]
 
-        # Analyze in batches (max 3 files at a time to avoid context limits)
-        total_batches = (len(files) + 2) // 3  # Ceiling division
+        # Analyze in batches (6 files at a time for better throughput)
+        batch_size = 6
+        total_batches = (len(files) + batch_size - 1) // batch_size  # Ceiling division
         batch_num = 0
 
-        for i in range(0, len(files), 3):
+        for i in range(0, len(files), batch_size):
             batch = files[i:i+3]
             batch_num += 1
             file_contents = {}
@@ -372,10 +361,17 @@ Only output issues that are genuinely worth fixing.
                 # Parse issues from result
                 batch_issues = self._parse_issues(result_text, batch)
 
-                if not batch_issues and len(result_text) > 100:
+                if batch_issues:
+                    # Log what we found
+                    self._log(f"  ✓ Found {len(batch_issues)} issues in this batch:", "info")
+                    for idx, issue in enumerate(batch_issues[:3], 1):  # Show first 3
+                        self._log(f"    {idx}. [{issue.get('severity', 'UNKNOWN')}] {issue.get('title', 'Untitled')} ({issue.get('file', 'unknown file')})", "info")
+                    if len(batch_issues) > 3:
+                        self._log(f"    ... and {len(batch_issues) - 3} more", "info")
+                elif len(result_text) > 100:
                     # Agent returned content but parser found nothing - log for debugging
-                    self._log(f"WARNING: Parser found 0 issues from {len(result_text)} chars of agent output", "warning")
-                    self._log(f"First 500 chars: {result_text[:500]}", "warning")
+                    self._log(f"  ⚠ WARNING: Parser found 0 issues from {len(result_text)} chars of agent output", "warning")
+                    self._log(f"  First 300 chars: {result_text[:300]}", "warning")
 
                 issues.extend(batch_issues)
             except Exception as e:
