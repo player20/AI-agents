@@ -186,7 +186,7 @@ def run_forever_mode(mode: str, target_files: list = None):
 
     # Stop button
     cols = st.columns(3, gap="small")
-        stop_button = cols[1].button("🛑 STOP Forever Mode", use_container_width=True, type="secondary")
+    stop_button = cols[1].button("🛑 STOP Forever Mode", use_container_width=True, type="secondary")
 
     if stop_button:
         st.session_state['forever_mode_active'] = False
@@ -266,15 +266,15 @@ def display_improvement_results(result: dict, improver: 'SelfImprover'):
 
     # Summary metrics
     cols = st.columns(4, gap="small")
-        cols[0].metric("Files Analyzed", result['files_analyzed'])
-        cols[1].metric("Issues Found", result['issues_found'])
-        cols[2].metric("Fixes Applied", result['fixes_applied'])
-        improvement = result['scores']['improvement']
-        cols[3].metric(
-            "Improvement",
-            f"+{improvement}" if improvement > 0 else str(improvement),
-            delta=f"{improvement}/10"
-        )
+    cols[0].metric("Files Analyzed", result['files_analyzed'])
+    cols[1].metric("Issues Found", result['issues_found'])
+    cols[2].metric("Fixes Applied", result['fixes_applied'])
+    improvement = result['scores']['improvement']
+    cols[3].metric(
+        "Improvement",
+        f"+{improvement}" if improvement > 0 else str(improvement),
+        delta=f"{improvement}/10"
+    )
 
     # Issues found
     if result['issues']:
@@ -307,16 +307,16 @@ def display_improvement_results(result: dict, improver: 'SelfImprover'):
     st.markdown("### 📊 Impact Assessment")
 
     cols = st.columns(3, gap="small")
-        cols[0].metric("Before", f"{result['scores']['before']}/10")
-        cols[1].metric("After", f"{result['scores']['after']}/10")
-        improvement = result['scores']['improvement']
-        delta_color = "normal" if improvement > 0 else "inverse"
-        cols[2].metric(
-            "Improvement",
-            f"+{improvement}" if improvement > 0 else str(improvement),
-            delta=f"{abs(improvement)} points",
-            delta_color=delta_color
-        )
+    cols[0].metric("Before", f"{result['scores']['before']}/10")
+    cols[1].metric("After", f"{result['scores']['after']}/10")
+    improvement = result['scores']['improvement']
+    delta_color = "normal" if improvement > 0 else "inverse"
+    cols[2].metric(
+        "Improvement",
+        f"+{improvement}" if improvement > 0 else str(improvement),
+        delta=f"{abs(improvement)} points",
+        delta_color=delta_color
+    )
 
     # Next focus
     st.markdown("### 🎯 Next Focus")
@@ -326,15 +326,15 @@ def display_improvement_results(result: dict, improver: 'SelfImprover'):
     st.markdown("### 🎯 Next Steps")
 
     cols = st.columns(3, gap="small")
-        if cols[0].button("✅ Merge to Main", use_container_width=True):
-            merge_to_main(result['branch_name'])
-        if cols[1].button("🔄 Run Another Cycle", use_container_width=True):
-            st.rerun()
-        if cols[2].button("🔙 Rollback Changes", use_container_width=True):
-            if improver.rollback_to_main():
-                st.success("✅ Rolled back to main branch")
-            else:
-                st.error("❌ Rollback failed")
+    if cols[0].button("✅ Merge to Main", use_container_width=True):
+        merge_to_main(result['branch_name'])
+    if cols[1].button("🔄 Run Another Cycle", use_container_width=True):
+        st.rerun()
+    if cols[2].button("🔙 Rollback Changes", use_container_width=True):
+        if improver.rollback_to_main():
+            st.success("✅ Rolled back to main branch")
+        else:
+            st.error("❌ Rollback failed")
 
 
 def merge_to_main(branch_name: str):
