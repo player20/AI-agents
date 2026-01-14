@@ -948,9 +948,39 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
                         self._log(f"  ⚠ Fix too short for {Path(file_path).name} ({len(fixed_content)} chars), skipping", "warning")
                         self._log(f"     Content received: {repr(fixed_content[:100])}", "warning")
                 else:
-                    self._log(f"  ⚠ Could not find FILE_CONTENT_START/END markers in fix for {Path(file_path).name}", "warning")
-                    # Show first 200 chars of output for debugging
-                    self._log(f"  Agent output preview: {result_text[:200]}", "warning")
+                    # Fallback: Try to extract code from markdown code blocks
+                    # Agent likes to output: ```python\n<code>\n``` followed by explanation
+                    self._log(f"  ⚠ No FILE_CONTENT_START/END markers, trying fallback extraction for {Path(file_path).name}", "info")
+
+                    import re
+                    # Look for the largest code block (likely the full file)
+                    code_blocks = re.findall(r'```(?:python|py|javascript|js|typescript|ts|jsx|tsx|html|css)?\n(.*?)```', result_text, re.DOTALL)
+
+                    if code_blocks:
+                        # Use the largest code block (most likely to be the complete file)
+                        fixed_content = max(code_blocks, key=len)
+                        fixed_content = fixed_content.strip()
+
+                        # Validate - reject placeholder/truncated outputs
+                        if '...' in fixed_content[:200] or '…' in fixed_content[:200]:
+                            self._log(f"  ⚠ Fallback extraction found '...' placeholder, rejecting", "warning")
+                            continue
+
+                        # Validate we got substantial content
+                        if len(fixed_content) > 50:
+                            self._log(f"  ✓ Fallback extraction successful: {len(fixed_content)} chars from largest code block", "info")
+                            fixes.append({
+                                'file': file_path,
+                                'issue': issue,
+                                'original_content': current_content,
+                                'fixed_content': fixed_content
+                            })
+                        else:
+                            self._log(f"  ⚠ Fallback extraction too short ({len(fixed_content)} chars)", "warning")
+                    else:
+                        self._log(f"  ⚠ Could not find any code blocks in fix for {Path(file_path).name}", "warning")
+                        # Show first 200 chars of output for debugging
+                        self._log(f"  Agent output preview: {result_text[:200]}", "warning")
 
             except Exception as e:
                 self._log(f"Fix generation failed for {file_path}: {e}", "error")
