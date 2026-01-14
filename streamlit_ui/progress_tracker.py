@@ -31,8 +31,12 @@ class ProgressTracker:
         self.progress_bars = {}
         self.container = None  # Main container for re-rendering
 
-    def set_phase(self, phase: ProgressPhase):
+    def set_phase(self, phase: ProgressPhase) -> None:
         """Activate a specific phase"""
+        # Validate phase exists
+        if phase not in self.phases:
+            raise ValueError(f"Invalid phase: {phase}")
+
         # Mark previous phases as complete
         phase_order = list(self.phases.keys())
         current_index = phase_order.index(phase)
@@ -51,19 +55,24 @@ class ProgressTracker:
         self.current_phase = phase
         self._update_display()
 
-    def update_phase_progress(self, progress: float):
+    def update_phase_progress(self, progress: float) -> None:
         """Update progress for current phase (0.0 to 1.0)"""
+        # Validate input
+        if not isinstance(progress, (int, float)):
+            raise TypeError(f"Progress must be numeric, got {type(progress)}")
+
         if self.current_phase:
+            # Clamp to valid range [0.0, 1.0]
             self.phases[self.current_phase].progress = max(0.0, min(1.0, progress))
             self._update_display()
 
-    def render(self):
+    def render(self) -> None:
         """Initial render - create container"""
         if not self.container:
             self.container = st.empty()
         self._update_display()
 
-    def _update_display(self):
+    def _update_display(self) -> None:
         """Update display with current progress values"""
         if not self.container:
             return

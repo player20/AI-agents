@@ -53,7 +53,7 @@ def render_self_improvement():
             "Focus Area",
             list(mode_options.keys()),
             index=4,  # Default to "Everything"
-            help="Choose what aspect of the system to improve"
+            help="Select which part of the codebase to analyze and improve. The agents will scan relevant files and suggest fixes."
         )
 
     selected_mode, mode_description = mode_options[selected_mode_label]
@@ -78,7 +78,7 @@ def render_self_improvement():
         iterative_mode = st.checkbox(
             "🔄 Iterative Mode (LangGraph)",
             value=True,
-            help="Keep improving until quality threshold is met (recommended)"
+            help="Continuously run improvement cycles until target score is reached or max 10 iterations (recommended for comprehensive improvements)"
         )
 
     with cols2[1]:
@@ -89,7 +89,7 @@ def render_self_improvement():
                 max_value=10.0,
                 value=9.0,
                 step=0.5,
-                help="Stop when this quality score is reached"
+                help="System stops improving once this quality score is achieved (calculated based on issues found and fixed)"
             )
         else:
             target_score = None

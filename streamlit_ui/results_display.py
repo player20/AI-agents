@@ -26,6 +26,11 @@ def display_results(results: dict):
             - recommendations: List[str]
             - project_path: str
     """
+    # Validate input
+    if not isinstance(results, dict):
+        st.error("Invalid results format. Expected dictionary.")
+        return
+
     st.markdown("---")
     st.markdown("# 🎉 Your App is Ready!")
 
@@ -199,15 +204,18 @@ def display_results(results: dict):
         if st.button("📥 Download ZIP", use_container_width=True):
             project_path = results.get('project_path')
             if project_path:
-                zip_data = create_project_zip(project_path)
-                project_name = results.get('project_name', 'project').replace(' ', '_')
-                st.download_button(
-                    label="⬇️ Click to Download",
-                    data=zip_data,
-                    file_name=f"{project_name}.zip",
-                    mime="application/zip",
-                    use_container_width=True
-                )
+                try:
+                    zip_data = create_project_zip(project_path)
+                    project_name = results.get('project_name', 'project').replace(' ', '_')
+                    st.download_button(
+                        label="⬇️ Click to Download",
+                        data=zip_data,
+                        file_name=f"{project_name}.zip",
+                        mime="application/zip",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error(f"Failed to create ZIP file: {str(e)}")
             else:
                 st.error("Project path not available")
 
@@ -233,26 +241,44 @@ def create_project_zip(project_path: str) -> bytes:
 
     Returns:
         Bytes of ZIP file
+
+    Raises:
+        FileNotFoundError: If project path doesn't exist
+        PermissionError: If files can't be read
     """
+    project_path = Path(project_path)
+
+    # Validate project path exists
+    if not project_path.exists():
+        raise FileNotFoundError(f"Project path does not exist: {project_path}")
+
+    if not project_path.is_dir():
+        raise ValueError(f"Project path is not a directory: {project_path}")
+
     zip_buffer = io.BytesIO()
 
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        project_path = Path(project_path)
+    try:
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for root, dirs, files in os.walk(project_path):
+                # Skip node_modules, venv, etc.
+                dirs[:] = [d for d in dirs if d not in [
+                    'node_modules', 'venv', '__pycache__', '.git',
+                    'venv312', 'venv314', '.venv'
+                ]]
 
-        for root, dirs, files in os.walk(project_path):
-            # Skip node_modules, venv, etc.
-            dirs[:] = [d for d in dirs if d not in [
-                'node_modules', 'venv', '__pycache__', '.git',
-                'venv312', 'venv314', '.venv'
-            ]]
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arc_name = os.path.relpath(file_path, project_path)
+                    try:
+                        zip_file.write(file_path, arc_name)
+                    except (PermissionError, OSError) as e:
+                        # Log but continue with other files
+                        st.warning(f"Skipped file {file}: {str(e)}")
 
-            for file in files:
-                file_path = os.path.join(root, file)
-                arc_name = os.path.relpath(file_path, project_path)
-                zip_file.write(file_path, arc_name)
-
-    zip_buffer.seek(0)
-    return zip_buffer.read()
+        zip_buffer.seek(0)
+        return zip_buffer.read()
+    except Exception as e:
+        raise RuntimeError(f"Failed to create ZIP file: {str(e)}")
 
 
 def show_hf_upload_dialog(results: dict):
