@@ -171,12 +171,23 @@ class SelfImprover:
         return files
 
     def _identify_issues(self, files: List[Path], mode: str) -> List[Dict]:
-        """Use Senior agent to identify issues in code"""
+        """Use appropriate specialized agent based on mode to identify issues"""
         issues = []
 
-        # Get Senior agent for code review
-        senior_agent = create_agent_with_model(
-            "Senior",
+        # Select the right agent based on improvement mode
+        agent_mapping = {
+            ImprovementMode.UI_UX: "Designs",  # UI/UX Designer for UI/UX analysis
+            ImprovementMode.PERFORMANCE: "Senior",  # Senior Engineer for performance
+            ImprovementMode.AGENT_QUALITY: "Senior",  # Senior Engineer for agent quality
+            ImprovementMode.CODE_QUALITY: "Senior",  # Senior Engineer for code quality
+            ImprovementMode.EVERYTHING: "Senior"  # Senior Engineer for general analysis
+        }
+
+        agent_name = agent_mapping.get(mode, "Senior")
+        self._log(f"Using {agent_name} agent for {mode} analysis", "info")
+
+        analysis_agent = create_agent_with_model(
+            agent_name,
             MODEL_PRESETS[self.config['model']['default_preset']]
         )
 
@@ -203,12 +214,12 @@ class SelfImprover:
             # Execute analysis
             task = Task(
                 description=prompt,
-                agent=senior_agent,
+                agent=analysis_agent,
                 expected_output="Issues in EXACT format: ISSUE: [title]\nFILE: [path]\nSEVERITY: [HIGH/MEDIUM/LOW]\nDESCRIPTION: [text]\nSUGGESTION: [text]\n(blank line between issues)"
             )
 
             crew = Crew(
-                agents=[senior_agent],
+                agents=[analysis_agent],
                 tasks=[task],
                 process=Process.sequential,
                 verbose=False
