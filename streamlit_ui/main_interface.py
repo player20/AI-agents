@@ -38,16 +38,21 @@ def render_main_interface():
     st.markdown("3. Click the 'Start' button to begin the creation process.")
 
     # Main input - BIG and centered
+    st.markdown("### What do you want to build?")
     project_input = st.text_area(
-        "Project Description",
+        "Describe your project",
         placeholder="Example: A recipe app where users can save favorites, search by ingredients, and share with friends.",
         height=120,
         key="project_input",
-        label_visibility="collapsed"
+        label_visibility="visible",
+        help="Be specific about features, target users, and key functionality"
     )
 
-    # Options row (checkboxes + multiselect)
-    col1, col2, col3, col4 = st.columns(4)
+    # Options - 2 rows for better mobile layout
+    st.markdown("### Options")
+
+    # First row - checkboxes
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         do_market_research = st.checkbox(
@@ -56,12 +61,20 @@ def render_main_interface():
         )
 
     with col2:
-        research_only = st.checkbox(
-            "🔍 Research only",
-            value=False,
-            help="Stop after market research - review results before building",
-            disabled=not do_market_research
-        )
+        # Show explanation when disabled
+        if not do_market_research:
+            research_only = st.checkbox(
+                "🔍 Research only",
+                value=False,
+                disabled=True,
+                help="⚠️ Enable 'Market research' first to use this option"
+            )
+        else:
+            research_only = st.checkbox(
+                "🔍 Research only",
+                value=False,
+                help="Stop after market research - review results before building"
+            )
 
     with col3:
         has_existing_code = st.checkbox(
@@ -69,12 +82,13 @@ def render_main_interface():
             help="Upload code to improve (paste or zip upload)"
         )
 
-    with col4:
-        platforms = st.multiselect(
-            "🎯 Platforms",
-            ["Website", "Web App", "iOS", "Android"],
-            default=["Web App"]
-        )
+    # Second row - platforms
+    platforms = st.multiselect(
+        "🎯 Target Platforms",
+        ["Website", "Web App", "iOS", "Android"],
+        default=["Web App"],
+        help="Select one or more platforms to build for"
+    )
 
     # Start button and progress tracker
     col1, col2, col3 = st.columns([1, 1, 1])
@@ -82,8 +96,15 @@ def render_main_interface():
         start_button = st.button(
             "🚀 Start",
             use_container_width=True,
-            type="primary"
+            type="primary",
+            disabled=not project_input.strip(),  # Disable if empty
+            help="Describe your project above to get started" if not project_input.strip() else None
         )
+
+    # Validation message
+    if start_button and not project_input.strip():
+        st.error("⚠️ Please describe your project before starting.")
+        st.stop()
 
     # Progress tracker
     progress_tracker = ProgressTracker()
