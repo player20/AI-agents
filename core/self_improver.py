@@ -175,33 +175,36 @@ class SelfImprover:
         issues = []
 
         # Define agent teams for each improvement mode
-        # IMPORTANT: Verifier is ALWAYS last as the devil's advocate to challenge findings
+        # IMPORTANT: Challenger is ALWAYS last as the devil's advocate to challenge findings
+        # Verifier is included when hallucination detection is needed
         agent_teams = {
             ImprovementMode.UI_UX: [
                 "Designs",  # UI/UX Designer - lead
                 "UIDesigner",  # UI-specific expertise
                 "UXResearcher",  # User research and testing
                 "AccessibilitySpecialist",  # WCAG compliance
-                "Verifier",  # Devil's advocate - challenges false positives
+                "Challenger",  # Devil's advocate - challenges false positives & UX assumptions
             ],
             ImprovementMode.PERFORMANCE: [
                 "PerformanceEngineer",  # Performance specialist - lead
                 "Senior",  # Architecture review
                 "SRE",  # Reliability and optimization
                 "DatabaseAdmin",  # Database performance
-                "Verifier",  # Devil's advocate - ensures real performance issues
+                "Challenger",  # Devil's advocate - ensures real performance issues, not micro-optimizations
             ],
             ImprovementMode.AGENT_QUALITY: [
                 "AIResearcher",  # AI/ML best practices - lead
                 "Senior",  # System architecture
                 "MLEngineer",  # Agent optimization
-                "Verifier",  # Devil's advocate - hallucination detection & critical review
+                "Verifier",  # Hallucination detection
+                "Challenger",  # Devil's advocate - challenges agent design assumptions
             ],
             ImprovementMode.CODE_QUALITY: [
                 "Senior",  # Code review - lead
                 "Architect",  # Architecture patterns
                 "TechnicalLead",  # Best practices
-                "Verifier",  # Devil's advocate - challenges over-engineering claims
+                "Verifier",  # Ensures accuracy of claims
+                "Challenger",  # Devil's advocate - challenges over-engineering claims
             ],
             ImprovementMode.EVERYTHING: [
                 "Senior",  # Lead coordinator
@@ -209,7 +212,8 @@ class SelfImprover:
                 "PerformanceEngineer",  # Performance
                 "SecurityEngineer",  # Security
                 "QA",  # Testing
-                "Verifier",  # Devil's advocate - final critical review
+                "Verifier",  # Hallucination detection
+                "Challenger",  # Devil's advocate - final critical review
             ]
         }
 
