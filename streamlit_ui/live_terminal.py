@@ -1,7 +1,6 @@
 import streamlit as st
 from datetime import datetime
 from collections import deque
-from typing import Optional
 
 class LiveTerminalOutput:
     """Terminal-style output display with color coding"""

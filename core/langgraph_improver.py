@@ -65,7 +65,7 @@ def analyze_issues_node(state: ImprovementState) -> ImprovementState:
     mode = mode_map.get(state['mode'], ImprovementMode.UI_UX)
 
     # Analyze codebase (reuse existing logic)
-    files = improver._get_files_to_analyze(mode)
+    files = improver._get_files_to_analyze(target_files=None, mode=mode)
     screenshots = improver._capture_app_screenshots() if mode == ImprovementMode.UI_UX else []
     suggest_enhancements = state.get('suggest_enhancements', False)
     issues = improver._identify_issues(files, mode, screenshots, suggest_enhancements)

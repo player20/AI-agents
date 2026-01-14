@@ -1382,10 +1382,10 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
             # Check file size - use diff-based approach for large files
             line_count = len(current_content.splitlines())
 
-            # Threshold for diff-based approach: files >1000 lines
-            # With Grok's 4M tokens/min, we can handle full rewrites up to 1000 lines for best quality
-            # Only use diff-based for extremely large files to save tokens
-            if line_count > 1000:
+            # Threshold for diff-based approach: DISABLED (Grok handles full rewrites better)
+            # With Grok's 4M tokens/min and 480 rpm, we can do full rewrites for all files
+            # Diff-based approach was causing Grok to ignore format requirements
+            if False:  # Disabled - always use full rewrites
                 self._log(f"[SIZE] Large file detected ({line_count} lines) - using diff-based approach", "info")
 
                 # Generate diff-based fix
