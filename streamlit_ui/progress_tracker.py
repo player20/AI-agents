@@ -1,11 +1,13 @@
 import streamlit as st
 from dataclasses import dataclass
 from typing import Dict, Optional
+from .constants import COLORS, DIMENSIONS, SPACING
 
 
 class ProgressPhase:
     """4 phases of execution"""
-    def __init__(self, label, emoji):
+    def __init__(self, label: str, emoji: str) -> None:
+        """Initialize progress phase with label and emoji."""
         self.label = label
         self.emoji = emoji
 
@@ -20,7 +22,8 @@ class PhaseProgress:
 class ProgressTracker:
     """Tracks progress across 4 phases with live updates"""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize progress tracker with 4 default phases."""
         self.phases = {
             ProgressPhase("Project Planning", "🔍"): PhaseProgress("Project Planning", 0.0, "pending", "🔍"),
             ProgressPhase("Feature Drafting", "✏️"): PhaseProgress("Feature Drafting", 0.0, "pending", "✏️"),
@@ -32,7 +35,15 @@ class ProgressTracker:
         self.container = None  # Main container for re-rendering
 
     def set_phase(self, phase: ProgressPhase) -> None:
-        """Activate a specific phase"""
+        """
+        Activate a specific phase and mark previous phases complete.
+
+        Args:
+            phase: Phase to activate
+
+        Raises:
+            ValueError: If phase is invalid
+        """
         # Validate phase exists
         if phase not in self.phases:
             raise ValueError(f"Invalid phase: {phase}")
@@ -56,7 +67,15 @@ class ProgressTracker:
         self._update_display()
 
     def update_phase_progress(self, progress: float) -> None:
-        """Update progress for current phase (0.0 to 1.0)"""
+        """
+        Update progress for current active phase.
+
+        Args:
+            progress: Progress value (0.0 to 1.0)
+
+        Raises:
+            TypeError: If progress is not numeric
+        """
         # Validate input
         if not isinstance(progress, (int, float)):
             raise TypeError(f"Progress must be numeric, got {type(progress)}")
@@ -93,7 +112,7 @@ class ProgressTracker:
                 # Phase header with status
                 col1, col2 = st.columns([4, 1], gap="small")
                 with col1:
-                    st.markdown(f"<div style='display: flex; align-items: center;'><div>{phase_data.emoji}</div><div style='margin-left: 0.5rem;'>{phase_data.name}</div></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='display: flex; align-items: center;'><div>{phase_data.emoji}</div><div style='margin-left: {SPACING['sm']};'>{phase_data.name}</div></div>", unsafe_allow_html=True)
                 with col2:
                     st.markdown(f"<div style='display: flex; justify-content: end;'><div>{color} {status_emoji}</div></div>", unsafe_allow_html=True)
 
@@ -102,11 +121,11 @@ class ProgressTracker:
                     col1, col2 = st.columns([3, 1], gap="small")
                     with col1:
                         st.progress(phase_data.progress, label=f"{int(phase_data.progress * 100)}%", css={
-                            'background-color': '#333333',
-                            'color': '#ffffff',
-                            'height': '1.5rem',
-                            'border-radius': '0.5rem',
-                            'margin-top': '0.5rem'
+                            'background-color': COLORS["component_bg"],
+                            'color': COLORS["text_primary"],
+                            'height': DIMENSIONS["progress_bar_height"],
+                            'border-radius': DIMENSIONS["border_radius"],
+                            'margin-top': SPACING["sm"]
                         })
                     with col2:
                         st.markdown(f"{int(phase_data.progress * 100)}%", unsafe_allow_html=True)

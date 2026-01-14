@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import datetime
 from collections import deque
+from .constants import COLORS, DIMENSIONS
 
 class LiveTerminalOutput:
     """Terminal-style output display with color coding"""
@@ -49,15 +50,15 @@ class LiveTerminalOutput:
 
         # Define colors based on level
         color_map = {
-            "info": "#00ff00",      # Green
-            "success": "#44ff44",   # Bright green
-            "warning": "#ffff00",   # Accessible yellow
-            "error": "#ff4444",     # Accessible red
-            "system": "#00aaff"     # Blue
+            "info": COLORS["info"],
+            "success": COLORS["success"],
+            "warning": COLORS["warning"],
+            "error": COLORS["error"],
+            "system": COLORS["system"]
         }
 
         # Build HTML for terminal display
-        terminal_html = "<div style='background-color: #1a1d29; border-radius: 8px; padding: 16px; font-family: \"Courier New\", monospace; height: 400px; overflow-y: auto; margin: 16px 0;'>"
+        terminal_html = f"<div style='background-color: {COLORS['terminal_bg']}; border-radius: 8px; padding: 16px; font-family: \"Courier New\", monospace; height: {DIMENSIONS['terminal_height']}; overflow-y: auto; margin: 16px 0;'>"
 
         for line_data in self.lines:
             color = color_map.get(line_data["level"], "#00ff00")

@@ -2,6 +2,7 @@ import streamlit as st
 from streamlit_ui.progress_tracker import ProgressTracker, ProgressPhase
 from streamlit_ui.live_terminal import LiveTerminalOutput
 from streamlit_ui.results_display import display_results
+from streamlit_ui.constants import COLORS, SPACING, DIMENSIONS
 import zipfile
 import io
 import os
@@ -47,12 +48,12 @@ def render_main_interface() -> None:
             label_visibility="visible",
             help="Be specific about features, target users, and key functionality",
             css={
-                'color': '#ffffff',
-                'background-color': '#333333',
-                'padding': '1rem',
-                'border-radius': '0.5rem',
-                'margin-top': '0.5rem',  # Add margin-top for better spacing
-                'margin-bottom': '1rem'  # Add margin-bottom for better spacing
+                'color': COLORS["text_primary"],
+                'background-color': COLORS["component_bg"],
+                'padding': SPACING["md"],
+                'border-radius': DIMENSIONS["border_radius"],
+                'margin-top': SPACING["sm"],
+                'margin-bottom': SPACING["md"]
             }
         )
 
@@ -67,12 +68,12 @@ def render_main_interface() -> None:
             "📊 Market research",
             help="Analyze competitors, TAM/SAM/SOM, and get go/no-go decision",
             css={
-                'color': '#ffffff',
-                'background-color': '#333333',
+                'color': COLORS["text_primary"],
+                'background-color': COLORS["component_bg"],
                 'white-space': 'nowrap',
-                'height': '2.5rem',
+                'height': DIMENSIONS["button_height"],
                 'font-size': '1rem',
-                'padding': '0.5rem 1rem'
+                'padding': f'{SPACING["sm"]} {SPACING["md"]}'
             }
         )
 
@@ -85,12 +86,12 @@ def render_main_interface() -> None:
                 disabled=True,
                 help="⚠️ Enable 'Market research' first to use this option",
                 css={
-                    'color': '#999999',
+                    'color': COLORS["text_secondary"],
                     'background-color': '#444444',
                     'white-space': 'nowrap',
-                    'height': '2.5rem',
+                    'height': DIMENSIONS["button_height"],
                     'font-size': '1rem',
-                    'padding': '0.5rem 1rem'
+                    'padding': f'{SPACING["sm"]} {SPACING["md"]}'
                 }
             )
         else:
@@ -99,12 +100,12 @@ def render_main_interface() -> None:
                 value=False,
                 help="Stop after market research - review results before building",
                 css={
-                    'color': '#ffffff',
-                    'background-color': '#333333',
+                    'color': COLORS["text_primary"],
+                    'background-color': COLORS["component_bg"],
                     'white-space': 'nowrap',
-                    'height': '2.5rem',
+                    'height': DIMENSIONS["button_height"],
                     'font-size': '1rem',
-                    'padding': '0.5rem 1rem'
+                    'padding': f'{SPACING["sm"]} {SPACING["md"]}'
                 }
             )
 
@@ -113,12 +114,12 @@ def render_main_interface() -> None:
             "📦 Upgrade code",
             help="Upload code to improve (paste or zip upload)",
             css={
-                'color': '#ffffff',
-                'background-color': '#333333',
+                'color': COLORS["text_primary"],
+                'background-color': COLORS["component_bg"],
                 'white-space': 'nowrap',
-                'height': '2.5rem',
+                'height': DIMENSIONS["button_height"],
                 'font-size': '1rem',
-                'padding': '0.5rem 1rem'
+                'padding': f'{SPACING["sm"]} {SPACING["md"]}'
             }
         )
 
@@ -130,11 +131,11 @@ def render_main_interface() -> None:
             default=["Web App"],
             help="Select one or more platforms to build for",
             css={
-                'color': '#ffffff',
-                'background-color': '#333333',
-                'margin-top': '0.5rem',
+                'color': COLORS["text_primary"],
+                'background-color': COLORS["component_bg"],
+                'margin-top': SPACING["sm"],
                 'font-size': '1rem',
-                'padding': '0.5rem 1rem'
+                'padding': f'{SPACING["sm"]} {SPACING["md"]}'
             }
         )
 
@@ -148,14 +149,14 @@ def render_main_interface() -> None:
             disabled=not project_input.strip(),
             help="Describe your project above to get started" if not project_input.strip() else None,
             css={
-                'color': '#ffffff',
+                'color': COLORS["text_primary"],
                 'background-color': '#007bff',
                 'border-color': '#007bff',
                 'font-weight': 'bold',
-                'padding': '0.5rem 1rem',
-                'border-radius': '0.5rem',
+                'padding': f'{SPACING["sm"]} {SPACING["md"]}',
+                'border-radius': DIMENSIONS["border_radius"],
                 'white-space': 'nowrap',
-                'height': '2.5rem',
+                'height': DIMENSIONS["button_height"],
                 'font-size': '1rem'
             }
         )

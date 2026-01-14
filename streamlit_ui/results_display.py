@@ -10,9 +10,10 @@ import zipfile
 import io
 import os
 from typing import Dict, List, Optional
+from .constants import COLORS, THRESHOLDS
 
 
-def display_results(results: dict):
+def display_results(results: dict) -> None:
     """
     Display final results with synopsis, screenshots, and actions
 
@@ -74,7 +75,16 @@ def display_results(results: dict):
         range(0, 5): "🔴"    # 0-4: Needs work
     }
 
-    def get_emoji(score):
+    def get_emoji(score: int) -> str:
+        """
+        Get status emoji based on score value.
+
+        Args:
+            score: Numeric score (0-10)
+
+        Returns:
+            Emoji string representing score level (🟢/🟡/🟠/🔴)
+        """
         for score_range, emoji in score_emojis.items():
             if score in score_range:
                 return emoji
@@ -127,11 +137,11 @@ def display_results(results: dict):
                 }.get(test['status'], '❓')
 
                 status_color = {
-                    'passed': '#44ff44',
-                    'failed': '#ff4444',
-                    'skipped': '#888888',
-                    'warning': '#ffaa44'
-                }.get(test['status'], '#ffffff')
+                    'passed': COLORS["test_passed"],
+                    'failed': COLORS["test_failed"],
+                    'skipped': COLORS["test_skipped"],
+                    'warning': COLORS["test_warning"]
+                }.get(test['status'], COLORS["text_primary"])
 
                 st.markdown(f"""
                 <div style="border-left: 3px solid {status_color}; padding-left: 12px; margin: 8px 0;">
@@ -151,8 +161,8 @@ def display_results(results: dict):
         perf_cols = st.columns(4, gap="medium")
         with perf_cols[0]:
             load_time = performance.get('page_load_ms', 0)
-            load_color = "normal" if load_time < 3000 else "inverse"
-            st.metric("Page Load", f"{load_time}ms", delta="Fast" if load_time < 3000 else "Slow", delta_color=load_color)
+            load_color = "normal" if load_time < THRESHOLDS["page_load_ms_good"] else "inverse"
+            st.metric("Page Load", f"{load_time}ms", delta="Fast" if load_time < THRESHOLDS["page_load_ms_good"] else "Slow", delta_color=load_color)
 
         with perf_cols[1]:
             tti = performance.get('time_to_interactive_ms', 0)
@@ -164,17 +174,17 @@ def display_results(results: dict):
 
         with perf_cols[3]:
             size = performance.get('total_size_kb', 0)
-            size_color = "normal" if size < 1024 else "inverse"
-            st.metric("Total Size", f"{size}KB", delta="Light" if size < 1024 else "Heavy", delta_color=size_color)
+            size_color = "normal" if size < THRESHOLDS["bundle_size_kb_good"] else "inverse"
+            st.metric("Total Size", f"{size}KB", delta="Light" if size < THRESHOLDS["bundle_size_kb_good"] else "Heavy", delta_color=size_color)
 
     # Screenshots
     st.markdown("### 📸 Screenshots")
 
     screenshots = results.get('screenshots', [])
     if screenshots:
-        screenshot_cols = st.columns(min(len(screenshots), 3), gap="medium")
+        screenshot_cols = st.columns(min(len(screenshots), THRESHOLDS["max_screenshots"]), gap="medium")
 
-        for i, screenshot in enumerate(screenshots[:3]):  # Show max 3
+        for i, screenshot in enumerate(screenshots[:THRESHOLDS["max_screenshots"]]):
             with screenshot_cols[i]:
                 st.markdown(f"**{screenshot['name']}**")
                 try:
@@ -281,8 +291,13 @@ def create_project_zip(project_path: str) -> bytes:
         raise RuntimeError(f"Failed to create ZIP file: {str(e)}")
 
 
-def show_hf_upload_dialog(results: dict):
-    """Show Hugging Face upload dialog"""
+def show_hf_upload_dialog(results: dict) -> None:
+    """
+    Display Hugging Face upload dialog with model info.
+
+    Args:
+        results: Project results dictionary with model details
+    """
     st.markdown("### 🤗 Upload to Hugging Face Hub")
 
     project_name = results.get('project_name', 'my-project')

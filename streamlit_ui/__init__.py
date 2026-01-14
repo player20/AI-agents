@@ -18,5 +18,6 @@ __all__ = [
     "progress_tracker",
     "results_display",
     "self_improvement",
-    "live_terminal"
+    "live_terminal",
+    "constants"
 ]
