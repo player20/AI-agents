@@ -1202,7 +1202,28 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
         self._log(f"🔧 Fix generation using Sonnet (high quality mode)", "info")
 
         for issue in issues:
-            file_path = issue.get('file', '')
+            file_path_raw = issue.get('file', '')
+
+            # Handle multi-file issues (e.g., "file1.py, file2.py")
+            # Split into separate fixes for each file
+            if ', ' in file_path_raw:
+                file_paths = [fp.strip() for fp in file_path_raw.split(',')]
+                self._log(f"📋 Issue affects {len(file_paths)} files - creating separate fix for each", "info")
+
+                # Create separate issue for each file
+                for fp in file_paths:
+                    if Path(fp).exists():
+                        # Create a copy of the issue for this specific file
+                        single_file_issue = issue.copy()
+                        single_file_issue['file'] = fp
+                        issues.append(single_file_issue)
+                    else:
+                        self._log(f"   ⚠ File not found: {fp}", "warning")
+
+                # Skip the original multi-file issue
+                continue
+
+            file_path = file_path_raw
             if not file_path or not Path(file_path).exists():
                 issue_title = issue.get('title', 'Unknown issue')
                 self._log(f"⚠ Skipping issue '{issue_title}': Invalid file path '{file_path}'", "warning")
@@ -1224,8 +1245,9 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
             # Check file size - use diff-based approach for large files
             line_count = len(current_content.splitlines())
 
-            # Threshold for diff-based approach: files >1000 lines
-            if line_count > 1000:
+            # Threshold for diff-based approach: files >300 lines
+            # Even 339-line files hit Sonnet's token limits with verbose prompts
+            if line_count > 300:
                 self._log(f"📏 Large file detected ({line_count} lines) - using diff-based approach", "info")
 
                 # Generate diff-based fix
