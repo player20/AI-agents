@@ -1,8 +1,11 @@
+import os
+# Disable CrewAI telemetry before importing to avoid signal handler errors
+os.environ['OTEL_SDK_DISABLED'] = 'true'
+
 import gradio as gr
 from crewai import Agent, Task, Crew, Process
 from crewai.llm import LLM  # Explicit provider
 import json
-import os
 import git  # pip install gitpython
 from datetime import datetime
 import time  # Rate limit delay

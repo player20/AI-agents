@@ -12,6 +12,9 @@ from datetime import datetime
 import json
 import difflib
 
+# Disable CrewAI telemetry to avoid signal handler errors in background threads
+os.environ['OTEL_SDK_DISABLED'] = 'true'
+
 # Import agent infrastructure
 from multi_agent_team import load_agent_configs, create_agent_with_model, MODEL_PRESETS
 from crewai import Agent, Task, Crew, Process
@@ -1129,6 +1132,18 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
                     if not fixed_content:
                         self._log(f"  ⚠ Could not regenerate fix, skipping", "warning")
                         break
+
+                # SAFETY CHECK: Validate fixed content isn't catastrophically shorter
+                original_content = fix['original_content']
+                original_lines = len(original_content.splitlines())
+                fixed_lines = len(fixed_content.splitlines())
+
+                # Reject if file shrunk by >30% (likely incomplete/truncated output)
+                if fixed_lines < original_lines * 0.7:
+                    shrink_pct = int((1 - fixed_lines / original_lines) * 100)
+                    self._log(f"  ❌ REJECTED: File shrunk by {shrink_pct}% ({original_lines} → {fixed_lines} lines)", "error")
+                    self._log(f"     This looks like incomplete output. Refusing to apply destructive change.", "error")
+                    break
 
                 # Apply the fix temporarily
                 original_content = self._backup_and_apply(file_path, fixed_content)
