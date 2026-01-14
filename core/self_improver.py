@@ -175,30 +175,33 @@ class SelfImprover:
         issues = []
 
         # Define agent teams for each improvement mode
+        # IMPORTANT: Verifier is ALWAYS last as the devil's advocate to challenge findings
         agent_teams = {
             ImprovementMode.UI_UX: [
                 "Designs",  # UI/UX Designer - lead
                 "UIDesigner",  # UI-specific expertise
                 "UXResearcher",  # User research and testing
                 "AccessibilitySpecialist",  # WCAG compliance
+                "Verifier",  # Devil's advocate - challenges false positives
             ],
             ImprovementMode.PERFORMANCE: [
                 "PerformanceEngineer",  # Performance specialist - lead
                 "Senior",  # Architecture review
                 "SRE",  # Reliability and optimization
                 "DatabaseAdmin",  # Database performance
+                "Verifier",  # Devil's advocate - ensures real performance issues
             ],
             ImprovementMode.AGENT_QUALITY: [
                 "AIResearcher",  # AI/ML best practices - lead
                 "Senior",  # System architecture
-                "Verifier",  # Hallucination detection
                 "MLEngineer",  # Agent optimization
+                "Verifier",  # Devil's advocate - hallucination detection & critical review
             ],
             ImprovementMode.CODE_QUALITY: [
                 "Senior",  # Code review - lead
                 "Architect",  # Architecture patterns
                 "TechnicalLead",  # Best practices
-                "Verifier",  # Quality verification
+                "Verifier",  # Devil's advocate - challenges over-engineering claims
             ],
             ImprovementMode.EVERYTHING: [
                 "Senior",  # Lead coordinator
@@ -206,7 +209,7 @@ class SelfImprover:
                 "PerformanceEngineer",  # Performance
                 "SecurityEngineer",  # Security
                 "QA",  # Testing
-                "Verifier",  # Verification
+                "Verifier",  # Devil's advocate - final critical review
             ]
         }
 
@@ -239,15 +242,49 @@ class SelfImprover:
             # Mode-specific analysis prompts
             prompt = self._get_analysis_prompt(file_contents, mode)
 
-            # Create tasks for each agent to analyze from their perspective
+            # Create tasks: analysis agents find issues, Verifier challenges them
             tasks = []
-            for agent in analysis_agents:
+
+            # Tasks for analysis agents (all except Verifier)
+            for i, agent in enumerate(analysis_agents[:-1]):  # All except last (Verifier)
                 task = Task(
                     description=prompt,
                     agent=agent,
                     expected_output="Issues in EXACT format: ISSUE: [title]\nFILE: [path]\nSEVERITY: [HIGH/MEDIUM/LOW]\nDESCRIPTION: [text]\nSUGGESTION: [text]\n(blank line between issues)"
                 )
                 tasks.append(task)
+
+            # Special task for Verifier (devil's advocate)
+            verifier_prompt = f"""
+Review the issues identified by the previous agents for these files:
+
+{chr(10).join([f"FILE: {path}" for path in file_contents.keys()])}
+
+Your role as Devil's Advocate:
+1. Challenge each issue - is it REALLY a problem?
+2. Question severity ratings - are they inflated?
+3. Check for false positives - could this be intentional design?
+4. Verify suggestions won't introduce new bugs
+5. Apply cost-benefit analysis - is the fix worth the effort?
+
+For VALID issues, output them in the SAME format:
+ISSUE: [title]
+FILE: [path]
+SEVERITY: [HIGH/MEDIUM/LOW]
+DESCRIPTION: [what's wrong]
+SUGGESTION: [how to fix]
+
+For INVALID issues, REMOVE them and explain why in logs.
+Only output issues that pass critical scrutiny.
+"""
+
+            verifier_task = Task(
+                description=verifier_prompt,
+                agent=analysis_agents[-1],  # Verifier (last agent)
+                expected_output="Validated issues only, in exact format",
+                context=tasks  # Verifier sees output from all analysis tasks
+            )
+            tasks.append(verifier_task)
 
             # Run the crew with all agents working together
             crew = Crew(
