@@ -297,15 +297,25 @@ Analyze these files for improvement opportunities:
 
 {mode_focus.get(mode, mode_focus[ImprovementMode.EVERYTHING])}
 
-For each issue found, provide:
-ISSUE: [Short title]
-FILE: [file path]
-SEVERITY: [HIGH/MEDIUM/LOW]
-DESCRIPTION: [What's wrong and why it matters]
-SUGGESTION: [How to fix it]
+CRITICAL: You MUST use this EXACT format for each issue. Do NOT use prose or narrative format.
 
-Be specific and actionable. Focus on real issues, not nitpicks.
-Limit to the most impactful improvements.
+FORMAT EXAMPLE:
+ISSUE: Button text wrapping causes poor UX
+FILE: streamlit_ui/main_interface.py
+SEVERITY: MEDIUM
+DESCRIPTION: Toggle buttons wrap text across multiple lines, making them hard to read and unprofessional
+SUGGESTION: Add CSS to prevent text wrapping and ensure buttons maintain consistent height
+
+ISSUE: Missing error handling in API calls
+FILE: core/orchestrator.py
+SEVERITY: HIGH
+DESCRIPTION: API calls lack try-catch blocks, causing crashes on network failures
+SUGGESTION: Wrap API calls in try-except blocks with user-friendly error messages
+
+NOW ANALYZE THE FILES ABOVE AND REPORT ISSUES IN THIS EXACT FORMAT.
+DO NOT write "Based on my review" or any introductory text.
+START IMMEDIATELY with "ISSUE:" for the first issue.
+Use blank lines between issues.
 """
 
         return prompt

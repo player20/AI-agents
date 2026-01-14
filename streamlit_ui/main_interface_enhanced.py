@@ -839,13 +839,6 @@ def display_enhanced_results_from_orchestrator(result: Dict, params: Dict):
         with results_container:
             display_enhanced_results(params)
 
-    except Exception as e:
-        add_terminal_line(f"❌ Fatal error: {e}", "error")
-        st.error(f"### ❌ Execution Failed\n\n{str(e)}")
-        import traceback
-        with st.expander("🔍 Error Details"):
-            st.code(traceback.format_exc())
-
 
 def display_enhanced_results(params: Dict):
     """Display comprehensive results with all features"""

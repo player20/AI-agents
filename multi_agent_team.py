@@ -540,14 +540,14 @@ def load_agent_configs():
                 'category': agent.get('category', 'Uncategorized')
             }
 
-        print(f"✅ Loaded {len(agent_dict)} agents from agents.config.json")
+        print(f"[OK] Loaded {len(agent_dict)} agents from agents.config.json")
         return agent_dict
 
     except FileNotFoundError:
-        print("⚠️  agents.config.json not found, using hardcoded agent configs")
+        print("[WARNING] agents.config.json not found, using hardcoded agent configs")
         return None
     except Exception as e:
-        print(f"⚠️  Error loading agents.config.json: {e}, using hardcoded configs")
+        print(f"[WARNING] Error loading agents.config.json: {e}, using hardcoded configs")
         return None
 
 # Load dynamic agent configurations
