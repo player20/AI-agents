@@ -309,29 +309,38 @@ class CodeWeaverOrchestrator:
 
         Returns:
             Task output as string
+
+        Raises:
+            RuntimeError: If agent execution fails
         """
-        # Create task
-        task = Task(
-            description=task_description,
-            agent=agent,
-            expected_output="A comprehensive response addressing all points in the task description."
-        )
+        try:
+            # Create task
+            task = Task(
+                description=task_description,
+                agent=agent,
+                expected_output="A comprehensive response addressing all points in the task description."
+            )
 
-        # Create minimal crew with one agent
-        crew = Crew(
-            agents=[agent],
-            tasks=[task],
-            process=Process.sequential,
-            verbose=False
-        )
+            # Create minimal crew with one agent
+            crew = Crew(
+                agents=[agent],
+                tasks=[task],
+                process=Process.sequential,
+                verbose=False
+            )
 
-        # Execute
-        result = crew.kickoff()
+            # Execute with timeout protection
+            result = crew.kickoff()
 
-        # Extract string output
-        if hasattr(result, 'raw'):
-            return str(result.raw)
-        return str(result)
+            # Extract string output
+            if hasattr(result, 'raw'):
+                return str(result.raw)
+            return str(result)
+
+        except Exception as e:
+            error_msg = f"Agent execution failed: {str(e)}"
+            self._log(f"❌ {error_msg}", "error")
+            raise RuntimeError(error_msg) from e
 
     def run(self, user_input: str, **kwargs) -> Dict[str, Any]:
         """
@@ -516,17 +525,25 @@ Be critical but constructive.
                 if state.app_url:
                     self._log(f"🌐 Crawling {state.app_url}...")
 
-                    # Run async crawl
-                    sessions = asyncio.run(analyzer.crawl_app_flows(
-                        base_url=state.app_url,
-                        test_credentials=state.test_credentials,
-                        simulate_users=10
-                    ))
+                    try:
+                        # Run async crawl
+                        sessions = asyncio.run(analyzer.crawl_app_flows(
+                            base_url=state.app_url,
+                            test_credentials=state.test_credentials,
+                            simulate_users=10
+                        ))
 
-                    self._log(f"✅ Simulated {len(sessions)} user sessions", "success")
+                        self._log(f"✅ Simulated {len(sessions)} user sessions", "success")
 
-                    # Analyze funnel
-                    state.funnel_analysis = analyzer.analyze_sessions(sessions)
+                        # Analyze funnel
+                        state.funnel_analysis = analyzer.analyze_sessions(sessions)
+                    except Exception as e:
+                        self._log(f"❌ App crawling failed: {str(e)}", "error")
+                        state.funnel_analysis = {
+                            'biggest_drop_off': {'step': 'N/A', 'percentage': 0},
+                            'completion_rate': 0,
+                            'error': str(e)
+                        }
 
                     completion_rate = state.funnel_analysis['completion_rate']
                     self._log(f"📊 Completion rate: {completion_rate}%", "info")
@@ -811,7 +828,11 @@ Make it production-ready, well-commented, and follow best practices.
 
         # Start development server
         self._log("🚀 Starting development server...")
-        server_started = asyncio.run(runner.start_server())
+        try:
+            server_started = asyncio.run(runner.start_server())
+        except Exception as e:
+            self._log(f"❌ Server startup failed: {str(e)}", "error")
+            server_started = False
 
         if not server_started:
             self._log("⚠️ Could not start server. Skipping Playwright tests.", "warning")
@@ -830,8 +851,15 @@ Make it production-ready, well-commented, and follow best practices.
                 self._log(f"🧪 Test iteration {test_iteration}/{max_iterations}...")
 
                 # Run automated tests
-                test_results = asyncio.run(runner.run_tests())
-                state.test_results = test_results
+                try:
+                    test_results = asyncio.run(runner.run_tests())
+                    state.test_results = test_results
+                except Exception as e:
+                    self._log(f"❌ Test execution failed: {str(e)}", "error")
+                    test_results = [
+                        {"name": "Test execution", "status": "failed", "error": str(e), "duration_ms": 0}
+                    ]
+                    state.test_results = test_results
 
                 # Check pass rate
                 passed_tests = [t for t in test_results if t['status'] == 'passed']
@@ -890,13 +918,26 @@ Be specific and actionable. Focus on the root cause, not symptoms.
 
             # Capture screenshots
             self._log("📸 Capturing screenshots at different viewports...")
-            screenshots = asyncio.run(runner.capture_screenshots())
-            state.screenshots = screenshots
-            self._log(f"✅ Captured {len(screenshots)} screenshots")
+            try:
+                screenshots = asyncio.run(runner.capture_screenshots())
+                state.screenshots = screenshots
+                self._log(f"✅ Captured {len(screenshots)} screenshots")
+            except Exception as e:
+                self._log(f"⚠️ Screenshot capture failed: {str(e)}", "warning")
+                state.screenshots = []
 
             # Measure performance
             self._log("⚡ Measuring performance metrics...")
-            performance = asyncio.run(runner.measure_performance())
+            try:
+                performance = asyncio.run(runner.measure_performance())
+            except Exception as e:
+                self._log(f"⚠️ Performance measurement failed: {str(e)}", "warning")
+                performance = {
+                    'page_load_ms': 0,
+                    'time_to_interactive_ms': 0,
+                    'first_contentful_paint_ms': 0,
+                    'total_size_kb': 0
+                }
             state.agent_outputs['performance'] = performance
             self._log(f"⚡ Page load: {performance['page_load_ms']}ms")
 
