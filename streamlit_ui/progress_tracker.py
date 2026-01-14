@@ -97,18 +97,11 @@ class ProgressTracker:
                     color = "⚪"
 
                 # Phase header with status
-                col1, col2, col3 = st.columns([4, 1, 1])
+                col1, col2 = st.columns([5, 1])
                 with col1:
                     st.markdown(f"**{phase_data.emoji} {phase_data.name}**")
                 with col2:
                     st.markdown(f"{color} {status_emoji}")
-                with col3:
-                    if phase_data.status == "complete":
-                        st.button("View", key=f"view_{phase.name.lower()}", use_container_width=True)
-                    elif phase_data.status == "active":
-                        st.button("Working", key=f"working_{phase.name.lower()}", use_container_width=True, disabled=True)
-                    else:
-                        st.button("Pending", key=f"pending_{phase.name.lower()}", use_container_width=True, disabled=True)
 
                 # Progress bar
                 st.progress(phase_data.progress)
