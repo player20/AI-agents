@@ -478,28 +478,32 @@ Issues must be CONCRETE and SPECIFIC, not vague architectural observations.
 ❌ REMOVE: "Improve visual consistency" (too general)
 ❌ REMOVE: "Better user flow needed" (opinion, not concrete issue)
 
-STEP 3: FACT-CHECK (Only if steps 1-2 passed)
-- Is the claim verifiable from the code shown?
-- Are line numbers accurate (if mentioned)?
-- Does the description match what's actually in the code?
-- Is the severity rating justified by actual impact?
+STEP 3: LIGHT FACT-CHECK (Be lenient - keep issues unless obviously wrong)
+- If the issue seems plausible, KEEP IT (benefit of the doubt)
+- Only remove if clearly hallucinating code that doesn't exist
+- Line number accuracy is nice-to-have, not required
+- Accept reasonable severity ratings even if subjective
 
-EXAMPLES OF ISSUES TO REMOVE:
-❌ FILE: Unknown (no file specified)
-❌ FILE: Multiple files (affects multiple files - must pick ONE)
-❌ FILE: streamlit_ui/main_interface.py, streamlit_ui/results_display.py (multiple files - pick ONE)
-❌ FILE: Across the UI (too vague)
-❌ ISSUE: Lack of overall design system (too architectural, not specific)
-❌ ISSUE: Needs better mobile responsiveness (too vague, not concrete)
+ONLY REMOVE IF:
+❌ FILE: Unknown/Missing (no file specified)
+❌ FILE: Multiple files listed (must pick ONE specific file)
+❌ FILE: Across the UI / Multiple components (too vague - need specific file)
+❌ ISSUE: References code/functions that don't exist in the analyzed files (hallucination)
 
-OUTPUT FORMAT - For VERIFIED issues only:
+✅ KEEP EVERYTHING ELSE including:
+✅ Nitpicks and minor issues (we want perfection!)
+✅ Subjective improvements (readability, naming, style)
+✅ Issues without line numbers (general file-level issues are fine)
+✅ Slightly vague descriptions (if file is specific)
+
+OUTPUT FORMAT - For issues that pass minimal validation:
 ISSUE: [title]
 FILE: [path]
 SEVERITY: [HIGH/MEDIUM/LOW]
 DESCRIPTION: [what's wrong]
 SUGGESTION: [how to fix]
 
-For INVALID issues (bad file path, too vague, hallucinations), REMOVE them completely - don't output them at all.
+REMEMBER: When in doubt, KEEP the issue. We want to be demanding and find everything!
 """
 
             verifier_task = Task(
@@ -509,50 +513,55 @@ For INVALID issues (bad file path, too vague, hallucinations), REMOVE them compl
                 context=stage1_tasks  # Verifier sees ALL domain expert outputs
             )
 
-            # STAGE 3: Challenger applies devil's advocate critical filter
+            # STAGE 3: Challenger demands EVEN MORE issues and improvements
             challenger_prompt = f"""
-Apply final critical review to the verified findings for these files:
+Review the verified findings for these files and ADD MORE ISSUES:
 
 {chr(10).join([f"FILE: {path}" for path in file_contents.keys()])}
 
-Your role as Critical Challenger (Devil's Advocate + Specificity Enforcer):
+Your role as DEMANDING Quality Enforcer:
 
-FIRST: Ensure issues are SPECIFIC and ACTIONABLE
-❌ REMOVE if vague or architectural:
-- "Lack of overall design system" → Too architectural, can't fix in one file
-- "Needs better mobile responsiveness" → Too vague, what specifically?
-- "Improve visual consistency" → Too general, what exactly is inconsistent?
-- "Better user flow" → Too broad, opinion not concrete issue
-- Any issue that can't be fixed by editing a single file
+CRITICAL MINDSET:
+⚠️ The verified issues are just the START. You need to find EVEN MORE issues to improve quality.
+⚠️ NITPICKING IS ENCOURAGED - we want PERFECTION, not "good enough"
+⚠️ Even small improvements count - anything that makes code 1% better is worth reporting
 
-✅ KEEP if specific and actionable:
-- "Button text wraps to 2 lines at 375px viewport" → Can measure and fix
-- "Missing alt attribute on screenshot image at line 45" → Can verify and fix
-- "Color contrast 2.8:1 fails WCAG AA (needs 4.5:1)" → Can measure and fix
+YOUR TASKS:
+1. KEEP all specific, actionable issues from the verifier
+2. FIND ADDITIONAL issues the verifier might have missed:
+   - Minor style inconsistencies
+   - Variable names that could be clearer
+   - Missing comments or docstrings
+   - Hard-coded values that should be constants
+   - Functions that could be split into smaller ones
+   - Any code duplication (even 2-3 lines)
+   - Magic numbers without comments
+   - Error messages that could be more helpful
+   - Missing type hints
+   - Console.log or debug statements
+   - TODOs or FIXMEs
 
-THEN: Apply critical scrutiny to remaining specific issues
-1. Is it REALLY worth fixing or just nitpicking?
-2. Is the severity rating inflated?
-3. Could this be an intentional design choice?
-4. Will the suggested fix introduce new bugs or complexity?
-5. Cost-benefit: Is the fix worth the development effort?
-6. Edge case: Does this actually affect users?
+ONLY REMOVE if:
+❌ Too vague: "Needs better responsiveness" (what specifically?)
+❌ Architectural: "Lacks overall design system" (affects multiple files)
+❌ Multi-file: Issue can't be fixed in a single specific file
+❌ Hallucination: References code that doesn't exist
 
-CRITICAL FILTERS:
-- Reject vague architectural observations
-- Reject multi-file concerns disguised as single-file issues
-- Reject opinions disguised as problems
-- Keep only concrete, measurable, fixable issues
+✅ KEEP EVERYTHING ELSE including:
+✅ Nitpicks and minor improvements
+✅ Code style issues
+✅ Documentation gaps
+✅ Small optimizations
+✅ Readability improvements
 
-For VALID issues that pass your critical scrutiny, output them in EXACT format:
+OUTPUT FORMAT:
 ISSUE: [title]
 FILE: [path]
 SEVERITY: [HIGH/MEDIUM/LOW]
 DESCRIPTION: [what's wrong]
 SUGGESTION: [how to fix]
 
-For INVALID issues (vague, architectural, nitpicks, questionable value), REMOVE them.
-Only output issues that are specific, concrete, and genuinely worth fixing.
+GOAL: Output ALL valid issues + any new ones you find. Be thorough and demanding!
 """
 
             challenger_task = Task(
@@ -708,6 +717,32 @@ Analyze all aspects:
 {files_summary}
 {screenshots_summary}
 {mode_focus.get(mode, mode_focus[ImprovementMode.EVERYTHING])}
+
+==================== CRITICAL MINDSET ====================
+
+⚠️ BE EXTREMELY CRITICAL AND DEMANDING. This is a PROFESSIONAL codebase that needs to be PERFECT.
+
+MANDATORY REQUIREMENTS:
+1. You MUST find AT LEAST 3-5 issues per file analyzed
+2. Be HARSH - treat this like a production code review where quality matters
+3. LOWER YOUR STANDARDS - even minor improvements count as issues
+4. Look for EVERYTHING: typos, inconsistent spacing, missing comments, slightly unclear naming, etc.
+5. If code "works" but could be 1% better in ANY way, report it as an issue
+
+COMMON ISSUES TO ACTIVELY SEARCH FOR:
+- Hard-coded values that should be constants
+- Functions longer than 20 lines (should be split)
+- Variable names that could be more descriptive
+- Missing docstrings or comments
+- Inconsistent code style or formatting
+- Error messages that could be more helpful
+- Any duplication of code (even 2-3 lines)
+- Missing type hints in Python
+- Console.log statements left in code
+- TODOs or FIXMEs in comments
+- Magic numbers without explanation
+- Functions with more than 3 parameters
+- Deeply nested if statements (>2 levels)
 
 ==================== CRITICAL OUTPUT FORMAT REQUIREMENTS ====================
 
