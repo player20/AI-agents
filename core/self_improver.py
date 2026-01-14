@@ -1066,11 +1066,20 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
         applied = 0
         max_retries = 3
 
+        # Track which files have been modified
+        modified_files = {}
+
         for i, fix in enumerate(fixes):
             file_path = fix['file']
             issue = issues[i] if i < len(issues) else {}
 
             self._log(f"📝 Fix {i+1}/{len(fixes)}: {Path(file_path).name}", "info")
+
+            # Check if this file was already modified
+            if file_path in modified_files:
+                previous_fix_num = modified_files[file_path]
+                self._log(f"  ⚠️ WARNING: This file was already modified by Fix #{previous_fix_num}", "warning")
+                self._log(f"     This fix will OVERWRITE changes from Fix #{previous_fix_num}", "warning")
 
             # Try to get a working fix (up to max_retries attempts)
             for attempt in range(1, max_retries + 1):
@@ -1103,7 +1112,13 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
 
                 if test_passed:
                     # Success! Keep the fix
+                    modified_files[file_path] = i + 1  # Track this fix number
+
+                    # Show what changed
+                    changes_summary = self._summarize_changes(original_content, fixed_content)
                     self._log(f"  ✓ Fix applied and tested successfully", "success")
+                    self._log(f"     Changes: {changes_summary}", "info")
+
                     applied += 1
                     break
                 else:
@@ -1159,6 +1174,45 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
 
         # All tests passed
         return (True, "")
+
+    def _summarize_changes(self, original: str, fixed: str) -> str:
+        """Generate a concise summary of what changed between two file versions"""
+        import difflib
+
+        original_lines = original.splitlines()
+        fixed_lines = fixed.splitlines()
+
+        # Count changes
+        diff = list(difflib.unified_diff(original_lines, fixed_lines, lineterm=''))
+
+        # Filter to just the actual change lines (start with + or -)
+        additions = [line for line in diff if line.startswith('+') and not line.startswith('+++')]
+        deletions = [line for line in diff if line.startswith('-') and not line.startswith('---')]
+
+        # Find changed line numbers
+        changed_line_nums = []
+        for i, (orig_line, fixed_line) in enumerate(zip(original_lines, fixed_lines), 1):
+            if orig_line != fixed_line:
+                changed_line_nums.append(i)
+
+        # Build summary
+        if not additions and not deletions:
+            return "No changes detected"
+
+        parts = []
+        if changed_line_nums:
+            if len(changed_line_nums) <= 5:
+                parts.append(f"Modified lines {', '.join(map(str, changed_line_nums))}")
+            else:
+                parts.append(f"Modified {len(changed_line_nums)} lines")
+
+        parts.append(f"+{len(additions)} lines, -{len(deletions)} lines")
+
+        # Show a snippet of what was added if it's small
+        if len(additions) == 1 and len(additions[0]) < 60:
+            parts.append(f"Added: '{additions[0][1:].strip()}'")
+
+        return " | ".join(parts)
 
     def _regenerate_fix_with_feedback(self, file_path: str, original_content: str,
                                      issue: Dict, error_message: str, mode: str) -> str:
