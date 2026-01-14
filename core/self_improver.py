@@ -403,32 +403,74 @@ class SelfImprover:
             # Mode-specific analysis prompts (include screenshots for UI/UX analysis)
             prompt = self._get_analysis_prompt(file_contents, mode, screenshots)
 
-            # Create tasks: analysis agents find issues, Verifier challenges them
-            tasks = []
+            # ========== HYBRID 3-STAGE PIPELINE FOR BEST RESULTS ==========
+            # Stage 1: Domain experts analyze INDEPENDENTLY (no bias)
+            # Stage 2: Verifier reviews ALL findings for hallucinations
+            # Stage 3: Challenger applies devil's advocate filter
 
-            # Tasks for analysis agents (all except Verifier)
-            for i, agent in enumerate(analysis_agents[:-1]):  # All except last (Verifier)
+            # Split team into: domain experts, verifier, challenger
+            domain_experts = analysis_agents[:-2]  # All except Verifier and Challenger
+            verifier_agent = analysis_agents[-2]   # Second-to-last agent
+            challenger_agent = analysis_agents[-1]  # Last agent
+
+            self._log(f"  → Stage 1: {len(domain_experts)} domain experts analyzing independently (parallel mindset)", "info")
+            self._log(f"     Experts: {', '.join([a.role for a in domain_experts])}", "info")
+
+            # STAGE 1: Domain experts analyze independently (NO context = no bias)
+            stage1_tasks = []
+            for agent in domain_experts:
                 task = Task(
                     description=prompt,
                     agent=agent,
                     expected_output="Issues in EXACT format: ISSUE: [title]\nFILE: [path]\nSEVERITY: [HIGH/MEDIUM/LOW]\nDESCRIPTION: [text]\nSUGGESTION: [text]\n(blank line between issues)"
+                    # NO context = independent analysis, no anchoring bias
                 )
-                tasks.append(task)
+                stage1_tasks.append(task)
 
-            # Special task for Challenger (devil's advocate)
+            # STAGE 2: Verifier reviews ALL domain expert findings for hallucinations
+            verifier_prompt = f"""
+Review ALL findings from {len(domain_experts)} domain experts analyzing these files:
+
+{chr(10).join([f"FILE: {path}" for path in file_contents.keys()])}
+
+Your role as Verifier (Hallucination Detector):
+1. Fact-check every claim - is it verifiable from the code?
+2. Check for exaggerations or assumptions not supported by evidence
+3. Verify file paths and line numbers are accurate
+4. Ensure descriptions match what's actually in the code
+5. Remove issues based on imagined code or features that don't exist
+6. Validate severity ratings are justified by the actual impact
+
+For VERIFIED issues, output in EXACT format:
+ISSUE: [title]
+FILE: [path]
+SEVERITY: [HIGH/MEDIUM/LOW]
+DESCRIPTION: [what's wrong]
+SUGGESTION: [how to fix]
+
+For UNVERIFIED issues (hallucinations, unsubstantiated claims), REMOVE them.
+"""
+
+            verifier_task = Task(
+                description=verifier_prompt,
+                agent=verifier_agent,
+                expected_output="Only fact-checked, verified issues in exact format",
+                context=stage1_tasks  # Verifier sees ALL domain expert outputs
+            )
+
+            # STAGE 3: Challenger applies devil's advocate critical filter
             challenger_prompt = f"""
-Review the issues identified by the previous agents for these files:
+Apply final critical review to the verified findings for these files:
 
 {chr(10).join([f"FILE: {path}" for path in file_contents.keys()])}
 
 Your role as Critical Challenger (Devil's Advocate):
-1. Challenge each issue - is it REALLY a problem or just nitpicking?
-2. Question severity ratings - are they inflated or accurate?
+1. Challenge each issue - is it REALLY worth fixing or just nitpicking?
+2. Question severity ratings - are they inflated?
 3. Check for false positives - could this be intentional design choice?
 4. Verify suggestions won't introduce new bugs or complexity
 5. Apply cost-benefit analysis - is the fix worth the development effort?
-6. Hunt for edge cases in the suggestions themselves
-7. Question sacred cows and assumptions
+6. Question assumptions and sacred cows
 
 For VALID issues that pass your critical scrutiny, output them in EXACT format:
 ISSUE: [title]
@@ -437,34 +479,39 @@ SEVERITY: [HIGH/MEDIUM/LOW]
 DESCRIPTION: [what's wrong]
 SUGGESTION: [how to fix]
 
-For INVALID issues (false positives, nitpicks, questionable claims), REMOVE them.
+For INVALID issues (nitpicks, questionable value, edge cases), REMOVE them.
 Only output issues that are genuinely worth fixing.
 """
 
             challenger_task = Task(
                 description=challenger_prompt,
-                agent=analysis_agents[-1],  # Challenger (last agent)
+                agent=challenger_agent,
                 expected_output="Only validated, worthwhile issues in exact format",
-                context=tasks  # Challenger sees output from all analysis tasks
+                context=[verifier_task]  # Challenger only sees Verifier's output
             )
-            tasks.append(challenger_task)
 
-            # Run the crew with all agents working together
-            self._log(f"  → Running {len(analysis_agents)} agents: {', '.join([a.role for a in analysis_agents])}", "info")
+            # Combine all tasks for 3-stage pipeline
+            all_tasks = stage1_tasks + [verifier_task, challenger_task]
+
+            # Run the hybrid 3-stage crew
+            self._log(f"  → Stage 2: Verifier checking for hallucinations", "info")
+            self._log(f"  → Stage 3: Challenger applying critical filter", "info")
 
             crew = Crew(
                 agents=analysis_agents,
-                tasks=tasks,
-                process=Process.sequential,
+                tasks=all_tasks,  # Use the 3-stage pipeline tasks
+                process=Process.sequential,  # Tasks run in order, but Stage 1 agents don't see each other
                 verbose=False
             )
 
             try:
                 result = crew.kickoff()
+                # Result comes from Challenger (last task) - the final consolidated output
                 result_text = result.raw if hasattr(result, 'raw') else str(result)
 
                 # Log the raw result for debugging
-                self._log(f"  ✓ Team analysis complete ({len(result_text)} characters)", "info")
+                self._log(f"  ✓ 3-stage pipeline complete: {len(domain_experts)} experts → Verifier → Challenger", "info")
+                self._log(f"     Final output: {len(result_text)} characters from Challenger", "info")
 
                 # Parse issues from result
                 batch_issues = self._parse_issues(result_text, batch)
