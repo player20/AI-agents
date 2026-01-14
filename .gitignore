@@ -29,6 +29,7 @@ Thumbs.db
 exports/
 projects/
 team_memory.json
+.env
 
 # Temporary files
 *.log
