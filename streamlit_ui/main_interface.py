@@ -112,11 +112,16 @@ def render_main_interface():
     if start_button:
         progress_tracker.start()
 
-        # Simulate progress phases (replace with actual implementation)
-        progress_tracker.update(ProgressPhase.MARKET_RESEARCH, 25)
-        progress_tracker.update(ProgressPhase.IDEATION, 50)
-        progress_tracker.update(ProgressPhase.DESIGN, 75)
-        progress_tracker.update(ProgressPhase.IMPLEMENTATION, 100)
+        try:
+            # Simulate progress phases (replace with actual implementation)
+            progress_tracker.update(ProgressPhase.MARKET_RESEARCH, 25)
+            progress_tracker.update(ProgressPhase.IDEATION, 50)
+            progress_tracker.update(ProgressPhase.DESIGN, 75)
+            progress_tracker.update(ProgressPhase.IMPLEMENTATION, 100)
 
-        # Display results
-        display_results(progress_tracker)
+            # Display results
+            display_results(progress_tracker)
+        except Exception as e:
+            st.error(f"⚠️ An unexpected error occurred: {str(e)}")
+            st.error("Please try again or contact support if the issue persists.")
+            st.stop()
