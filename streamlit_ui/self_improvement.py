@@ -46,20 +46,20 @@ def render_self_improvement():
         "✨ Everything": (ImprovementMode.EVERYTHING, "Comprehensive improvement across all areas")
     }
 
-    selected_mode_label = st.radio(
-        "Focus Area",
-        list(mode_options.keys()),
-        index=4,  # Default to "Everything"
-        help="Choose what aspect of the system to improve"
-    )
+    with st.columns(4, gap="small") as cols:
+        selected_mode_label = cols[0].radio(
+            "Focus Area",
+            list(mode_options.keys()),
+            index=4,  # Default to "Everything"
+            help="Choose what aspect of the system to improve"
+        )
 
     selected_mode, mode_description = mode_options[selected_mode_label]
-    st.info(f"**{selected_mode_label}:** {mode_description}")
+    cols[1].info(f"**{selected_mode_label}:** {mode_description}")
 
     # Forever mode checkbox
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        forever_mode = st.checkbox(
+    with st.columns([3, 1], gap="small") as cols:
+        forever_mode = cols[0].checkbox(
             "🔁 Improve me forever (run until stopped)",
             value=False,
             help="Continuously run improvement cycles until you click Stop"
@@ -81,9 +81,8 @@ def render_self_improvement():
     ] if target_files_text.strip() else None
 
     # Start button
-    col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
-    with col_btn2:
-        start_button = st.button(
+    with st.columns(3, gap="small") as cols:
+        start_button = cols[1].button(
             "🚀 Start Improvement Cycle",
             use_container_width=True,
             type="primary"
@@ -174,9 +173,8 @@ def run_forever_mode(mode: str, target_files: list = None):
     st.warning("⚠️ **Forever mode is running!** The system will continuously improve until you stop it.")
 
     # Stop button
-    col_stop1, col_stop2, col_stop3 = st.columns([1, 1, 1])
-    with col_stop2:
-        stop_button = st.button("🛑 STOP Forever Mode", use_container_width=True, type="secondary")
+    with st.columns(3, gap="small") as cols:
+        stop_button = cols[1].button("🛑 STOP Forever Mode", use_container_width=True, type="secondary")
 
     if stop_button:
         st.session_state['forever_mode_active'] = False
@@ -255,17 +253,12 @@ def display_improvement_results(result: dict, improver: 'SelfImprover'):
     st.markdown("---")
 
     # Summary metrics
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric("Files Analyzed", result['files_analyzed'])
-    with col2:
-        st.metric("Issues Found", result['issues_found'])
-    with col3:
-        st.metric("Fixes Applied", result['fixes_applied'])
-    with col4:
+    with st.columns(4, gap="small") as cols:
+        cols[0].metric("Files Analyzed", result['files_analyzed'])
+        cols[1].metric("Issues Found", result['issues_found'])
+        cols[2].metric("Fixes Applied", result['fixes_applied'])
         improvement = result['scores']['improvement']
-        st.metric(
+        cols[3].metric(
             "Improvement",
             f"+{improvement}" if improvement > 0 else str(improvement),
             delta=f"{improvement}/10"
@@ -301,15 +294,12 @@ def display_improvement_results(result: dict, improver: 'SelfImprover'):
     # Impact scores
     st.markdown("### 📊 Impact Assessment")
 
-    score_cols = st.columns(3)
-    with score_cols[0]:
-        st.metric("Before", f"{result['scores']['before']}/10")
-    with score_cols[1]:
-        st.metric("After", f"{result['scores']['after']}/10")
-    with score_cols[2]:
+    with st.columns(3, gap="small") as cols:
+        cols[0].metric("Before", f"{result['scores']['before']}/10")
+        cols[1].metric("After", f"{result['scores']['after']}/10")
         improvement = result['scores']['improvement']
         delta_color = "normal" if improvement > 0 else "inverse"
-        st.metric(
+        cols[2].metric(
             "Improvement",
             f"+{improvement}" if improvement > 0 else str(improvement),
             delta=f"{abs(improvement)} points",
@@ -323,18 +313,12 @@ def display_improvement_results(result: dict, improver: 'SelfImprover'):
     # Action buttons
     st.markdown("### 🎯 Next Steps")
 
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        if st.button("✅ Merge to Main", use_container_width=True):
+    with st.columns(3, gap="small") as cols:
+        if cols[0].button("✅ Merge to Main", use_container_width=True):
             merge_to_main(result['branch_name'])
-
-    with col2:
-        if st.button("🔄 Run Another Cycle", use_container_width=True):
+        if cols[1].button("🔄 Run Another Cycle", use_container_width=True):
             st.rerun()
-
-    with col3:
-        if st.button("🔙 Rollback Changes", use_container_width=True):
+        if cols[2].button("🔙 Rollback Changes", use_container_width=True):
             if improver.rollback_to_main():
                 st.success("✅ Rolled back to main branch")
             else:

@@ -29,6 +29,14 @@ except ImportError as e:
 def render_main_interface():
     """Render the main creation interface"""
 
+    # Introductory section with instructions
+    st.markdown("## 🚀 Code Weaver Pro")
+    st.markdown("Welcome to Code Weaver Pro! This tool helps you create a new project by providing market research, generating code, and more.")
+    st.markdown("To get started, please follow these steps:")
+    st.markdown("1. Describe your project in the input below.")
+    st.markdown("2. Select the relevant options to customize your project.")
+    st.markdown("3. Click the 'Start' button to begin the creation process.")
+
     # Main input - BIG and centered
     project_input = st.text_area(
         "Project Description",
@@ -67,3 +75,27 @@ def render_main_interface():
             ["Website", "Web App", "iOS", "Android"],
             default=["Web App"]
         )
+
+    # Start button and progress tracker
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        start_button = st.button(
+            "🚀 Start",
+            use_container_width=True,
+            type="primary"
+        )
+
+    # Progress tracker
+    progress_tracker = ProgressTracker()
+
+    if start_button:
+        progress_tracker.start()
+
+        # Simulate progress phases (replace with actual implementation)
+        progress_tracker.update(ProgressPhase.MARKET_RESEARCH, 25)
+        progress_tracker.update(ProgressPhase.IDEATION, 50)
+        progress_tracker.update(ProgressPhase.DESIGN, 75)
+        progress_tracker.update(ProgressPhase.IMPLEMENTATION, 100)
+
+        # Display results
+        display_results(progress_tracker)
