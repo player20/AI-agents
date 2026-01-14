@@ -70,7 +70,7 @@ class SelfImprover:
         self,
         mode: str = ImprovementMode.EVERYTHING,
         target_files: Optional[List[str]] = None,
-        max_issues: int = 5
+        max_issues: int = 2  # Reduced from 5 to 2 due to API rate limits (5 req/min, 4K output tokens/min)
     ) -> Dict:
         """
         Run one improvement cycle
@@ -78,7 +78,7 @@ class SelfImprover:
         Args:
             mode: Improvement mode (ui_ux, performance, agent_quality, code_quality, everything)
             target_files: Optional list of specific files to analyze
-            max_issues: Maximum number of issues to fix per cycle
+            max_issues: Maximum number of issues to fix per cycle (default: 2, reduced due to API rate limits)
 
         Returns:
             Dictionary with cycle results
@@ -120,17 +120,18 @@ class SelfImprover:
         prioritized_issues = self._prioritize_issues(issues)
 
         # Adaptive batch size: more simple fixes, fewer complex fixes
+        # API Rate Limits: Keep batches small (max 2-3) to stay under 5 req/min, 4K output tokens/min
         simple_count = sum(1 for issue in prioritized_issues[:max_issues*2] if issue.get('complexity') == 'SIMPLE')
         complex_count = sum(1 for issue in prioritized_issues[:max_issues*2] if issue.get('complexity') == 'COMPLEX')
 
-        # If mostly simple fixes, allow up to 10
-        # If mostly complex, stick to 5
+        # If mostly simple fixes, allow up to 3 (was 10, reduced for rate limits)
+        # If mostly complex, stick to 1 (was 3, reduced for rate limits)
         # Mix: adjust dynamically
-        if simple_count > max_issues and complex_count <= 2:
-            adaptive_max = min(10, len(prioritized_issues))
+        if simple_count > max_issues and complex_count == 0:
+            adaptive_max = min(3, len(prioritized_issues))
             self._log(f"📈 Adaptive batch: {simple_count} simple fixes detected, increasing batch to {adaptive_max}", "info")
-        elif complex_count >= 3:
-            adaptive_max = max(3, max_issues - 2)
+        elif complex_count >= 2:
+            adaptive_max = 1
             self._log(f"📉 Adaptive batch: {complex_count} complex fixes detected, reducing batch to {adaptive_max}", "info")
         else:
             adaptive_max = max_issues
@@ -1216,6 +1217,14 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
         """Generate code fixes for identified issues"""
         fixes = []
 
+        # Rate Limit Awareness (Anthropic Free Tier - Sonnet 4.5)
+        # - 5 requests/min
+        # - 10K input tokens/min
+        # - 4K output tokens/min (BOTTLENECK!)
+        #
+        # Strategy: Process fewer issues, add delays between requests
+        import time
+
         # Use appropriate agents based on mode
         agent_map = {
             ImprovementMode.UI_UX: "Designs",
@@ -1235,6 +1244,7 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
         )
 
         self._log(f"🔧 Fix generation using Sonnet (high quality mode)", "info")
+        self._log(f"⏱️  Rate limit aware: 15s delay between fixes to stay under 4K tokens/min", "info")
 
         for issue in issues:
             file_path_raw = issue.get('file', '')
@@ -1515,6 +1525,13 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
 
             except Exception as e:
                 self._log(f"Fix generation failed for {file_path}: {e}", "error")
+
+            # Rate limit protection: Wait 15 seconds between fix generations
+            # This ensures we stay under 4K output tokens/min limit
+            # (Each fix can consume 1-2K tokens, so spacing them out avoids hitting the limit)
+            if len(fixes) < len(issues) - 1:  # Don't wait after the last fix
+                self._log(f"  ⏳ Waiting 15s before next fix (rate limit protection)...", "info")
+                time.sleep(15)
 
         return fixes
 
