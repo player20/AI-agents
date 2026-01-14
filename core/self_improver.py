@@ -827,74 +827,61 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
                 self._log(f"Could not read {file_path}: {e}", "error")
                 continue
 
-            # Generate fix with EXPLICIT format requirements
+            # Generate fix with ULTRA-EXPLICIT format requirements
+            # Problem: Agent keeps adding explanations instead of using markers
+            # Solution: Put format requirements FIRST and make them UNMISSABLE
             fix_prompt = f"""
-Fix this issue in the code:
+⚠️⚠️⚠️ CRITICAL FORMAT REQUIREMENT - READ THIS FIRST ⚠️⚠️⚠️
+
+YOUR ENTIRE RESPONSE MUST BE IN THIS EXACT FORMAT:
+
+FILE_CONTENT_START
+[complete fixed file code here]
+FILE_CONTENT_END
+
+NOTHING ELSE. NO TEXT BEFORE. NO TEXT AFTER. NO EXPLANATIONS.
+
+❌ WRONG: "The fixed code with improved accessibility is provided above..."
+❌ WRONG: "Here's the fixed code..."
+❌ WRONG: Starting with anything other than "FILE_CONTENT_START"
+❌ WRONG: Ending with anything other than "FILE_CONTENT_END"
+✅ RIGHT: First line is "FILE_CONTENT_START", last line is "FILE_CONTENT_END"
+
+If you output ANYTHING except this format, your response will be REJECTED.
+
+===============================================================================
+
+Now, here's the fix task:
 
 FILE: {file_path}
 ISSUE: {issue.get('title', 'Unknown issue')}
 DESCRIPTION: {issue.get('description', '')}
 SUGGESTION: {issue.get('suggestion', '')}
 
-CURRENT CODE:
+CURRENT CODE (first 3000 chars):
 ```
 {current_content[:3000]}
 ```
 
-==================== CRITICAL OUTPUT FORMAT REQUIREMENTS ====================
+INSTRUCTIONS:
+1. Fix the issue described above
+2. Output the ENTIRE fixed file (all lines, not just the changed part)
+3. Wrap output in FILE_CONTENT_START and FILE_CONTENT_END markers
+4. NO explanations, NO prose, NO text before/after markers
 
-YOU MUST OUTPUT IN THIS EXACT FORMAT. NO EXCEPTIONS. NO EXPLANATIONS. NO PROSE.
-
-CORRECT FORMAT (copy this structure exactly):
-
+REMINDER - YOUR OUTPUT MUST START WITH EXACTLY THIS:
 FILE_CONTENT_START
-[paste the COMPLETE fixed file content here - all lines, from first import to last line]
+
+And end with exactly this:
 FILE_CONTENT_END
 
-WRONG FORMATS (DO NOT USE):
-❌ "Here's the fixed code..."
-❌ "I've fixed the issue by..."
-❌ Starting with explanations before FILE_CONTENT_START
-❌ Adding comments after FILE_CONTENT_END
-❌ Using different markers like ```python or "Here's the fix:"
-❌ Outputting only the changed section (MUST output ENTIRE file)
-❌ Using "..." placeholders or truncating code (FORBIDDEN!)
-❌ Abbreviating with "// rest of file" or similar
-
-CRITICAL - DO NOT USE PLACEHOLDERS:
-- DO NOT use "..." to represent omitted code
-- DO NOT truncate or abbreviate ANY part of the file
-- Output EVERY SINGLE LINE from start to finish
-- If you use "..." you have FAILED this task
-
-REQUIREMENTS:
-1. First line MUST be exactly: FILE_CONTENT_START
-2. No text before FILE_CONTENT_START (not even "Sure!" or "Here it is")
-3. Paste the ENTIRE fixed file (all lines from start to finish - NO "..." ALLOWED)
-4. Last line MUST be exactly: FILE_CONTENT_END
-5. No text after FILE_CONTENT_END (no explanations)
-
-EXAMPLE OF CORRECT OUTPUT:
-
-FILE_CONTENT_START
-import streamlit as st
-import os
-
-def main():
-    # Fixed code here with the issue resolved
-    st.write("Hello World")
-
-if __name__ == "__main__":
-    main()
-FILE_CONTENT_END
-
-BEGIN OUTPUT NOW (start with "FILE_CONTENT_START" on the very first line):
+BEGIN NOW - First word must be "FILE_CONTENT_START":
 """
 
             task = Task(
                 description=fix_prompt,
                 agent=fix_agent,
-                expected_output="Fixed file content between FILE_CONTENT_START and FILE_CONTENT_END"
+                expected_output="FILE_CONTENT_START\n[complete fixed file]\nFILE_CONTENT_END\n\nNOTHING ELSE. First line MUST be FILE_CONTENT_START. Last line MUST be FILE_CONTENT_END. No explanations."
             )
 
             crew = Crew(
@@ -1083,7 +1070,19 @@ BEGIN OUTPUT NOW (start with "FILE_CONTENT_START" on the very first line):
         )
 
         fix_prompt = f"""
-Your previous fix for this issue FAILED testing. Fix the error and try again.
+⚠️⚠️⚠️ CRITICAL FORMAT REQUIREMENT ⚠️⚠️⚠️
+
+YOUR ENTIRE RESPONSE MUST BE:
+
+FILE_CONTENT_START
+[complete fixed file code here]
+FILE_CONTENT_END
+
+NOTHING ELSE. NO TEXT BEFORE. NO TEXT AFTER. NO EXPLANATIONS.
+
+===============================================================================
+
+Your previous fix FAILED testing. Fix the error and try again.
 
 FILE: {file_path}
 ISSUE: {issue.get('title', 'Unknown issue')}
@@ -1097,36 +1096,28 @@ ORIGINAL CODE:
 PREVIOUS FIX FAILED WITH ERROR:
 {error_message}
 
-==================== CRITICAL: FIX THE ERROR ====================
-
-Your previous fix had this error: {error_message}
-
-You MUST:
+WHAT TO DO:
 1. Understand WHY the error occurred
 2. Generate a NEW fix that DOES NOT have this error
 3. Ensure syntax is 100% valid Python
-4. Make sure the file can be imported without errors
+4. Output ENTIRE file wrapped in FILE_CONTENT_START / FILE_CONTENT_END
 
 Common issues to avoid:
-- 'await' outside async function → only use await inside 'async def'
+- 'await' outside async function
 - Missing colons after if/for/while/def/class
 - Incorrect indentation
 - Unmatched parentheses/brackets
 
-==================== OUTPUT FORMAT ====================
+REMINDER - Your output MUST start with "FILE_CONTENT_START" and end with "FILE_CONTENT_END". NO other text.
 
-FILE_CONTENT_START
-[paste the COMPLETE fixed file - valid Python syntax]
-FILE_CONTENT_END
-
-BEGIN OUTPUT NOW (start with "FILE_CONTENT_START"):
+BEGIN NOW:
 """
 
         try:
             task = Task(
                 description=fix_prompt,
                 agent=fix_agent,
-                expected_output="Fixed file content between FILE_CONTENT_START and FILE_CONTENT_END"
+                expected_output="FILE_CONTENT_START\n[complete fixed file]\nFILE_CONTENT_END\n\nNOTHING ELSE. First line MUST be FILE_CONTENT_START. Last line MUST be FILE_CONTENT_END. No explanations."
             )
 
             crew = Crew(
