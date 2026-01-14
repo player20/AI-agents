@@ -91,7 +91,7 @@ def render_main_interface():
     )
 
     # Start button and progress tracker
-    col1, col2, col3 = st.columns([1, 1, 1])
+    col1, col2, col3 = st.columns([1, 1, 1], gap="medium")
     with col2:
         start_button = st.button(
             "🚀 Start",
