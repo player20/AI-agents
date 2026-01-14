@@ -989,8 +989,43 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
                 verbose=False
             )
 
-            result = crew.kickoff()
-            result_text = str(result)
+            # Retry logic for API failures (500 errors, rate limits, etc.)
+            max_retries = 3
+            retry_delay = 2  # seconds
+            result_text = None
+
+            for attempt in range(1, max_retries + 1):
+                try:
+                    result = crew.kickoff()
+                    result_text = str(result)
+                    break  # Success - exit retry loop
+
+                except Exception as api_error:
+                    error_str = str(api_error)
+
+                    # Check if it's a retryable error (500, rate limit, timeout)
+                    is_retryable = (
+                        '500' in error_str or
+                        'Internal server error' in error_str or
+                        '429' in error_str or
+                        'rate' in error_str.lower() or
+                        'timeout' in error_str.lower()
+                    )
+
+                    if is_retryable and attempt < max_retries:
+                        wait_time = retry_delay * (2 ** (attempt - 1))  # Exponential backoff
+                        self._log(f"  ⚠ API error (attempt {attempt}/{max_retries}): {error_str[:100]}", "warning")
+                        self._log(f"  ⏳ Retrying in {wait_time}s...", "info")
+                        import time
+                        time.sleep(wait_time)
+                    else:
+                        # Non-retryable error or max retries reached
+                        self._log(f"  ❌ API error after {attempt} attempts: {error_str[:200]}", "error")
+                        raise
+
+            if result_text is None:
+                self._log(f"  ❌ Failed to get response after {max_retries} retries", "error")
+                return None
 
             # Debug: Log what agent actually returned
             self._log(f"  📄 Agent output preview (first 500 chars):", "info")
@@ -1346,8 +1381,43 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
             )
 
             try:
-                result = crew.kickoff()
-                result_text = result.raw if hasattr(result, 'raw') else str(result)
+                # Retry logic for API failures (500 errors, rate limits, etc.)
+                max_retries = 3
+                retry_delay = 2  # seconds
+                result_text = None
+
+                for attempt in range(1, max_retries + 1):
+                    try:
+                        result = crew.kickoff()
+                        result_text = result.raw if hasattr(result, 'raw') else str(result)
+                        break  # Success - exit retry loop
+
+                    except Exception as api_error:
+                        error_str = str(api_error)
+
+                        # Check if it's a retryable error (500, rate limit, timeout)
+                        is_retryable = (
+                            '500' in error_str or
+                            'Internal server error' in error_str or
+                            '429' in error_str or
+                            'rate' in error_str.lower() or
+                            'timeout' in error_str.lower()
+                        )
+
+                        if is_retryable and attempt < max_retries:
+                            wait_time = retry_delay * (2 ** (attempt - 1))  # Exponential backoff
+                            self._log(f"  ⚠ API error (attempt {attempt}/{max_retries}): {error_str[:100]}", "warning")
+                            self._log(f"  ⏳ Retrying in {wait_time}s...", "info")
+                            import time
+                            time.sleep(wait_time)
+                        else:
+                            # Non-retryable error or max retries reached
+                            self._log(f"  ❌ API error after {attempt} attempts: {error_str[:200]}", "error")
+                            raise
+
+                if result_text is None:
+                    self._log(f"  ❌ Failed to get response after {max_retries} retries", "error")
+                    continue
 
                 # Extract fixed content with robust parsing
                 if 'FILE_CONTENT_START' in result_text and 'FILE_CONTENT_END' in result_text:
