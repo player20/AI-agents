@@ -258,37 +258,39 @@ class SelfImprover:
                 )
                 tasks.append(task)
 
-            # Special task for Verifier (devil's advocate)
-            verifier_prompt = f"""
+            # Special task for Challenger (devil's advocate)
+            challenger_prompt = f"""
 Review the issues identified by the previous agents for these files:
 
 {chr(10).join([f"FILE: {path}" for path in file_contents.keys()])}
 
-Your role as Devil's Advocate:
-1. Challenge each issue - is it REALLY a problem?
-2. Question severity ratings - are they inflated?
-3. Check for false positives - could this be intentional design?
-4. Verify suggestions won't introduce new bugs
-5. Apply cost-benefit analysis - is the fix worth the effort?
+Your role as Critical Challenger (Devil's Advocate):
+1. Challenge each issue - is it REALLY a problem or just nitpicking?
+2. Question severity ratings - are they inflated or accurate?
+3. Check for false positives - could this be intentional design choice?
+4. Verify suggestions won't introduce new bugs or complexity
+5. Apply cost-benefit analysis - is the fix worth the development effort?
+6. Hunt for edge cases in the suggestions themselves
+7. Question sacred cows and assumptions
 
-For VALID issues, output them in the SAME format:
+For VALID issues that pass your critical scrutiny, output them in EXACT format:
 ISSUE: [title]
 FILE: [path]
 SEVERITY: [HIGH/MEDIUM/LOW]
 DESCRIPTION: [what's wrong]
 SUGGESTION: [how to fix]
 
-For INVALID issues, REMOVE them and explain why in logs.
-Only output issues that pass critical scrutiny.
+For INVALID issues (false positives, nitpicks, questionable claims), REMOVE them.
+Only output issues that are genuinely worth fixing.
 """
 
-            verifier_task = Task(
-                description=verifier_prompt,
-                agent=analysis_agents[-1],  # Verifier (last agent)
-                expected_output="Validated issues only, in exact format",
-                context=tasks  # Verifier sees output from all analysis tasks
+            challenger_task = Task(
+                description=challenger_prompt,
+                agent=analysis_agents[-1],  # Challenger (last agent)
+                expected_output="Only validated, worthwhile issues in exact format",
+                context=tasks  # Challenger sees output from all analysis tasks
             )
-            tasks.append(verifier_task)
+            tasks.append(challenger_task)
 
             # Run the crew with all agents working together
             crew = Crew(
