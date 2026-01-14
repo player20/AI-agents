@@ -29,20 +29,22 @@ def load_config() -> Dict[str, Any]:
 
     # API Keys from environment
     anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+    xai_api_key = os.getenv("XAI_API_KEY")  # Grok API
     hf_token = os.getenv("HF_TOKEN", "")  # Optional
 
-    if not anthropic_api_key:
+    if not anthropic_api_key and not xai_api_key:
         raise ValueError(
-            "ANTHROPIC_API_KEY not found in environment variables. "
-            "Please set it before running Code Weaver Pro."
+            "Neither ANTHROPIC_API_KEY nor XAI_API_KEY found in environment variables. "
+            "Please set at least one API key before running Code Weaver Pro."
         )
 
     # Model configuration
     model_config = {
-        "default_preset": "Speed (All Haiku)",  # Fast and cost-effective
-        "fallback_chain": ["Quality (Critical=Opus, Rest=Sonnet)", "Balanced (All Sonnet)", "Speed (All Haiku)"],  # Try in order
+        "default_preset": "Grok Code Fast" if xai_api_key else "Speed (All Haiku)",  # Use Grok if available
+        "fallback_chain": ["Grok Code Fast", "Grok Reasoning", "Quality (Critical=Opus, Rest=Sonnet)", "Balanced (All Sonnet)", "Speed (All Haiku)"],
         "max_retries": 3,
         "temperature": 0.7,
+        "use_grok": xai_api_key is not None,  # Flag to enable Grok
     }
 
     # Playwright configuration
@@ -87,6 +89,7 @@ def load_config() -> Dict[str, Any]:
         "screenshots_dir": str(screenshots_dir),
         "logs_dir": str(logs_dir),
         "anthropic_api_key": anthropic_api_key,
+        "xai_api_key": xai_api_key,
         "hf_token": hf_token,
         "model": model_config,
         "playwright": playwright_config,

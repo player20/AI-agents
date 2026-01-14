@@ -70,7 +70,7 @@ class SelfImprover:
         self,
         mode: str = ImprovementMode.EVERYTHING,
         target_files: Optional[List[str]] = None,
-        max_issues: int = 2  # Reduced from 5 to 2 due to API rate limits (5 req/min, 4K output tokens/min)
+        max_issues: int = 5  # Back to 5 with Grok (was 2 for Anthropic's strict limits)
     ) -> Dict:
         """
         Run one improvement cycle
@@ -1240,11 +1240,11 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
         # Analysis stays on Haiku (fast), but fixes need higher quality output
         fix_agent = create_agent_with_model(
             agent_id,
-            MODEL_PRESETS["Balanced (All Sonnet)"]  # Higher quality for code generation
+            MODEL_PRESETS["Grok Reasoning"]  # Fast reasoning model with high rate limits
         )
 
-        self._log(f"🔧 Fix generation using Sonnet (high quality mode)", "info")
-        self._log(f"⏱️  Rate limit aware: 15s delay between fixes to stay under 4K tokens/min", "info")
+        self._log(f"🔧 Fix generation using Grok 4 Fast Reasoning (480 rpm, 4M tpm)", "info")
+        self._log(f"⚠️  No delays needed - Grok has 100x higher rate limits!", "info")
 
         for issue in issues:
             file_path_raw = issue.get('file', '')
@@ -1526,12 +1526,11 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
             except Exception as e:
                 self._log(f"Fix generation failed for {file_path}: {e}", "error")
 
-            # Rate limit protection: Wait 15 seconds between fix generations
-            # This ensures we stay under 4K output tokens/min limit
-            # (Each fix can consume 1-2K tokens, so spacing them out avoids hitting the limit)
-            if len(fixes) < len(issues) - 1:  # Don't wait after the last fix
-                self._log(f"  ⏳ Waiting 15s before next fix (rate limit protection)...", "info")
-                time.sleep(15)
+            # Grok has 480 rpm and 4M tpm - no delays needed!
+            # Keeping this code commented for potential fallback to Anthropic
+            # if len(fixes) < len(issues) - 1:
+            #     self._log(f"  ⏳ Waiting 15s before next fix (rate limit protection)...", "info")
+            #     time.sleep(15)
 
         return fixes
 
@@ -1731,7 +1730,7 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
         # Use Sonnet for fix regeneration (better quality than Haiku)
         fix_agent = create_agent_with_model(
             agent_id,
-            MODEL_PRESETS["Balanced (All Sonnet)"]  # Higher quality for code generation
+            MODEL_PRESETS["Grok Reasoning"]  # Fast reasoning model with high rate limits
         )
 
         fix_prompt = f"""
