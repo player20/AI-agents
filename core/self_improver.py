@@ -692,7 +692,7 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
                 self._log(f"Could not read {file_path}: {e}", "error")
                 continue
 
-            # Generate fix
+            # Generate fix with EXPLICIT format requirements
             fix_prompt = f"""
 Fix this issue in the code:
 
@@ -706,9 +706,46 @@ CURRENT CODE:
 {current_content[:3000]}
 ```
 
-Provide the COMPLETE fixed file content. Do not explain, just output the fixed code.
-Start with: FILE_CONTENT_START
-End with: FILE_CONTENT_END
+==================== CRITICAL OUTPUT FORMAT REQUIREMENTS ====================
+
+YOU MUST OUTPUT IN THIS EXACT FORMAT. NO EXCEPTIONS. NO EXPLANATIONS. NO PROSE.
+
+CORRECT FORMAT (copy this structure exactly):
+
+FILE_CONTENT_START
+[paste the COMPLETE fixed file content here - all lines, from first import to last line]
+FILE_CONTENT_END
+
+WRONG FORMATS (DO NOT USE):
+❌ "Here's the fixed code..."
+❌ "I've fixed the issue by..."
+❌ Starting with explanations before FILE_CONTENT_START
+❌ Adding comments after FILE_CONTENT_END
+❌ Using different markers like ```python or "Here's the fix:"
+❌ Outputting only the changed section (MUST output ENTIRE file)
+
+REQUIREMENTS:
+1. First line MUST be exactly: FILE_CONTENT_START
+2. No text before FILE_CONTENT_START (not even "Sure!" or "Here it is")
+3. Paste the ENTIRE fixed file (all lines from start to finish)
+4. Last line MUST be exactly: FILE_CONTENT_END
+5. No text after FILE_CONTENT_END (no explanations)
+
+EXAMPLE OF CORRECT OUTPUT:
+
+FILE_CONTENT_START
+import streamlit as st
+import os
+
+def main():
+    # Fixed code here with the issue resolved
+    st.write("Hello World")
+
+if __name__ == "__main__":
+    main()
+FILE_CONTENT_END
+
+BEGIN OUTPUT NOW (start with "FILE_CONTENT_START" on the very first line):
 """
 
             task = Task(
@@ -728,20 +765,36 @@ End with: FILE_CONTENT_END
                 result = crew.kickoff()
                 result_text = result.raw if hasattr(result, 'raw') else str(result)
 
-                # Extract fixed content
+                # Extract fixed content with robust parsing
                 if 'FILE_CONTENT_START' in result_text and 'FILE_CONTENT_END' in result_text:
                     start_idx = result_text.index('FILE_CONTENT_START') + len('FILE_CONTENT_START')
                     end_idx = result_text.index('FILE_CONTENT_END')
-                    fixed_content = result_text[start_idx:end_idx].strip()
+                    fixed_content = result_text[start_idx:end_idx]
 
-                    fixes.append({
-                        'file': file_path,
-                        'issue': issue,
-                        'original_content': current_content,
-                        'fixed_content': fixed_content
-                    })
+                    # Clean up content
+                    fixed_content = fixed_content.strip()
+                    fixed_content = fixed_content.strip('`')  # Remove backticks
+                    fixed_content = fixed_content.strip()
+
+                    # Remove language identifier if present (e.g., "python" right after start marker)
+                    first_line = fixed_content.split('\n')[0].strip().lower()
+                    if first_line in ['python', 'py', 'javascript', 'js', 'typescript', 'ts', 'html', 'css']:
+                        fixed_content = '\n'.join(fixed_content.split('\n')[1:])
+
+                    # Validate we got substantial content
+                    if len(fixed_content) > 50:
+                        fixes.append({
+                            'file': file_path,
+                            'issue': issue,
+                            'original_content': current_content,
+                            'fixed_content': fixed_content
+                        })
+                    else:
+                        self._log(f"  ⚠ Fix too short for {Path(file_path).name} ({len(fixed_content)} chars), skipping", "warning")
                 else:
-                    self._log(f"Could not extract fix for {file_path}", "warning")
+                    self._log(f"  ⚠ Could not find FILE_CONTENT_START/END markers in fix for {Path(file_path).name}", "warning")
+                    # Show first 200 chars of output for debugging
+                    self._log(f"  Agent output preview: {result_text[:200]}", "warning")
 
             except Exception as e:
                 self._log(f"Fix generation failed for {file_path}: {e}", "error")
