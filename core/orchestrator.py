@@ -54,12 +54,11 @@ from crewai import Agent, Task, Crew, Process
 # Import LangGraph for stateful workflows and reflection loops
 try:
     from langgraph.graph import StateGraph, END
-    from langgraph.prebuilt import ToolExecutor
     from langgraph.checkpoint.memory import MemorySaver
     LANGGRAPH_AVAILABLE = True
 except ImportError:
     LANGGRAPH_AVAILABLE = False
-    print("⚠️ LangGraph not available. Install with: pip install langgraph")
+    print("[WARNING] LangGraph not available. Install with: pip install langgraph")
 
 # Import DSPy for prompt optimization
 try:
@@ -67,7 +66,7 @@ try:
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
-    print("⚠️ DSPy not available. Install with: pip install dspy-ai")
+    print("[WARNING] DSPy not available. Install with: pip install dspy-ai")
 
 # Import Playwright runner for testing
 from core.playwright_runner import PlaywrightRunner
@@ -148,7 +147,7 @@ class DSPyPromptOptimizer:
                     # Note: DSPy may need specific configuration for Anthropic
                     self.dspy_configured = True
             except Exception as e:
-                print(f"⚠️ DSPy configuration failed: {e}")
+                print(f"[WARNING] DSPy configuration failed: {e}")
 
     def optimize_user_input(self, user_input: str, context: Dict[str, Any] = None) -> str:
         """

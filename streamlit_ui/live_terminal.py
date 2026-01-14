@@ -53,7 +53,7 @@ class LiveTerminalOutput:
         color_map = {
             "info": "#00ff00",      # Green
             "success": "#44ff44",   # Bright green
-            "warning": "#ffaa44",   # Orange
+            "warning": "#cccc00",   # Accessible yellow
             "error": "#ff4444",     # Red
             "system": "#00aaff"     # Blue
         }

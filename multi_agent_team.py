@@ -1,8 +1,11 @@
+import os
+# Disable CrewAI telemetry before importing to avoid signal handler errors
+os.environ['OTEL_SDK_DISABLED'] = 'true'
+
 import gradio as gr
 from crewai import Agent, Task, Crew, Process
 from crewai.llm import LLM  # Explicit provider
 import json
-import os
 import git  # pip install gitpython
 from datetime import datetime
 import time  # Rate limit delay
@@ -67,9 +70,14 @@ except ImportError:
 # ==============================
 # Available Claude models (Jan 2026)
 AVAILABLE_MODELS = {
-    "claude-3-opus-20240229": {"name": "Opus", "tier": 3, "cost": "High", "speed": "Slow"},
-    "claude-3-sonnet-20240229": {"name": "Sonnet", "tier": 2, "cost": "Medium", "speed": "Medium"},
-    "claude-3-haiku-20240307": {"name": "Haiku", "tier": 1, "cost": "Low", "speed": "Fast"}
+    # Anthropic Claude models
+    "claude-3-opus-20240229": {"name": "Opus", "tier": 3, "cost": "High", "speed": "Slow", "provider": "anthropic"},
+    "claude-3-sonnet-20240229": {"name": "Sonnet", "tier": 2, "cost": "Medium", "speed": "Medium", "provider": "anthropic"},
+    "claude-3-haiku-20240307": {"name": "Haiku", "tier": 1, "cost": "Low", "speed": "Fast", "provider": "anthropic"},
+    # xAI Grok models (code-specific, high rate limits)
+    "grok-code-fast-1": {"name": "Grok Code", "tier": 2, "cost": "Low-Medium", "speed": "Fast", "provider": "openai", "base_url": "https://api.x.ai/v1"},
+    "grok-4-1-fast-reasoning": {"name": "Grok 4 Reasoning", "tier": 3, "cost": "Low", "speed": "Fast", "provider": "openai", "base_url": "https://api.x.ai/v1"},
+    "grok-3-mini": {"name": "Grok 3 Mini", "tier": 1, "cost": "Very Low", "speed": "Very Fast", "provider": "openai", "base_url": "https://api.x.ai/v1"}
 }
 
 # Default model
@@ -89,6 +97,20 @@ RETRY_BACKOFF_MULTIPLIER = 2  # exponential backoff
 
 # Model presets for different use cases
 MODEL_PRESETS = {
+    # Grok presets (recommended for high-volume operations)
+    "Grok Code Fast": {
+        "default": "grok-code-fast-1",
+        "overrides": {}
+    },
+    "Grok Reasoning": {
+        "default": "grok-4-1-fast-reasoning",
+        "overrides": {}
+    },
+    "Grok Budget": {
+        "default": "grok-3-mini",
+        "overrides": {}
+    },
+    # Claude presets
     "Speed (All Haiku)": {
         "default": "claude-3-haiku-20240307",
         "overrides": {}
@@ -413,9 +435,32 @@ def get_model_for_agent(role, preset_name, custom_models=None):
     return preset.get("default", DEFAULT_MODEL)
 
 def create_llm_for_model(model_id):
-    """Create an LLM instance for the specified model"""
+    """Create an LLM instance for the specified model (supports both Anthropic and Grok)"""
     try:
-        return LLM(model=model_id, provider="anthropic")
+        # Check if this is a Grok model
+        model_info = AVAILABLE_MODELS.get(model_id, {})
+        provider = model_info.get("provider", "anthropic")
+
+        if provider == "openai":
+            # Grok API uses OpenAI-compatible interface
+            import os
+            xai_api_key = os.getenv("XAI_API_KEY")
+            base_url = model_info.get("base_url", "https://api.x.ai/v1")
+
+            if not xai_api_key:
+                log_agent_message("System", f"XAI_API_KEY not found, falling back to Anthropic")
+                return LLM(model=DEFAULT_MODEL, provider="anthropic")
+
+            return LLM(
+                model=model_id,
+                provider="openai",
+                api_key=xai_api_key,
+                base_url=base_url
+            )
+        else:
+            # Anthropic Claude models
+            return LLM(model=model_id, provider="anthropic")
+
     except Exception as e:
         log_agent_message("System", f"Error creating LLM for {model_id}: {str(e)}")
         # Fallback to default model
@@ -540,14 +585,14 @@ def load_agent_configs():
                 'category': agent.get('category', 'Uncategorized')
             }
 
-        print(f"✅ Loaded {len(agent_dict)} agents from agents.config.json")
+        print(f"[OK] Loaded {len(agent_dict)} agents from agents.config.json")
         return agent_dict
 
     except FileNotFoundError:
-        print("⚠️  agents.config.json not found, using hardcoded agent configs")
+        print("[WARNING] agents.config.json not found, using hardcoded agent configs")
         return None
     except Exception as e:
-        print(f"⚠️  Error loading agents.config.json: {e}, using hardcoded configs")
+        print(f"[WARNING] Error loading agents.config.json: {e}, using hardcoded configs")
         return None
 
 # Load dynamic agent configurations

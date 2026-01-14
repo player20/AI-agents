@@ -7,9 +7,13 @@ import streamlit as st
 from pathlib import Path
 import sys
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 # Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+if TYPE_CHECKING:
+    from core.self_improver import SelfImprover, ImprovementMode
 
 try:
     from core.self_improver import SelfImprover, ImprovementMode
@@ -18,6 +22,7 @@ try:
 except ImportError as e:
     IMPROVER_AVAILABLE = False
     IMPORT_ERROR = str(e)
+    SelfImprover = None  # Define as None for type hints if import fails
 
 
 def render_self_improvement():
@@ -41,24 +46,65 @@ def render_self_improvement():
         "✨ Everything": (ImprovementMode.EVERYTHING, "Comprehensive improvement across all areas")
     }
 
-    selected_mode_label = st.radio(
-        "Focus Area",
-        list(mode_options.keys()),
-        index=4,  # Default to "Everything"
-        help="Choose what aspect of the system to improve"
-    )
+    cols = st.columns([2, 2], gap="medium")
+
+    with cols[0]:
+        selected_mode_label = st.radio(
+            "Focus Area",
+            list(mode_options.keys()),
+            index=4,  # Default to "Everything"
+            help="Choose what aspect of the system to improve"
+        )
 
     selected_mode, mode_description = mode_options[selected_mode_label]
-    st.info(f"**{selected_mode_label}:** {mode_description}")
+
+    with cols[1]:
+        st.info(f"**{selected_mode_label}:** {mode_description}")
+
+        # Show what will be analyzed
+        if selected_mode == ImprovementMode.UI_UX:
+            st.caption("📁 Will analyze: streamlit_ui/, workflow_builder/src/")
+        elif selected_mode == ImprovementMode.PERFORMANCE:
+            st.caption("📁 Will analyze: core/, server/")
+        elif selected_mode == ImprovementMode.AGENT_QUALITY:
+            st.caption("📁 Will analyze: core/*agent*, agents.config.json")
+
+    # Iterative mode (LangGraph-powered)
+    st.markdown("#### Improvement Strategy")
+
+    cols2 = st.columns([2, 2], gap="medium")
+
+    with cols2[0]:
+        iterative_mode = st.checkbox(
+            "🔄 Iterative Mode (LangGraph)",
+            value=True,
+            help="Keep improving until quality threshold is met (recommended)"
+        )
+
+    with cols2[1]:
+        if iterative_mode:
+            target_score = st.slider(
+                "Target Quality Score",
+                min_value=7.0,
+                max_value=10.0,
+                value=9.0,
+                step=0.5,
+                help="Stop when this quality score is reached"
+            )
+        else:
+            target_score = None
+
+    if iterative_mode:
+        st.info("🧠 **Iterative Mode**: System will automatically run multiple cycles until it reaches the target quality score (max 10 iterations).")
+    else:
+        st.info("🔄 **Single-Pass Mode**: System will run one improvement cycle and stop.")
 
     # Forever mode checkbox
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        forever_mode = st.checkbox(
-            "🔁 Improve me forever (run until stopped)",
-            value=False,
-            help="Continuously run improvement cycles until you click Stop"
-        )
+    forever_mode = st.checkbox(
+        "🔁 Forever mode (manual control)",
+        value=False,
+        help="Continuously run cycles until you click Stop (ignores target score)"
+    )
 
     # Target specific files (optional)
     st.markdown("#### Target Specific Files (Optional)")
@@ -75,9 +121,9 @@ def render_self_improvement():
         if line.strip()
     ] if target_files_text.strip() else None
 
-    # Start button
-    col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
-    with col_btn2:
+    # Start button - centered
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
         start_button = st.button(
             "🚀 Start Improvement Cycle",
             use_container_width=True,
@@ -88,6 +134,8 @@ def render_self_improvement():
     if start_button:
         if forever_mode:
             run_forever_mode(selected_mode, target_files)
+        elif iterative_mode:
+            run_iterative_mode(selected_mode, target_score, target_files)
         else:
             run_single_cycle(selected_mode, target_files)
 
@@ -161,6 +209,132 @@ def run_single_cycle(mode: str, target_files: list = None):
         st.code(traceback.format_exc())
 
 
+def run_iterative_mode(mode: str, target_score: float, target_files: list = None):
+    """Run iterative improvement cycles until quality threshold is met"""
+    st.markdown("---")
+    st.markdown("### 🔄 Iterative Improvement - LangGraph Powered")
+
+    st.info(f"🎯 **Target Score**: {target_score}/10 | **Max Iterations**: 10 | **Mode**: {mode}")
+
+    # Create progress containers
+    progress_container = st.container()
+    terminal_container = st.container()
+    results_container = st.container()
+
+    with progress_container:
+        iteration_metric = st.empty()
+        score_metric = st.empty()
+        progress_bar = st.progress(0, text="Initializing LangGraph workflow...")
+
+    with terminal_container:
+        st.markdown("#### 💻 Live Output")
+        terminal_placeholder = st.empty()
+        terminal_messages = []
+
+    def terminal_callback(message: str, level: str = "info"):
+        """Update terminal output"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        color = {
+            "info": "#00ff00",
+            "success": "#44ff44",
+            "warning": "#ffaa44",
+            "error": "#ff4444"
+        }.get(level, "#00ff00")
+
+        terminal_messages.append(f'<span style="color: {color};">[{timestamp}] {message}</span>')
+
+        terminal_html = f"""
+        <div style="background-color: #1a1d29; border-radius: 8px; padding: 16px;
+                    font-family: 'Courier New', monospace; height: 400px; overflow-y: auto;">
+            {'<br>'.join(terminal_messages[-30:])}
+        </div>
+        """
+        terminal_placeholder.markdown(terminal_html, unsafe_allow_html=True)
+
+    try:
+        # Import LangGraph workflow
+        from core.langgraph_improver import run_iterative_improvement
+        from core.self_improver import ImprovementMode
+
+        # Map string mode to ImprovementMode enum value
+        mode_map = {
+            'ui_ux': 'ui_ux',
+            'performance': 'performance',
+            'agent_quality': 'agent_quality',
+            'code_quality': 'code_quality',
+            'everything': 'everything'
+        }
+
+        # Get mode value (handle if mode is already ImprovementMode enum)
+        if hasattr(mode, 'value'):
+            mode_str = mode.value
+        else:
+            mode_str = mode_map.get(str(mode).lower(), 'ui_ux')
+
+        terminal_callback(f"🚀 Starting iterative improvement with LangGraph", "info")
+        terminal_callback(f"   Mode: {mode_str}", "info")
+        terminal_callback(f"   Target score: {target_score}/10", "info")
+
+        progress_bar.progress(0.1, text="Running LangGraph workflow...")
+
+        # Run iterative improvement
+        final_state = run_iterative_improvement(
+            mode=mode_str,
+            target_score=target_score,
+            initial_score=5.0
+        )
+
+        progress_bar.progress(1.0, text="Complete!")
+
+        # Display iteration history
+        with results_container:
+            st.markdown("---")
+            st.markdown("### 📊 Iterative Improvement Results")
+
+            # Summary metrics
+            cols = st.columns(4, gap="small")
+            iteration_count = len(final_state.get('iteration_history', []))
+            cols[0].metric("Iterations", iteration_count)
+            cols[1].metric("Final Score", f"{final_state.get('current_score', 0):.1f}/10")
+            cols[2].metric("Total Issues", final_state.get('total_issues_found', 0))
+            cols[3].metric("Total Fixes", final_state.get('total_fixes_applied', 0))
+
+            # Iteration history
+            st.markdown("### 📈 Iteration History")
+
+            history = final_state.get('iteration_history', [])
+            if history:
+                # Create a table
+                for entry in history:
+                    with st.expander(f"Iteration {entry['iteration']} - Score: {entry['score']:.1f}/10", expanded=(entry['iteration'] == 1)):
+                        cols = st.columns(3)
+                        cols[0].metric("Issues Found", entry['issues_found'])
+                        cols[1].metric("Fixes Applied", entry['fixes_applied'])
+                        cols[2].metric("Score", f"{entry['score']:.1f}/10")
+
+            # Final status
+            if final_state.get('current_score', 0) >= target_score:
+                st.success(f"✅ **Target score reached!** Final score: {final_state.get('current_score', 0):.1f}/10")
+            else:
+                st.warning(f"⚠️ **Max iterations reached.** Final score: {final_state.get('current_score', 0):.1f}/10 (target: {target_score}/10)")
+
+            # Next steps
+            st.markdown("### 🎯 Next Steps")
+            cols = st.columns(2, gap="small")
+            if cols[0].button("🔄 Run Another Cycle", use_container_width=True):
+                st.rerun()
+            if cols[1].button("✅ Done", use_container_width=True):
+                st.success("Improvement cycle complete!")
+
+        terminal_callback(f"✅ Iterative improvement complete!", "success")
+
+    except Exception as e:
+        terminal_callback(f"Fatal error: {str(e)}", "error")
+        st.error(f"### ❌ Error\n\n{str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
+
+
 def run_forever_mode(mode: str, target_files: list = None):
     """Run continuous improvement cycles"""
     st.markdown("---")
@@ -169,9 +343,8 @@ def run_forever_mode(mode: str, target_files: list = None):
     st.warning("⚠️ **Forever mode is running!** The system will continuously improve until you stop it.")
 
     # Stop button
-    col_stop1, col_stop2, col_stop3 = st.columns([1, 1, 1])
-    with col_stop2:
-        stop_button = st.button("🛑 STOP Forever Mode", use_container_width=True, type="secondary")
+    cols = st.columns(3, gap="small")
+    stop_button = cols[1].button("🛑 STOP Forever Mode", use_container_width=True, type="secondary")
 
     if stop_button:
         st.session_state['forever_mode_active'] = False
@@ -233,6 +406,8 @@ def run_forever_mode(mode: str, target_files: list = None):
             if result['issues_found'] == 0:
                 terminal_callback("🎉 No more issues found! Codebase is optimized.", "success")
                 st.session_state['forever_mode_active'] = False
+                # Force UI update to show final counter
+                st.rerun()
                 break
 
             # Rerun to update UI
@@ -243,26 +418,21 @@ def run_forever_mode(mode: str, target_files: list = None):
         st.session_state['forever_mode_active'] = False
 
 
-def display_improvement_results(result: dict, improver: SelfImprover):
+def display_improvement_results(result: dict, improver: 'SelfImprover'):
     """Display improvement cycle results"""
     st.markdown("---")
 
     # Summary metrics
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric("Files Analyzed", result['files_analyzed'])
-    with col2:
-        st.metric("Issues Found", result['issues_found'])
-    with col3:
-        st.metric("Fixes Applied", result['fixes_applied'])
-    with col4:
-        improvement = result['scores']['improvement']
-        st.metric(
-            "Improvement",
-            f"+{improvement}" if improvement > 0 else str(improvement),
-            delta=f"{improvement}/10"
-        )
+    cols = st.columns(4, gap="small")
+    cols[0].metric("Files Analyzed", result['files_analyzed'])
+    cols[1].metric("Issues Found", result['issues_found'])
+    cols[2].metric("Fixes Applied", result['fixes_applied'])
+    improvement = result['scores']['improvement']
+    cols[3].metric(
+        "Improvement",
+        f"+{improvement}" if improvement > 0 else str(improvement),
+        delta=f"{improvement}/10"
+    )
 
     # Issues found
     if result['issues']:
@@ -294,20 +464,17 @@ def display_improvement_results(result: dict, improver: SelfImprover):
     # Impact scores
     st.markdown("### 📊 Impact Assessment")
 
-    score_cols = st.columns(3)
-    with score_cols[0]:
-        st.metric("Before", f"{result['scores']['before']}/10")
-    with score_cols[1]:
-        st.metric("After", f"{result['scores']['after']}/10")
-    with score_cols[2]:
-        improvement = result['scores']['improvement']
-        delta_color = "normal" if improvement > 0 else "inverse"
-        st.metric(
-            "Improvement",
-            f"+{improvement}" if improvement > 0 else str(improvement),
-            delta=f"{abs(improvement)} points",
-            delta_color=delta_color
-        )
+    cols = st.columns(3, gap="small")
+    cols[0].metric("Before", f"{result['scores']['before']}/10")
+    cols[1].metric("After", f"{result['scores']['after']}/10")
+    improvement = result['scores']['improvement']
+    delta_color = "normal" if improvement > 0 else "inverse"
+    cols[2].metric(
+        "Improvement",
+        f"+{improvement}" if improvement > 0 else str(improvement),
+        delta=f"{abs(improvement)} points",
+        delta_color=delta_color
+    )
 
     # Next focus
     st.markdown("### 🎯 Next Focus")
@@ -316,22 +483,16 @@ def display_improvement_results(result: dict, improver: SelfImprover):
     # Action buttons
     st.markdown("### 🎯 Next Steps")
 
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        if st.button("✅ Merge to Main", use_container_width=True):
-            merge_to_main(result['branch_name'])
-
-    with col2:
-        if st.button("🔄 Run Another Cycle", use_container_width=True):
-            st.rerun()
-
-    with col3:
-        if st.button("🔙 Rollback Changes", use_container_width=True):
-            if improver.rollback_to_main():
-                st.success("✅ Rolled back to main branch")
-            else:
-                st.error("❌ Rollback failed")
+    cols = st.columns(3, gap="small")
+    if cols[0].button("✅ Merge to Main", use_container_width=True):
+        merge_to_main(result['branch_name'])
+    if cols[1].button("🔄 Run Another Cycle", use_container_width=True):
+        st.rerun()
+    if cols[2].button("🔙 Rollback Changes", use_container_width=True):
+        if improver.rollback_to_main():
+            st.success("✅ Rolled back to main branch")
+        else:
+            st.error("❌ Rollback failed")
 
 
 def merge_to_main(branch_name: str):

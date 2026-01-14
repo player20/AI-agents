@@ -1,0 +1,92 @@
+{
+  "proj-4d8b3ebb": {
+    "id": "proj-4d8b3ebb",
+    "name": "Multi Ai agent team",
+    "description": "I am building a platform that will allow users to create ai agent teams to evaluate, build and deploy products.",
+    "teams": [],
+    "createdAt": "2026-01-11T13:49:39.107497",
+    "updatedAt": "2026-01-11T13:49:39.107497"
+  },
+  "proj-9b46d42a": {
+    "id": "proj-9b46d42a",
+    "name": "Multi AI Agent platform",
+    "description": "This is a platform that will allow users to create ai agent teams. this will allow them to evaluate, plan, develop, and enhance their products",
+    "teams": [
+      {
+        "id": "team-d02b9237",
+        "name": "Design Evaluation Team",
+        "description": "Review and evaluate design quality, UX, and accessibility",
+        "agents": [
+          "ProductDesigner",
+          "UXResearcher",
+          "UIDesigner",
+          "AccessibilitySpecialist",
+          "Designs"
+        ],
+        "status": "pending",
+        "output": null,
+        "createdAt": "2026-01-11T14:05:34.324415"
+      },
+      {
+        "id": "team-f62420fa",
+        "name": "Frontend Development Team",
+        "description": "Build responsive web interfaces and user experiences",
+        "agents": [
+          "FrontendEngineer",
+          "Web",
+          "UIDesigner",
+          "Designs",
+          "AccessibilitySpecialist"
+        ],
+        "status": "pending",
+        "output": null,
+        "createdAt": "2026-01-11T14:05:50.099889"
+      }
+    ],
+    "createdAt": "2026-01-11T14:05:08.266540",
+    "updatedAt": "2026-01-11T14:05:50.099889"
+  },
+  "proj-d6fa1b32": {
+    "id": "proj-d6fa1b32",
+    "name": "Job hunting project",
+    "description": "I want to Find a Job while lifting weights",
+    "teams": [
+      {
+        "id": "team-bf805d08",
+        "name": "Data & AI Team",
+        "description": "Data science, machine learning, and AI implementation",
+        "agents": [
+          "DataScientist",
+          "MLEngineer",
+          "AIResearcher",
+          "DataEngineer",
+          "DataAnalyst",
+          "Research",
+          "ComplianceOfficer"
+        ],
+        "status": "pending",
+        "output": null,
+        "enabled": true,
+        "createdAt": "2026-01-11T18:41:13.118637"
+      },
+      {
+        "id": "team-37494488",
+        "name": "Market Analysis Team",
+        "description": "Analyze market opportunities, competitors, and business strategy",
+        "agents": [
+          "Research",
+          "BusinessAnalyst",
+          "DataAnalyst",
+          "ProductOwner",
+          "FinancialAnalyst"
+        ],
+        "status": "pending",
+        "output": null,
+        "enabled": true,
+        "createdAt": "2026-01-11T18:41:32.929669"
+      }
+    ],
+    "createdAt": "2026-01-11T18:39:49.404109",
+    "updatedAt": "2026-01-11T18:41:32.929669"
+  }
+}
