@@ -84,8 +84,8 @@ class SelfImprover:
 
         # Step 1: Analyze codebase
         self._log("📊 Analyzing codebase...")
-        files_to_analyze = self._get_files_to_analyze(target_files)
-        self._log(f"Found {len(files_to_analyze)} files to analyze")
+        files_to_analyze = self._get_files_to_analyze(target_files, mode)
+        # File count already logged by _get_files_to_analyze()
 
         # Step 1.5: Capture screenshots for UI/UX analysis
         screenshots = []
@@ -231,23 +231,78 @@ class SelfImprover:
             self._log(f"Screenshot capture failed: {str(e)}", "warning")
             return []
 
-    def _get_files_to_analyze(self, target_files: Optional[List[str]] = None) -> List[Path]:
-        """Get list of files to analyze"""
+    def _get_files_to_analyze(self, target_files: Optional[List[str]] = None, mode: str = None) -> List[Path]:
+        """Get list of files to analyze based on improvement mode"""
         if target_files:
             # Use specified files
             return [Path(f) for f in target_files if Path(f).exists()]
 
-        # Find all Python, JavaScript, TypeScript files (excluding node_modules, venv, etc.)
-        files = []
-        exclude_dirs = {'node_modules', 'venv', '__pycache__', '.git', 'venv312',
-                       'venv314', '.venv', 'exports', 'projects', 'screenshots'}
+        # Mode-specific file patterns
+        mode_file_patterns = {
+            ImprovementMode.UI_UX: {
+                'extensions': ['.html', '.css', '.scss', '.jsx', '.tsx', '.vue', '.py'],  # Include .py for Streamlit
+                'include_dirs': ['streamlit_ui', 'workflow_builder/src'],
+                'exclude_dirs': {'core', 'server', 'tests', 'scripts', 'node_modules', 'venv', '__pycache__'},
+                'description': 'UI files only (Streamlit UI, React components, stylesheets)'
+            },
+            ImprovementMode.PERFORMANCE: {
+                'extensions': ['.py', '.js', '.ts'],
+                'include_dirs': ['core', 'server'],
+                'exclude_dirs': {'streamlit_ui', 'workflow_builder', 'tests', 'node_modules', 'venv'},
+                'description': 'Backend performance files (core logic, server code)'
+            },
+            ImprovementMode.AGENT_QUALITY: {
+                'extensions': ['.py', '.json'],
+                'include_dirs': ['core'],
+                'exclude_dirs': {'streamlit_ui', 'workflow_builder', 'server', 'tests', 'node_modules', 'venv'},
+                'description': 'Agent-related files (agent configs, orchestration)'
+            },
+            ImprovementMode.CODE_QUALITY: {
+                'extensions': ['.py', '.js', '.ts', '.tsx', '.jsx'],
+                'include_dirs': None,  # All directories
+                'exclude_dirs': {'node_modules', 'venv', '__pycache__', '.git', 'venv312', 'venv314', '.venv', 'exports', 'projects', 'screenshots'},
+                'description': 'All code files (comprehensive code quality review)'
+            },
+            ImprovementMode.EVERYTHING: {
+                'extensions': ['.py', '.js', '.ts', '.tsx', '.jsx', '.html', '.css', '.scss'],
+                'include_dirs': None,  # All directories
+                'exclude_dirs': {'node_modules', 'venv', '__pycache__', '.git', 'venv312', 'venv314', '.venv', 'exports', 'projects', 'screenshots'},
+                'description': 'All files (comprehensive analysis)'
+            },
+        }
 
-        for ext in ['.py', '.js', '.ts', '.tsx', '.jsx']:
+        # Get patterns for current mode (default to EVERYTHING if no mode specified)
+        patterns = mode_file_patterns.get(mode, mode_file_patterns[ImprovementMode.EVERYTHING])
+
+        extensions = patterns['extensions']
+        include_dirs = patterns.get('include_dirs')
+        exclude_dirs = patterns['exclude_dirs']
+        description = patterns['description']
+
+        # Log what we're analyzing
+        self._log(f"📁 File Filter: {description}", "info")
+        if include_dirs:
+            self._log(f"  Including directories: {', '.join(include_dirs)}", "info")
+        self._log(f"  File types: {', '.join(extensions)}", "info")
+
+        # Collect files based on patterns
+        files = []
+
+        for ext in extensions:
             for file_path in self.base_dir.rglob(f'*{ext}'):
                 # Skip excluded directories
                 if any(excluded in file_path.parts for excluded in exclude_dirs):
                     continue
+
+                # If include_dirs specified, only include files in those directories
+                if include_dirs:
+                    if not any(included in file_path.parts for included in include_dirs):
+                        continue
+
                 files.append(file_path)
+
+        # Log file count
+        self._log(f"  Found {len(files)} files to analyze", "info")
 
         return files
 
@@ -257,28 +312,42 @@ class SelfImprover:
         if screenshots is None:
             screenshots = []
 
-        # Define CORE agent teams (fast, focused)
-        # Core teams: Lead + Verifier + Challenger (3 agents instead of 6)
+        # Define SPECIALIZED agent teams per improvement mode
+        # Each mode has domain experts + Verifier + Challenger
         # IMPORTANT: Verifier is ALWAYS second-to-last for hallucination detection
         # IMPORTANT: Challenger is ALWAYS last as the devil's advocate to challenge findings
-        core_agent_teams = {
+        specialized_agent_teams = {
             ImprovementMode.UI_UX: [
-                "Designs",  # UI/UX Designer - lead
+                "Designs",  # UI/UX Designer - lead, overall design vision
+                "AccessibilitySpecialist",  # WCAG compliance, inclusive design
+                "UIDesigner",  # Visual design, component design
+                "UXResearcher",  # User research, usability testing
+                "ProductDesigner",  # Product design, user flows
                 "Verifier",  # Hallucination detection - ensures claims are factual
                 "Challenger",  # Devil's advocate - challenges false positives & UX assumptions
             ],
             ImprovementMode.PERFORMANCE: [
                 "PerformanceEngineer",  # Performance specialist - lead
+                "BackendEngineer",  # Backend optimization, algorithmic improvements
+                "DatabaseAdmin",  # Database optimization, query performance
+                "DevOps",  # Infrastructure performance, deployment optimization
+                "SRE",  # Site reliability, monitoring, incident response
                 "Verifier",  # Hallucination detection - ensures performance claims are real
                 "Challenger",  # Devil's advocate - ensures real performance issues, not micro-optimizations
             ],
             ImprovementMode.AGENT_QUALITY: [
                 "AIResearcher",  # AI/ML best practices - lead
+                "MLEngineer",  # ML/AI engineering, model quality
+                "MetaPrompt",  # Prompt engineering, agent instruction quality
+                "DataScientist",  # Data quality, model evaluation
                 "Verifier",  # Hallucination detection - critical for AI/agent claims
                 "Challenger",  # Devil's advocate - challenges agent design assumptions
             ],
             ImprovementMode.CODE_QUALITY: [
                 "Senior",  # Code review - lead
+                "SecurityEngineer",  # Security review, vulnerability detection
+                "Architect",  # Architecture review, design patterns
+                "TestAutomation",  # Testing quality, test coverage
                 "Verifier",  # Hallucination detection - ensures accuracy of code quality claims
                 "Challenger",  # Devil's advocate - challenges over-engineering claims
             ],
@@ -289,9 +358,9 @@ class SelfImprover:
             ]
         }
 
-        team = core_agent_teams.get(mode, ["Senior", "Verifier", "Challenger"])
-        self._log(f"Using OPTIMIZED core team for {mode}: {', '.join(team)}", "info")
-        self._log(f"  (Reduced from 6 agents to {len(team)} agents for faster analysis)", "info")
+        team = specialized_agent_teams.get(mode, ["Senior", "Verifier", "Challenger"])
+        self._log(f"🤖 Specialized team for {mode}: {len(team)} agents", "info")
+        self._log(f"   Team: {', '.join(team)}", "info")
 
         # Create all agents in the team
         analysis_agents = [
@@ -299,13 +368,20 @@ class SelfImprover:
             for agent_name in team
         ]
 
-        # Analyze in batches (6 files at a time for better throughput)
-        batch_size = 6
+        # Analyze in batches - adjust batch size based on team size for optimal performance
+        # More agents = smaller batches to keep processing time reasonable
+        if len(team) >= 6:
+            batch_size = 3  # Smaller batches for larger teams (UI/UX, Performance, etc.)
+        elif len(team) >= 4:
+            batch_size = 4  # Medium batches for medium teams
+        else:
+            batch_size = 6  # Larger batches for small teams (Everything mode)
+
         total_batches = (len(files) + batch_size - 1) // batch_size  # Ceiling division
         batch_num = 0
 
         for i in range(0, len(files), batch_size):
-            batch = files[i:i+3]
+            batch = files[i:i+batch_size]  # Fixed: was i:i+3, now uses batch_size
             batch_num += 1
             file_contents = {}
 
