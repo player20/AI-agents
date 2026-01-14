@@ -893,10 +893,15 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
         }
 
         agent_id = agent_map.get(mode, "Senior")
+
+        # Use Sonnet for fix generation (better quality than Haiku)
+        # Analysis stays on Haiku (fast), but fixes need higher quality output
         fix_agent = create_agent_with_model(
             agent_id,
-            MODEL_PRESETS[self.config['model']['default_preset']]
+            MODEL_PRESETS["Balanced (All Sonnet)"]  # Higher quality for code generation
         )
+
+        self._log(f"🔧 Fix generation using Sonnet (high quality mode)", "info")
 
         for issue in issues:
             file_path = issue.get('file', '')
@@ -917,6 +922,15 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
             except Exception as e:
                 self._log(f"Could not read {file_path}: {e}", "error")
                 continue
+
+            # Check file size and warn if large
+            line_count = len(current_content.splitlines())
+            if line_count > 2500:
+                self._log(f"⚠️  Large file detected ({line_count} lines)", "warning")
+                self._log(f"   File may exceed Sonnet's output limit (~3000 lines)", "warning")
+                self._log(f"   If fix is incomplete, consider splitting the file", "info")
+            elif line_count > 1500:
+                self._log(f"📏 Moderate file size ({line_count} lines) - Sonnet should handle this", "info")
 
             # Generate fix with ULTRA-EXPLICIT format requirements
             # Problem: Agent keeps adding explanations instead of using markers
@@ -1282,9 +1296,11 @@ BEGIN NOW - First word must be "FILE_CONTENT_START":
         }
 
         agent_id = agent_map.get(mode, "Senior")
+
+        # Use Sonnet for fix regeneration (better quality than Haiku)
         fix_agent = create_agent_with_model(
             agent_id,
-            MODEL_PRESETS[self.config['model']['default_preset']]
+            MODEL_PRESETS["Balanced (All Sonnet)"]  # Higher quality for code generation
         )
 
         fix_prompt = f"""
