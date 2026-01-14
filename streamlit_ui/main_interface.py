@@ -70,7 +70,9 @@ def render_main_interface() -> None:
                 'color': '#ffffff',
                 'background-color': '#333333',
                 'white-space': 'nowrap',
-                'height': '2.5rem'  # Set a fixed height for the checkbox
+                'height': '2.5rem',
+                'font-size': '1rem',
+                'padding': '0.5rem 1rem'
             }
         )
 
@@ -86,7 +88,9 @@ def render_main_interface() -> None:
                     'color': '#999999',
                     'background-color': '#444444',
                     'white-space': 'nowrap',
-                    'height': '2.5rem'
+                    'height': '2.5rem',
+                    'font-size': '1rem',
+                    'padding': '0.5rem 1rem'
                 }
             )
         else:
@@ -98,7 +102,9 @@ def render_main_interface() -> None:
                     'color': '#ffffff',
                     'background-color': '#333333',
                     'white-space': 'nowrap',
-                    'height': '2.5rem'
+                    'height': '2.5rem',
+                    'font-size': '1rem',
+                    'padding': '0.5rem 1rem'
                 }
             )
 
@@ -110,7 +116,9 @@ def render_main_interface() -> None:
                 'color': '#ffffff',
                 'background-color': '#333333',
                 'white-space': 'nowrap',
-                'height': '2.5rem'
+                'height': '2.5rem',
+                'font-size': '1rem',
+                'padding': '0.5rem 1rem'
             }
         )
 
@@ -124,7 +132,9 @@ def render_main_interface() -> None:
             css={
                 'color': '#ffffff',
                 'background-color': '#333333',
-                'margin-top': '0.5rem'  # Add margin-top for better spacing
+                'margin-top': '0.5rem',
+                'font-size': '1rem',
+                'padding': '0.5rem 1rem'
             }
         )
 
@@ -135,7 +145,7 @@ def render_main_interface() -> None:
             "🚀 Start",
             use_container_width=True,
             type="primary",
-            disabled=not project_input.strip(),  # Disable if empty
+            disabled=not project_input.strip(),
             help="Describe your project above to get started" if not project_input.strip() else None,
             css={
                 'color': '#ffffff',
@@ -145,7 +155,8 @@ def render_main_interface() -> None:
                 'padding': '0.5rem 1rem',
                 'border-radius': '0.5rem',
                 'white-space': 'nowrap',
-                'height': '2.5rem'  # Set a fixed height for the button
+                'height': '2.5rem',
+                'font-size': '1rem'
             }
         )
 
@@ -171,5 +182,5 @@ def render_main_interface() -> None:
             display_results(progress_tracker)
         except Exception as e:
             st.error(f"⚠️ An unexpected error occurred: {str(e)}")
-            st.error("Please try again or contact support if the issue persists. Error details: {str(e)}")
+            st.error("Please check your input and try again. If the issue persists, contact support for assistance.")
             st.stop()
