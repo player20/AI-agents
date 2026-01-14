@@ -1,8 +1,3 @@
-"""
-Progress tracking system with 4 phases
-Displays progress bars for: Planning, Drafting, Testing, Done
-"""
-
 import streamlit as st
 from enum import Enum
 from dataclasses import dataclass
@@ -103,13 +98,18 @@ class ProgressTracker:
                 with col2:
                     st.markdown(f"<div style='display: flex; justify-content: end;'><div>{color} {status_emoji}</div></div>", unsafe_allow_html=True)
 
-                # Progress bar
-                st.progress(phase_data.progress, label=f"{int(phase_data.progress * 100)}%", css={
-                    'background-color': '#333333',
-                    'color': '#ffffff',
-                    'height': '1.5rem',
-                    'border-radius': '0.5rem',
-                    'margin-top': '0.5rem'
-                })
+                # Responsive progress bar
+                with st.container():
+                    col1, col2 = st.columns([3, 1], gap="small")
+                    with col1:
+                        st.progress(phase_data.progress, label=f"{int(phase_data.progress * 100)}%", css={
+                            'background-color': '#333333',
+                            'color': '#ffffff',
+                            'height': '1.5rem',
+                            'border-radius': '0.5rem',
+                            'margin-top': '0.5rem'
+                        })
+                    with col2:
+                        st.markdown(f"{int(phase_data.progress * 100)}%", unsafe_allow_html=True)
 
                 st.markdown("<br>", unsafe_allow_html=True)

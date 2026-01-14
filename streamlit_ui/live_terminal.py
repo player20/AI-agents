@@ -1,8 +1,3 @@
-"""
-Live terminal output for agent execution
-Terminal-style display with timestamps and color coding
-"""
-
 import streamlit as st
 from datetime import datetime
 from collections import deque
@@ -53,8 +48,8 @@ class LiveTerminalOutput:
         color_map = {
             "info": "#00ff00",      # Green
             "success": "#44ff44",   # Bright green
-            "warning": "#cccc00",   # Accessible yellow
-            "error": "#ff4444",     # Red
+            "warning": "#ffff00",   # Accessible yellow
+            "error": "#ff4444",     # Accessible red
             "system": "#00aaff"     # Blue
         }
 

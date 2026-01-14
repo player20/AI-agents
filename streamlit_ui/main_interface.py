@@ -1,8 +1,3 @@
-"""
-Main user interface for Code Weaver Pro
-Simple input + options + "Go" button with progress tracking
-"""
-
 import streamlit as st
 from streamlit_ui.progress_tracker import ProgressTracker, ProgressPhase
 from streamlit_ui.live_terminal import LiveTerminalOutput
@@ -39,20 +34,23 @@ def render_main_interface():
 
     # Main input - BIG and centered
     st.markdown("### What do you want to build?")
-    project_input = st.text_area(
-        "Describe your project",
-        placeholder="Example: A recipe app where users can save favorites, search by ingredients, and share with friends.",
-        height=120,
-        key="project_input",
-        label_visibility="visible",
-        help="Be specific about features, target users, and key functionality",
-        css={
-            'color': '#ffffff',
-            'background-color': '#333333',
-            'padding': '1rem',
-            'border-radius': '0.5rem'
-        }
-    )
+    with st.container():
+        project_input = st.text_area(
+            "Describe your project",
+            placeholder="Example: A recipe app where users can save favorites, search by ingredients, and share with friends.",
+            height=120,
+            key="project_input",
+            label_visibility="visible",
+            help="Be specific about features, target users, and key functionality",
+            css={
+                'color': '#ffffff',
+                'background-color': '#333333',
+                'padding': '1rem',
+                'border-radius': '0.5rem',
+                'margin-top': '0.5rem',  # Add margin-top for better spacing
+                'margin-bottom': '1rem'  # Add margin-bottom for better spacing
+            }
+        )
 
     # Options - 2 rows for better mobile layout
     st.markdown("### Options")
@@ -67,7 +65,8 @@ def render_main_interface():
             css={
                 'color': '#ffffff',
                 'background-color': '#333333',
-                'white-space': 'nowrap'  # Prevent text wrapping
+                'white-space': 'nowrap',
+                'height': '2.5rem'  # Set a fixed height for the checkbox
             }
         )
 
@@ -82,7 +81,8 @@ def render_main_interface():
                 css={
                     'color': '#999999',
                     'background-color': '#444444',
-                    'white-space': 'nowrap'
+                    'white-space': 'nowrap',
+                    'height': '2.5rem'
                 }
             )
         else:
@@ -93,7 +93,8 @@ def render_main_interface():
                 css={
                     'color': '#ffffff',
                     'background-color': '#333333',
-                    'white-space': 'nowrap'
+                    'white-space': 'nowrap',
+                    'height': '2.5rem'
                 }
             )
 
@@ -104,21 +105,24 @@ def render_main_interface():
             css={
                 'color': '#ffffff',
                 'background-color': '#333333',
-                'white-space': 'nowrap'
+                'white-space': 'nowrap',
+                'height': '2.5rem'
             }
         )
 
     # Second row - platforms
-    platforms = st.multiselect(
-        "🎯 Target Platforms",
-        ["Website", "Web App", "iOS", "Android"],
-        default=["Web App"],
-        help="Select one or more platforms to build for",
-        css={
-            'color': '#ffffff',
-            'background-color': '#333333'
-        }
-    )
+    with st.container():
+        platforms = st.multiselect(
+            "🎯 Target Platforms",
+            ["Website", "Web App", "iOS", "Android"],
+            default=["Web App"],
+            help="Select one or more platforms to build for",
+            css={
+                'color': '#ffffff',
+                'background-color': '#333333',
+                'margin-top': '0.5rem'  # Add margin-top for better spacing
+            }
+        )
 
     # Start button and progress tracker
     col1, col2, col3 = st.columns([1, 1, 1], gap="medium")
@@ -136,7 +140,8 @@ def render_main_interface():
                 'font-weight': 'bold',
                 'padding': '0.5rem 1rem',
                 'border-radius': '0.5rem',
-                'white-space': 'nowrap'  # Prevent text wrapping
+                'white-space': 'nowrap',
+                'height': '2.5rem'  # Set a fixed height for the button
             }
         )
 
