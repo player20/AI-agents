@@ -46,8 +46,10 @@ def render_self_improvement():
         "✨ Everything": (ImprovementMode.EVERYTHING, "Comprehensive improvement across all areas")
     }
 
-    with st.columns(4, gap="small") as cols:
-        selected_mode_label = cols[0].radio(
+    cols = st.columns([2, 2], gap="medium")
+
+    with cols[0]:
+        selected_mode_label = st.radio(
             "Focus Area",
             list(mode_options.keys()),
             index=4,  # Default to "Everything"
@@ -55,15 +57,24 @@ def render_self_improvement():
         )
 
     selected_mode, mode_description = mode_options[selected_mode_label]
-    cols[1].info(f"**{selected_mode_label}:** {mode_description}")
+
+    with cols[1]:
+        st.info(f"**{selected_mode_label}:** {mode_description}")
+
+        # Show what will be analyzed
+        if selected_mode == ImprovementMode.UI_UX:
+            st.caption("📁 Will analyze: streamlit_ui/, workflow_builder/src/")
+        elif selected_mode == ImprovementMode.PERFORMANCE:
+            st.caption("📁 Will analyze: core/, server/")
+        elif selected_mode == ImprovementMode.AGENT_QUALITY:
+            st.caption("📁 Will analyze: core/*agent*, agents.config.json")
 
     # Forever mode checkbox
-    with st.columns([3, 1], gap="small") as cols:
-        forever_mode = cols[0].checkbox(
-            "🔁 Improve me forever (run until stopped)",
-            value=False,
-            help="Continuously run improvement cycles until you click Stop"
-        )
+    forever_mode = st.checkbox(
+        "🔁 Improve me forever (run until stopped)",
+        value=False,
+        help="Continuously run improvement cycles until you click Stop"
+    )
 
     # Target specific files (optional)
     st.markdown("#### Target Specific Files (Optional)")
@@ -80,9 +91,10 @@ def render_self_improvement():
         if line.strip()
     ] if target_files_text.strip() else None
 
-    # Start button
-    with st.columns(3, gap="small") as cols:
-        start_button = cols[1].button(
+    # Start button - centered
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        start_button = st.button(
             "🚀 Start Improvement Cycle",
             use_container_width=True,
             type="primary"
@@ -173,7 +185,7 @@ def run_forever_mode(mode: str, target_files: list = None):
     st.warning("⚠️ **Forever mode is running!** The system will continuously improve until you stop it.")
 
     # Stop button
-    with st.columns(3, gap="small") as cols:
+    cols = st.columns(3, gap="small")
         stop_button = cols[1].button("🛑 STOP Forever Mode", use_container_width=True, type="secondary")
 
     if stop_button:
@@ -253,7 +265,7 @@ def display_improvement_results(result: dict, improver: 'SelfImprover'):
     st.markdown("---")
 
     # Summary metrics
-    with st.columns(4, gap="small") as cols:
+    cols = st.columns(4, gap="small")
         cols[0].metric("Files Analyzed", result['files_analyzed'])
         cols[1].metric("Issues Found", result['issues_found'])
         cols[2].metric("Fixes Applied", result['fixes_applied'])
@@ -294,7 +306,7 @@ def display_improvement_results(result: dict, improver: 'SelfImprover'):
     # Impact scores
     st.markdown("### 📊 Impact Assessment")
 
-    with st.columns(3, gap="small") as cols:
+    cols = st.columns(3, gap="small")
         cols[0].metric("Before", f"{result['scores']['before']}/10")
         cols[1].metric("After", f"{result['scores']['after']}/10")
         improvement = result['scores']['improvement']
@@ -313,7 +325,7 @@ def display_improvement_results(result: dict, improver: 'SelfImprover'):
     # Action buttons
     st.markdown("### 🎯 Next Steps")
 
-    with st.columns(3, gap="small") as cols:
+    cols = st.columns(3, gap="small")
         if cols[0].button("✅ Merge to Main", use_container_width=True):
             merge_to_main(result['branch_name'])
         if cols[1].button("🔄 Run Another Cycle", use_container_width=True):
