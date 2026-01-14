@@ -121,7 +121,8 @@ class SelfImprover:
                 'diff': '',
                 'scores': {'before': 10, 'after': 10, 'improvement': 0},
                 'next_focus': 'Code quality is excellent',
-                'issues': []
+                'issues': [],
+                'all_issues': []
             }
 
         # Prioritize issues (includes complexity scoring)
@@ -185,7 +186,8 @@ class SelfImprover:
             'next_focus': next_focus,
             'branch_name': branch_name,
             'commit_hash': commit_hash,
-            'issues': [self._format_issue_summary(issue) for issue in prioritized_issues]
+            'issues': [self._format_issue_summary(issue) for issue in prioritized_issues],
+            'all_issues': [self._format_issue_summary(issue) for issue in issues]  # NEW: All issues for export
         }
 
         self._log("[OK] Improvement cycle complete!", "success")
