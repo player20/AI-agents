@@ -30,7 +30,7 @@ def display_results(results: dict):
     st.markdown("# 🎉 Your App is Ready!")
 
     # Project summary
-    col1, col2 = st.columns([2, 1])
+    col1, col2 = st.columns([2, 1], gap="medium")
 
     with col1:
         st.markdown(f"### {results.get('project_name', 'Your Project')}")
@@ -75,7 +75,7 @@ def display_results(results: dict):
                 return emoji
         return "⚪"
 
-    score_cols = st.columns(4)
+    score_cols = st.columns(4, gap="medium")
 
     score_labels = {
         'speed': ('Speed', 'Page load & responsiveness'),
@@ -101,7 +101,7 @@ def display_results(results: dict):
         skipped = len([t for t in test_results if t['status'] in ['skipped', 'warning']])
         total = len(test_results)
 
-        metric_cols = st.columns(4)
+        metric_cols = st.columns(4, gap="medium")
         with metric_cols[0]:
             st.metric("Total Tests", total)
         with metric_cols[1]:
@@ -143,7 +143,7 @@ def display_results(results: dict):
     if performance and performance.get('page_load_ms', 0) > 0:
         st.markdown("### ⚡ Performance Metrics")
 
-        perf_cols = st.columns(4)
+        perf_cols = st.columns(4, gap="medium")
         with perf_cols[0]:
             load_time = performance.get('page_load_ms', 0)
             load_color = "normal" if load_time < 3000 else "inverse"
@@ -167,7 +167,7 @@ def display_results(results: dict):
 
     screenshots = results.get('screenshots', [])
     if screenshots:
-        screenshot_cols = st.columns(min(len(screenshots), 3))
+        screenshot_cols = st.columns(min(len(screenshots), 3), gap="medium")
 
         for i, screenshot in enumerate(screenshots[:3]):  # Show max 3
             with screenshot_cols[i]:
@@ -192,7 +192,7 @@ def display_results(results: dict):
     # Action buttons
     st.markdown("### 🎯 Next Steps")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns(3, gap="medium")
 
     with col1:
         # Download ZIP

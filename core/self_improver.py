@@ -1386,7 +1386,7 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
             # With Grok's 4M tokens/min, we can handle full rewrites up to 1000 lines for best quality
             # Only use diff-based for extremely large files to save tokens
             if line_count > 1000:
-                self._log(f"📏 Large file detected ({line_count} lines) - using diff-based approach", "info")
+                self._log(f"[SIZE] Large file detected ({line_count} lines) - using diff-based approach", "info")
 
                 # Generate diff-based fix
                 diff_fix = self._generate_diff_based_fix(issue, file_path, current_content, fix_agent)
