@@ -23,6 +23,7 @@ class ImprovementState(TypedDict):
     current_score: float
     target_score: float
     mode: str
+    suggest_enhancements: bool  # Enable Research/Ideas agents for feature suggestions
 
     # Results from current iteration
     issues_found: list
@@ -66,7 +67,8 @@ def analyze_issues_node(state: ImprovementState) -> ImprovementState:
     # Analyze codebase (reuse existing logic)
     files = improver._get_files_to_analyze(mode)
     screenshots = improver._capture_app_screenshots() if mode == ImprovementMode.UI_UX else []
-    issues = improver._identify_issues(files, mode, screenshots)
+    suggest_enhancements = state.get('suggest_enhancements', False)
+    issues = improver._identify_issues(files, mode, screenshots, suggest_enhancements)
 
     print(f"   Found {len(issues)} issues")
 
@@ -244,7 +246,8 @@ def create_improvement_graph() -> StateGraph:
 def run_iterative_improvement(
     mode: str = 'ui_ux',
     target_score: float = 9.0,
-    initial_score: float = 5.0
+    initial_score: float = 5.0,
+    suggest_enhancements: bool = False
 ) -> dict:
     """
     Run iterative self-improvement until quality threshold is met
@@ -253,6 +256,7 @@ def run_iterative_improvement(
         mode: Improvement mode ('ui_ux', 'performance', etc.)
         target_score: Stop when this score is reached (default: 9.0/10)
         initial_score: Starting score (default: 5.0/10)
+        suggest_enhancements: Enable Research/Ideas agents for feature suggestions (default: False)
 
     Returns:
         Final state with results and history
@@ -278,6 +282,7 @@ def run_iterative_improvement(
         'current_score': initial_score,
         'target_score': target_score,
         'mode': mode,
+        'suggest_enhancements': suggest_enhancements,
         'issues_found': [],
         'fixes_applied': 0,
         'files_modified': [],

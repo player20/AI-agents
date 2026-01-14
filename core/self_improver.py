@@ -70,7 +70,8 @@ class SelfImprover:
         self,
         mode: str = ImprovementMode.EVERYTHING,
         target_files: Optional[List[str]] = None,
-        max_issues: int = 5  # Back to 5 with Grok (was 2 for Anthropic's strict limits)
+        max_issues: int = 5,  # Back to 5 with Grok (was 2 for Anthropic's strict limits)
+        suggest_enhancements: bool = False  # NEW: Enable Research/Ideas agents for feature suggestions
     ) -> Dict:
         """
         Run one improvement cycle
@@ -78,7 +79,8 @@ class SelfImprover:
         Args:
             mode: Improvement mode (ui_ux, performance, agent_quality, code_quality, everything)
             target_files: Optional list of specific files to analyze
-            max_issues: Maximum number of issues to fix per cycle (default: 2, reduced due to API rate limits)
+            max_issues: Maximum number of issues to fix per cycle (default: 5)
+            suggest_enhancements: Include Research/Ideas agents to suggest new features (default: False)
 
         Returns:
             Dictionary with cycle results
@@ -101,8 +103,14 @@ class SelfImprover:
 
         # Step 2: Identify issues
         self._log("🔍 Identifying issues...")
-        issues = self._identify_issues(files_to_analyze, mode, screenshots)
-        self._log(f"Found {len(issues)} issues")
+        if suggest_enhancements:
+            self._log("💡 Enhancement mode enabled - Research/Ideas agents will suggest new features", "info")
+        issues = self._identify_issues(files_to_analyze, mode, screenshots, suggest_enhancements)
+
+        # Log issue breakdown by type
+        bug_count = len([i for i in issues if i.get('type') == 'BUG'])
+        enhancement_count = len([i for i in issues if i.get('type') == 'ENHANCEMENT'])
+        self._log(f"Found {len(issues)} total issues: {bug_count} bugs 🐛, {enhancement_count} enhancements 💡")
 
         if not issues:
             self._log("✅ No issues found! Codebase is in great shape.", "success")
@@ -322,8 +330,19 @@ class SelfImprover:
 
         return files
 
-    def _identify_issues(self, files: List[Path], mode: str, screenshots: List[Dict] = None) -> List[Dict]:
-        """Use specialized agent TEAMS based on mode to identify issues"""
+    def _identify_issues(self, files: List[Path], mode: str, screenshots: List[Dict] = None, suggest_enhancements: bool = False) -> List[Dict]:
+        """
+        Use specialized agent TEAMS based on mode to identify issues
+
+        Args:
+            files: List of files to analyze
+            mode: Improvement mode (ui_ux, performance, etc.)
+            screenshots: Optional screenshots for UI/UX analysis
+            suggest_enhancements: If True, add Research/Ideas agents to suggest features
+
+        Returns:
+            List of issues with type classification (BUG or ENHANCEMENT)
+        """
         issues = []
         if screenshots is None:
             screenshots = []
@@ -375,6 +394,16 @@ class SelfImprover:
         }
 
         team = specialized_agent_teams.get(mode, ["Senior", "Verifier", "Challenger"])
+
+        # Add Research/Ideas agents for enhancement suggestions (if enabled)
+        enhancement_agents = []
+        if suggest_enhancements:
+            enhancement_agents = ["Research", "Ideas"]
+            # Insert BEFORE domain experts (but keep Verifier and Challenger at the end)
+            verifier_idx = team.index("Verifier") if "Verifier" in team else len(team)
+            team = enhancement_agents + team[:verifier_idx] + team[verifier_idx:]
+            self._log(f"💡 Added Research/Ideas agents for feature suggestions", "info")
+
         self._log(f"🤖 Specialized team for {mode}: {len(team)} agents", "info")
         self._log(f"   Team: {', '.join(team)}", "info")
 
@@ -435,10 +464,25 @@ class SelfImprover:
             # STAGE 1: Domain experts analyze independently (NO context = no bias)
             stage1_tasks = []
             for agent in domain_experts:
+                # Add agent-specific guidance for Research/Ideas agents
+                agent_prompt = prompt
+                if agent.role in ["Market Research Analyst", "Ideas Specialist"]:
+                    agent_prompt = f"""
+{prompt}
+
+SPECIAL NOTE FOR ENHANCEMENT AGENTS:
+You are analyzing existing code to suggest ENHANCEMENTS (new features, improvements beyond bugs).
+- Mark your suggestions with TYPE: ENHANCEMENT
+- Focus on logical feature extensions, missing industry-standard features, UX improvements
+- Be realistic - suggest features that fit naturally with existing code
+- Example: "Add export to PDF feature" or "Missing dark mode toggle" or "No keyboard shortcuts"
+
+"""
+
                 task = Task(
-                    description=prompt,
+                    description=agent_prompt,
                     agent=agent,
-                    expected_output="Issues in EXACT format: ISSUE: [title]\nFILE: [path]\nSEVERITY: [HIGH/MEDIUM/LOW]\nDESCRIPTION: [text]\nSUGGESTION: [text]\n(blank line between issues)"
+                    expected_output="Issues in EXACT format: ISSUE: [title]\nFILE: [path]\nSEVERITY: [HIGH/MEDIUM/LOW]\nTYPE: [BUG/ENHANCEMENT] (optional, defaults to BUG)\nDESCRIPTION: [text]\nSUGGESTION: [text]\n(blank line between issues)"
                     # NO context = independent analysis, no anchoring bias
                 )
                 stage1_tasks.append(task)
@@ -558,8 +602,9 @@ OUTPUT FORMAT:
 ISSUE: [title]
 FILE: [path]
 SEVERITY: [HIGH/MEDIUM/LOW]
-DESCRIPTION: [what's wrong]
-SUGGESTION: [how to fix]
+TYPE: [BUG/ENHANCEMENT] (if marked ENHANCEMENT by Research/Ideas agents, keep it; otherwise default to BUG)
+DESCRIPTION: [what's wrong or what's missing]
+SUGGESTION: [how to fix or what to add]
 
 GOAL: Output ALL valid issues + any new ones you find. Be thorough and demanding!
 """
@@ -567,7 +612,7 @@ GOAL: Output ALL valid issues + any new ones you find. Be thorough and demanding
             challenger_task = Task(
                 description=challenger_prompt,
                 agent=challenger_agent,
-                expected_output="Only validated, worthwhile issues in exact format",
+                expected_output="Only validated, worthwhile issues with TYPE classification (BUG or ENHANCEMENT)",
                 context=[verifier_task]  # Challenger only sees Verifier's output
             )
 
@@ -599,9 +644,13 @@ GOAL: Output ALL valid issues + any new ones you find. Be thorough and demanding
 
                 if batch_issues:
                     # Log what we found
-                    self._log(f"  ✓ Found {len(batch_issues)} issues in this batch:", "info")
+                    bug_count = len([i for i in batch_issues if i.get('type') == 'BUG'])
+                    enhancement_count = len([i for i in batch_issues if i.get('type') == 'ENHANCEMENT'])
+                    self._log(f"  ✓ Found {len(batch_issues)} issues in this batch: {bug_count} bugs, {enhancement_count} enhancements", "info")
                     for idx, issue in enumerate(batch_issues[:3], 1):  # Show first 3
-                        self._log(f"    {idx}. [{issue.get('severity', 'UNKNOWN')}] {issue.get('title', 'Untitled')} ({issue.get('file', 'unknown file')})", "info")
+                        issue_type = issue.get('type', 'BUG')
+                        type_emoji = "🐛" if issue_type == "BUG" else "💡"
+                        self._log(f"    {idx}. {type_emoji} [{issue.get('severity', 'UNKNOWN')}] {issue.get('title', 'Untitled')} ({issue.get('file', 'unknown file')})", "info")
                     if len(batch_issues) > 3:
                         self._log(f"    ... and {len(batch_issues) - 3} more", "info")
                 elif len(result_text) > 100:
@@ -818,6 +867,15 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
                     severity = 'MEDIUM'
                 current_issue['severity'] = severity
 
+            elif line.upper().startswith('TYPE:') or line.upper().startswith('**TYPE:'):
+                type_text = line.split(':', 1)[1].strip().strip('*').strip().upper()
+                # Extract issue type (BUG or ENHANCEMENT)
+                if 'ENHANCEMENT' in type_text:
+                    issue_type = 'ENHANCEMENT'
+                else:
+                    issue_type = 'BUG'
+                current_issue['type'] = issue_type
+
             elif line.upper().startswith('DESCRIPTION:') or line.upper().startswith('**DESCRIPTION:'):
                 desc = line.split(':', 1)[1].strip().strip('*').strip()
                 current_issue['description'] = desc
@@ -829,6 +887,11 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
         # Add last issue
         if current_issue and 'title' in current_issue:
             issues.append(current_issue)
+
+        # Ensure all issues have a type (default to BUG if not specified)
+        for issue in issues:
+            if 'type' not in issue:
+                issue['type'] = 'BUG'
 
         return issues
 
