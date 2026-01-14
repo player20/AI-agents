@@ -97,7 +97,7 @@ class ProgressTracker:
                     color = "⚪"
 
                 # Phase header with status
-                col1, col2 = st.columns([5, 1])
+                col1, col2 = st.columns([4, 1], gap="small")
                 with col1:
                     st.markdown(f"<div style='display: flex; align-items: center;'><div>{phase_data.emoji}</div><div style='margin-left: 0.5rem;'>{phase_data.name}</div></div>", unsafe_allow_html=True)
                 with col2:

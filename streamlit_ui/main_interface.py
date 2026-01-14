@@ -162,5 +162,5 @@ def render_main_interface():
             display_results(progress_tracker)
         except Exception as e:
             st.error(f"⚠️ An unexpected error occurred: {str(e)}")
-            st.error("Please try again or contact support if the issue persists.")
+            st.error("Please try again or contact support if the issue persists. Error details: {str(e)}")
             st.stop()
