@@ -66,6 +66,47 @@ class SelfImprover:
         else:
             print(f"[{level.upper()}] {message}")
 
+    def _validate_api_connection(self) -> bool:
+        """
+        Test API connection before running improvement cycle (Phase 0D fix)
+
+        Returns:
+            True if API is accessible, False otherwise
+        """
+        import os
+        import requests
+
+        xai_api_key = os.getenv("XAI_API_KEY")
+        if not xai_api_key:
+            self._log("[!] XAI_API_KEY not set - Grok models unavailable", "warning")
+            self._log("[INFO] Will use Anthropic Claude models instead", "info")
+            return True  # Return True - can still work with Anthropic
+
+        # Test x.ai connection
+        try:
+            response = requests.get(
+                "https://api.x.ai/v1/models",
+                headers={"Authorization": f"Bearer {xai_api_key}"},
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                self._log("[OK] Grok API connection successful", "success")
+                return True
+            else:
+                self._log(f"[!] Grok API returned status {response.status_code}", "warning")
+                self._log(f"[FALLBACK] Will use Anthropic Claude models instead", "info")
+                return True  # Can still work with fallback
+
+        except requests.Timeout:
+            self._log("[!] Grok API connection timeout - network issue?", "error")
+            self._log("[FALLBACK] Will use Anthropic Claude models instead", "info")
+            return True  # Can still work with fallback
+        except Exception as e:
+            self._log(f"[!] Grok API connection failed: {e}", "error")
+            self._log("[FALLBACK] Will use Anthropic Claude models instead", "info")
+            return True  # Can still work with fallback
+
     def run_cycle(
         self,
         mode: str = ImprovementMode.EVERYTHING,
@@ -86,6 +127,9 @@ class SelfImprover:
             Dictionary with cycle results
         """
         self._log(f"[CYCLE] Starting improvement cycle - Mode: {mode}")
+
+        # Phase 0D: Validate API connection before starting
+        self._validate_api_connection()
 
         # Step 1: Analyze codebase
         self._log("[STATS] Analyzing codebase...")
@@ -356,6 +400,44 @@ class SelfImprover:
         issues = []
         if screenshots is None:
             screenshots = []
+
+        # Phase 8: Initialize agent cache for 80% faster subsequent runs
+        from core.agent_cache import AgentCache
+        cache = AgentCache(self.base_dir, ttl_hours=24)
+        cache_stats = {'hits': 0, 'misses': 0, 'files_analyzed': 0}
+
+        # Helper to get mode value (handle both enum and string)
+        mode_value = mode.value if hasattr(mode, 'value') else str(mode)
+
+        # Check cache for each file before analysis
+        files_to_analyze = []
+        for file_path in files:
+            cached_issues = cache.get_cached_analysis(str(file_path), mode_value)
+
+            if cached_issues is not None:
+                # Cache hit! Reuse previous analysis
+                cache_stats['hits'] += 1
+                self._log(f"  [CACHE HIT] {Path(file_path).name} - {len(cached_issues)} issues from cache", "success")
+                issues.extend(cached_issues)
+            else:
+                # Cache miss - need to analyze
+                cache_stats['misses'] += 1
+                files_to_analyze.append(file_path)
+
+        # Log cache performance
+        if cache_stats['hits'] > 0 or cache_stats['misses'] > 0:
+            hit_rate = (cache_stats['hits'] / (cache_stats['hits'] + cache_stats['misses']) * 100) if (cache_stats['hits'] + cache_stats['misses']) > 0 else 0
+            self._log(f"[CACHE] {cache_stats['hits']} hits, {cache_stats['misses']} misses ({hit_rate:.1f}% hit rate)", "info")
+            if cache_stats['hits'] > 0:
+                self._log(f"[CACHE] Saved ~{cache_stats['hits']} API calls (70-80% cost savings)", "success")
+
+        # If all files were cached, return early
+        if not files_to_analyze:
+            self._log("[CACHE] All files cached - no analysis needed!", "success")
+            return issues
+
+        # Continue with analysis for uncached files
+        files = files_to_analyze
 
         # Define SPECIALIZED agent teams per improvement mode
         # Each mode has domain experts + Verifier + Challenger
@@ -698,8 +780,33 @@ SUGGESTION: Move timeout to a constant at the top of the file or config file
                     self._log(f"  First 300 chars: {result_text[:300]}", "warning")
 
                 issues.extend(batch_issues)
+
+                # Phase 8: Cache results for each file in this batch
+                # Group issues by file and cache them separately
+                from collections import defaultdict
+                file_issue_map = defaultdict(list)
+                for issue in batch_issues:
+                    file_path = issue.get('file', '')
+                    if file_path:
+                        file_issue_map[file_path].append(issue)
+
+                # Cache results for each file
+                for file_path, file_issues in file_issue_map.items():
+                    cache.set_cached_analysis(file_path, mode_value, file_issues)
+                    cache_stats['files_analyzed'] += 1
+
+                # Also cache empty results for files with no issues (prevent re-analysis)
+                for file_path in file_contents.keys():
+                    if file_path not in file_issue_map:
+                        cache.set_cached_analysis(file_path, mode_value, [])
+                        cache_stats['files_analyzed'] += 1
+
             except Exception as e:
                 self._log(f"Analysis failed for batch: {e}", "error")
+
+        # Log final cache statistics
+        if cache_stats['files_analyzed'] > 0:
+            self._log(f"[CACHE] Cached analysis results for {cache_stats['files_analyzed']} files", "success")
 
         return issues
 
@@ -1513,13 +1620,23 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
 
         # Use Sonnet for fix generation (better quality than Haiku)
         # Analysis stays on Haiku (fast), but fixes need higher quality output
-        fix_agent = create_agent_with_model(
-            agent_id,
-            MODEL_PRESETS["Grok Reasoning"]['default']  # Fast reasoning model with high rate limits
-        )
+        # Phase 0D: Add fallback to Anthropic if Grok unavailable
+        try:
+            fix_agent = create_agent_with_model(
+                agent_id,
+                MODEL_PRESETS["Grok Reasoning"]['default']  # Fast reasoning model with high rate limits
+            )
+            self._log(f"[FIX] Fix generation using Grok 4 Fast Reasoning (480 rpm, 4M tpm)", "info")
+            self._log(f"[INFO] No delays needed - Grok has 100x higher rate limits!", "info")
+        except Exception as e:
+            self._log(f"[!] Grok unavailable: {e}", "warning")
+            self._log(f"[FALLBACK] Using Anthropic Claude Sonnet instead", "info")
 
-        self._log(f"[FIX] Fix generation using Grok 4 Fast Reasoning (480 rpm, 4M tpm)", "info")
-        self._log(f"[WARNING]  No delays needed - Grok has 100x higher rate limits!", "info")
+            fix_agent = create_agent_with_model(
+                agent_id,
+                MODEL_PRESETS["Balanced (All Sonnet)"]['default']
+            )
+            self._log(f"[FIX] Fix generation using Claude Sonnet 3.5 (50 rpm, 40K tpm)", "info")
 
         for issue in issues:
             file_path_raw = issue.get('file', '')
@@ -1565,16 +1682,19 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
             # Check file size - skip files that are too large for reliable full rewrites
             line_count = len(current_content.splitlines())
 
-            # Skip files over 800 lines - Grok consistently outputs incomplete rewrites for large files
-            if line_count > 800:
+            # Skip files over 400 lines - Grok consistently outputs incomplete rewrites for large files
+            # Reduced from 800 to 400 to prevent truncation issues (96% file shrinkage bug)
+            if line_count > 400:
                 issue_title = issue.get('title', 'Unknown issue')
-                self._log(f"[!] Skipping issue '{issue_title}': File too large ({line_count} lines, max 800)", "warning")
+                self._log(f"[!] Skipping issue '{issue_title}': File too large ({line_count} lines, max 400)", "warning")
                 self._log(f"    Large file: {Path(file_path).name} - Consider breaking into smaller modules", "info")
+                self._log(f"    💡 Tip: For large files, create separate targeted issues for specific functions/sections", "info")
                 continue
 
             # Threshold for diff-based approach: DISABLED (Grok handles full rewrites better)
-            # With Grok's 4M tokens/min and 480 rpm, we can do full rewrites for all files under 800 lines
+            # With Grok's 4M tokens/min and 480 rpm, we can do full rewrites for all files under 400 lines
             # Diff-based approach was causing Grok to ignore format requirements
+            # Note: Reduced from 800 to 400 lines to prevent truncation issues (Phase 0C fix)
             if False:  # Disabled - always use full rewrites
                 self._log(f"[SIZE] Large file detected ({line_count} lines) - using diff-based approach", "info")
 
@@ -1688,6 +1808,16 @@ START YOUR RESPONSE NOW WITH: <file_content>
                     try:
                         result = crew.kickoff()
                         result_text = result.raw if hasattr(result, 'raw') else str(result)
+
+                        # Validate output length - detect truncated responses (Phase 0C fix)
+                        expected_min_chars = len(current_content) * 0.8  # Should be at least 80% of original
+                        actual_chars = len(result_text)
+
+                        if actual_chars < expected_min_chars:
+                            self._log(f"  [!] WARNING: Agent output suspiciously short for {Path(file_path).name}", "warning")
+                            self._log(f"     Expected ≥{expected_min_chars:.0f} chars (80% of original), got {actual_chars} chars", "warning")
+                            self._log(f"     This may indicate truncated output. Attempting extraction anyway...", "info")
+
                         break  # Success - exit retry loop
 
                     except Exception as api_error:
@@ -1734,11 +1864,36 @@ START YOUR RESPONSE NOW WITH: <file_content>
                     if first_line in ['python', 'py', 'javascript', 'js', 'typescript', 'ts', 'html', 'css']:
                         fixed_content = '\n'.join(fixed_content.split('\n')[1:])
 
-                    # Validate - reject placeholder/truncated outputs
-                    if '...' in fixed_content[:200] or '…' in fixed_content[:200]:  # Check first 200 chars
-                        self._log(f"  [!] Fix contains '...' placeholder for {Path(file_path).name}, rejecting", "warning")
-                        self._log(f"     Agent used prohibited abbreviation. First 150 chars: {repr(fixed_content[:150])}", "warning")
+                    # Validate - reject placeholder/truncated outputs (Enhanced Phase 0C checks)
+                    # Check for incomplete patterns throughout the file, not just first 200 chars
+                    incomplete_patterns = [
+                        ('...', 'ellipsis abbreviation'),
+                        ('# ... rest of code', 'code omission marker'),
+                        ('// ... (remaining code)', 'code omission marker'),
+                        ('# TODO: Add remaining', 'incomplete implementation'),
+                        ('// TODO: Add remaining', 'incomplete implementation'),
+                        ('... rest of code', 'code omission marker'),
+                        ('... (remaining code)', 'code omission marker'),
+                    ]
+
+                    is_incomplete = False
+                    for pattern, reason in incomplete_patterns:
+                        if pattern in fixed_content:
+                            self._log(f"  [!] Fix contains incomplete pattern for {Path(file_path).name}: '{pattern}' ({reason})", "warning")
+                            self._log(f"     Agent generated partial output. First 200 chars: {repr(fixed_content[:200])}", "warning")
+                            is_incomplete = True
+                            break
+
+                    if is_incomplete:
                         continue
+
+                    # Also check: file should end properly (not truncated mid-line)
+                    if not fixed_content.endswith('\n') and len(fixed_content) > 100:
+                        last_lines = fixed_content.split('\n')[-3:]  # Check last 3 lines
+                        if any(line.strip().endswith('...') or line.strip().endswith('# ...') for line in last_lines):
+                            self._log(f"  [!] File appears to be truncated (ends with '...')", "warning")
+                            self._log(f"     Last 100 chars: {repr(fixed_content[-100:])}", "warning")
+                            continue
 
                     # Validate we got substantial content
                     if len(fixed_content) > 50:

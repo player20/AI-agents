@@ -9,6 +9,7 @@ import sys
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, List, Dict, Any, Callable
 from .constants import COLORS, DIMENSIONS
+import html  # For XSS protection (Issue 1 fix)
 
 # Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -30,6 +31,238 @@ except ImportError as e:
     SelfImprover = None  # Define as None for type hints if import fails
 
 
+def sanitize_html(text: str) -> str:
+    """
+    Sanitize text for safe HTML injection (Issue 1 fix: XSS protection)
+
+    Args:
+        text: Input text that may contain user-controlled content
+
+    Returns:
+        HTML-escaped safe text
+    """
+    if not isinstance(text, str):
+        return ""
+    return html.escape(text)
+
+
+def sanitize_color(color: str) -> str:
+    """
+    Validate color is safe for CSS injection (Issue #8 fix: CSS injection protection)
+
+    Args:
+        color: Color value to validate
+
+    Returns:
+        Safe color value or gray fallback
+    """
+    import re
+
+    if not isinstance(color, str):
+        return "#808080"  # Gray fallback
+
+    # Allow hex colors (#RRGGBB or #RGB)
+    if re.match(r'^#[0-9A-Fa-f]{3}$', color) or re.match(r'^#[0-9A-Fa-f]{6}$', color):
+        return color
+
+    # Whitelist of safe CSS color names
+    safe_colors = {
+        'red', 'blue', 'green', 'yellow', 'orange', 'purple', 'white', 'black',
+        'gray', 'grey', 'cyan', 'magenta', 'pink', 'brown', 'navy', 'teal',
+        'lime', 'olive', 'maroon', 'aqua', 'silver', 'fuchsia'
+    }
+
+    if color.lower() in safe_colors:
+        return color
+
+    # Default fallback for unsafe values
+    return "#808080"  # Gray
+
+
+def show_success_celebration(score: float, fixes_applied: int) -> None:
+    """
+    Display animated success celebration (Phase 28: Success Celebrations)
+
+    Shows confetti animation when cycle completes successfully with high score
+
+    Args:
+        score: Quality score achieved (0-10)
+        fixes_applied: Number of fixes successfully applied
+    """
+    # Only celebrate if score is 8+ or 5+ fixes were applied
+    should_celebrate = score >= 8.0 or fixes_applied >= 5
+
+    if not should_celebrate:
+        return
+
+    # Determine celebration intensity based on achievements
+    if score >= 9.5 and fixes_applied >= 10:
+        celebration_level = "epic"
+        message = "🎉 EPIC SUCCESS! Outstanding improvements!"
+    elif score >= 9.0 or fixes_applied >= 7:
+        celebration_level = "great"
+        message = "🌟 Great work! Excellent improvements applied!"
+    else:
+        celebration_level = "good"
+        message = "✨ Nice! Quality improvements complete!"
+
+    # Issue #7 fix: Sanitize celebration message (defensive coding)
+    safe_message = sanitize_html(message)
+
+    # Issue #17 fix: Use dictionary for celebration level validation (defensive coding)
+    confetti_counts = {'epic': 100, 'great': 60, 'good': 30}
+    confetti_count = confetti_counts.get(celebration_level, 30)  # Default to 30
+
+    # Animated celebration HTML/CSS
+    celebration_html = f"""
+    <style>
+    @keyframes confetti-fall {{
+        0% {{ transform: translateY(-100vh) rotate(0deg); opacity: 1; }}
+        100% {{ transform: translateY(100vh) rotate(720deg); opacity: 0; }}
+    }}
+
+    @keyframes pulse-glow {{
+        0%, 100% {{ transform: scale(1); opacity: 1; }}
+        50% {{ transform: scale(1.05); opacity: 0.8; }}
+    }}
+
+    .celebration-container {{
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9999;
+        overflow: hidden;
+    }}
+
+    .confetti {{
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background-color: #f0f;
+        animation: confetti-fall 3s linear;
+    }}
+
+    .celebration-message {{
+        position: fixed;
+        top: 20%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px 40px;
+        border-radius: 12px;
+        font-size: 1.5rem;
+        font-weight: 700;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        animation: pulse-glow 1s ease-in-out 3;
+        z-index: 10000;
+    }}
+    </style>
+
+    <div class="celebration-container" id="celebration">
+        <div class="celebration-message">
+            {safe_message}
+        </div>
+    </div>
+
+    <script>
+    // Generate confetti particles
+    (function() {{
+        const container = document.getElementById('celebration');
+        if (!container) return;
+
+        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff',
+                        '#ffa500', '#ff69b4', '#00ff7f', '#9370db'];
+        const confettiCount = {confetti_count};  // Issue #17 fix: Validated count from Python
+
+        for (let i = 0; i < confettiCount; i++) {{
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = Math.random() * 100 + '%';
+            confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            confetti.style.animationDelay = (Math.random() * 2) + 's';
+            confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+            container.appendChild(confetti);
+        }}
+
+        // Issue #12 fix: Remove celebration with buffer time to ensure animations complete
+        // Max animation: 3s fall + pulse, add 500ms buffer
+        const maxDuration = 4000;
+        setTimeout(function() {{
+            if (container && container.parentNode) {{
+                container.parentNode.removeChild(container);
+            }}
+        }}, maxDuration + 500);  // 4.5s total
+    }})();
+    </script>
+    """
+
+    st.markdown(celebration_html, unsafe_allow_html=True)
+
+
+def get_agent_avatar(message: str) -> str:
+    """
+    Get agent avatar/icon based on message content (Phase 27: Agent Avatar System)
+
+    Returns unique icon for each agent type for better visual identification
+
+    Args:
+        message: Log message that might contain agent names
+
+    Returns:
+        Unicode emoji avatar for the agent
+    """
+    # Agent avatar mapping - Phase 27: Each agent has unique personality
+    avatars = {
+        'ANALYZER': '🔍',
+        'VERIFIER': '✅',
+        'CHALLENGER': '⚡',
+        'FIXER': '🔧',
+        'TESTER': '🧪',
+        'SENIOR': '👴',
+        'JUNIOR': '👶',
+        'DESIGNER': '🎨',
+        'PERFORMANCE': '⚡',
+        'SECURITY': '🔒',
+        'RESEARCH': '📚',
+        'IDEAS': '💡',
+        'ORCHESTRATOR': '🎯',
+        'MANAGER': '👔',
+        'CACHE': '💾',
+        'BATCH': '📦',
+        'FIX': '🔧',
+        'TEST': '🧪',
+        'QUALITY': '⭐',
+        'EVALUATE': '📊',
+        'COMPLETE': '✨',
+        'CYCLE': '🔄',
+        'APPROVAL': '👍',
+        'PLANNING': '📋',
+        'APPLY': '✏️',
+        'GIT': '🌿'
+    }
+
+    # Find matching agent in message
+    message_upper = message.upper()
+    for agent_name, avatar in avatars.items():
+        if f'[{agent_name}]' in message_upper:
+            return avatar
+
+    # Level-based default avatars
+    if 'ERROR' in message_upper or '[X]' in message_upper:
+        return '❌'
+    elif 'WARNING' in message_upper or '[!]' in message_upper:
+        return '⚠️'
+    elif 'SUCCESS' in message_upper or '[OK]' in message_upper or '[+]' in message_upper:
+        return '✅'
+
+    # Default avatar
+    return 'ℹ️'
+
+
 def create_terminal_callback(terminal_placeholder: Any) -> Callable[[str, str], None]:
     """
     Create a terminal callback function with session state persistence.
@@ -47,21 +280,31 @@ def create_terminal_callback(terminal_placeholder: Any) -> Callable[[str, str], 
             st.session_state.terminal_messages = []
 
         timestamp = datetime.now().strftime("%H:%M:%S")
-        color = {
+        raw_color = {
             "info": COLORS["status_info"],
             "success": COLORS["status_success"],
             "warning": COLORS["status_warning"],
             "error": COLORS["status_error"]
         }.get(level, COLORS["status_info"])
 
+        # Issue #8 fix: Sanitize color for CSS injection protection
+        color = sanitize_color(raw_color)
+
+        # Phase 27: Add agent avatar for visual identification
+        avatar = get_agent_avatar(message)
+
+        # Issue 1 fix: Sanitize message for XSS protection
+        safe_message = sanitize_html(message)
+
         # Store in session state for persistence
         st.session_state.terminal_messages.append(
-            f'<span style="color: {color};">[{timestamp}] {message}</span>'
+            f'<span style="color: {color};">{avatar} [{timestamp}] {safe_message}</span>'
         )
 
-        # Keep last 50 messages (increased for better history)
-        if len(st.session_state.terminal_messages) > 50:
-            st.session_state.terminal_messages = st.session_state.terminal_messages[-50:]
+        # Issue #10 fix: Keep fewer messages to reduce memory usage (25 instead of 50)
+        MAX_TERMINAL_MESSAGES = 25
+        if len(st.session_state.terminal_messages) > MAX_TERMINAL_MESSAGES:
+            st.session_state.terminal_messages = st.session_state.terminal_messages[-MAX_TERMINAL_MESSAGES:]
 
         # Update display with auto-scroll
         terminal_html = f"""
@@ -85,6 +328,80 @@ def create_terminal_callback(terminal_placeholder: Any) -> Callable[[str, str], 
 
 def render_self_improvement() -> None:
     """Render the self-improvement interface"""
+
+    # Phase 26: Dark Mode Toggle with smooth transitions
+    if 'dark_mode' not in st.session_state:
+        st.session_state.dark_mode = True  # Default to dark mode
+
+    # Theme toggle in sidebar
+    with st.sidebar:
+        st.markdown("---")
+        st.markdown("#### 🎨 Theme")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("☀️ Light", use_container_width=True, type="secondary" if st.session_state.dark_mode else "primary"):
+                st.session_state.dark_mode = False
+                st.rerun()
+        with col2:
+            if st.button("🌙 Dark", use_container_width=True, type="primary" if st.session_state.dark_mode else "secondary"):
+                st.session_state.dark_mode = True
+                st.rerun()
+
+        st.caption(f"{'🌙 Dark mode active' if st.session_state.dark_mode else '☀️ Light mode active'}")
+
+    # Apply theme CSS with smooth transitions
+    theme_css = f"""
+    <style>
+    /* Phase 26: Theme transition styles */
+    * {{
+        transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
+    }}
+
+    {'/* Dark mode styles */' if st.session_state.dark_mode else '/* Light mode styles */'}
+    .stApp {{
+        background-color: {'#0e1117' if st.session_state.dark_mode else '#ffffff'};
+        color: {'#fafafa' if st.session_state.dark_mode else '#262730'};
+    }}
+
+    .stMarkdown, .stText {{
+        color: {'#fafafa' if st.session_state.dark_mode else '#262730'};
+    }}
+
+    div[data-testid="stSidebar"] {{
+        background-color: {'#262730' if st.session_state.dark_mode else '#f0f2f6'};
+    }}
+
+    .stButton > button {{
+        background-color: {'#1f2937' if st.session_state.dark_mode else '#ffffff'};
+        color: {'#fafafa' if st.session_state.dark_mode else '#262730'};
+        border: 1px solid {'#404040' if st.session_state.dark_mode else '#e0e0e0'};
+    }}
+
+    .stButton > button:hover {{
+        background-color: {'#374151' if st.session_state.dark_mode else '#f9fafb'};
+        border-color: {'#00aaff' if st.session_state.dark_mode else '#0066cc'};
+    }}
+
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea {{
+        background-color: {'#1a1d29' if st.session_state.dark_mode else '#ffffff'};
+        color: {'#fafafa' if st.session_state.dark_mode else '#262730'};
+        border: 1px solid {'#404040' if st.session_state.dark_mode else '#e0e0e0'};
+    }}
+
+    code {{
+        background-color: {'#1a1d29' if st.session_state.dark_mode else '#f6f8fa'};
+        color: {'#00aaff' if st.session_state.dark_mode else '#0066cc'};
+    }}
+
+    .stExpander {{
+        background-color: {'#1a1d29' if st.session_state.dark_mode else '#f9fafb'};
+        border: 1px solid {'#404040' if st.session_state.dark_mode else '#e0e0e0'};
+    }}
+    </style>
+    """
+    st.markdown(theme_css, unsafe_allow_html=True)
 
     st.markdown("### 🔄 Meta Self-Improvement")
     st.markdown("The system evaluates and improves its own code, UI/UX, and capabilities.")
@@ -184,11 +501,73 @@ def render_self_improvement() -> None:
         help="Specify files to analyze, or leave empty to analyze entire codebase"
     )
 
-    # Parse target files
-    target_files = [
-        line.strip() for line in target_files_text.split('\n')
-        if line.strip()
-    ] if target_files_text.strip() else None
+    # Parse and validate target files (Issue #14 fix)
+    if target_files_text.strip():
+        target_files = []
+        for line in target_files_text.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            # Validate path
+            try:
+                path = Path(line)
+                if path.is_absolute():
+                    st.warning(f"⚠️ Skipping absolute path: {line}")
+                    continue
+                if '..' in path.parts:
+                    st.warning(f"⚠️ Skipping path traversal: {line}")
+                    continue
+                target_files.append(line)
+            except Exception:
+                st.warning(f"⚠️ Invalid path: {line}")
+                continue
+        target_files = target_files if target_files else None
+    else:
+        target_files = None
+
+    # Phase 8: Cache Management Section
+    st.markdown("---")
+    st.markdown("#### 💾 Cache Management")
+
+    try:
+        from core.agent_cache import AgentCache
+        from pathlib import Path
+
+        # Get cache stats
+        config = load_config()
+        cache = AgentCache(Path(config['base_dir']))
+        stats = cache.get_cache_stats()
+
+        # Display cache stats
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Cached Files", stats['total_entries'])
+        with col2:
+            st.metric("Cache Size", f"{stats['total_size_mb']:.2f} MB")
+
+        if stats['expired_entries'] > 0:
+            st.caption(f"⚠️ {stats['expired_entries']} expired entries")
+
+        st.caption(f"TTL: {stats['ttl_hours']:.0f} hours | Location: `{Path(stats['cache_dir']).name}`")
+
+        # Cache action buttons
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🗑️ Clear All", use_container_width=True, help="Clear all cached analysis results"):
+                cleared = cache.clear_cache()
+                st.success(f"✅ Cleared {cleared} cache entries")
+                st.rerun()
+        with col2:
+            if st.button("🧹 Clear Expired", use_container_width=True, help="Clear only expired cache entries"):
+                cleared = cache.clear_expired()
+                if cleared > 0:
+                    st.success(f"✅ Cleared {cleared} expired entries")
+                    st.rerun()
+                else:
+                    st.info("No expired entries to clear")
+
+    except Exception as e:
+        st.caption(f"Cache unavailable: {str(e)[:50]}")
 
     # Start button - centered
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -216,9 +595,16 @@ def run_single_cycle(mode: str, target_files: Optional[List[str]] = None, sugges
 
     # Create progress container
     progress_container = st.container()
+    timeline_container = st.container()  # Phase 24: Timeline visualization
     terminal_container = st.container()
     selection_container = st.container()
     results_container = st.container()
+
+    with timeline_container:
+        timeline_placeholder = st.empty()
+        # Display initial timeline
+        with timeline_placeholder.container():
+            display_interactive_timeline('analyze', 0.0)
 
     with progress_container:
         progress_bar = st.progress(0, text="Initializing...")
@@ -253,14 +639,27 @@ def run_single_cycle(mode: str, target_files: Optional[List[str]] = None, sugges
         # Update progress
         progress_bar.progress(0.1, text="Analyzing codebase...")
 
+        # Phase 24: Update timeline - Analyze stage
+        with timeline_placeholder.container():
+            display_interactive_timeline('analyze', 0.3)
+
         # Phase 1: Analyze and identify issues (don't fix yet)
         files_to_analyze = improver._get_files_to_analyze(target_files=target_files, mode=improvement_mode)
         screenshots = improver._capture_app_screenshots() if improvement_mode == ImprovementMode.UI_UX else []
+
+        # Phase 24: Update timeline - Analysis in progress
+        with timeline_placeholder.container():
+            display_interactive_timeline('analyze', 0.7)
+
         all_issues = improver._identify_issues(files_to_analyze, improvement_mode, screenshots, suggest_enhancements)
 
         terminal_callback(f"Found {len(all_issues)} issues total", "success")
 
         progress_bar.progress(0.4, text="Analysis complete")
+
+        # Phase 24: Update timeline - Verify stage
+        with timeline_placeholder.container():
+            display_interactive_timeline('verify', 0.5)
 
         # Phase 2: Show issue selection UI
         with selection_container:
@@ -281,9 +680,19 @@ def run_single_cycle(mode: str, target_files: Optional[List[str]] = None, sugges
 
         # Phase 3: Generate and apply fixes for selected issues
         progress_bar.progress(0.6, text="Generating fixes...")
+
+        # Phase 24: Update timeline - Challenge stage
+        with timeline_placeholder.container():
+            display_interactive_timeline('challenge', 0.5)
+
         fixes = improver._generate_fixes(issues_to_fix, improvement_mode)
 
         progress_bar.progress(0.8, text="Applying fixes...")
+
+        # Phase 24: Update timeline - Fix stage
+        with timeline_placeholder.container():
+            display_interactive_timeline('fix', 0.5)
+
         applied_fixes = improver._apply_and_test_fixes(fixes, issues_to_fix, improvement_mode)
 
         terminal_callback(f"Applied {applied_fixes}/{len(fixes)} fixes", "success")
@@ -291,24 +700,118 @@ def run_single_cycle(mode: str, target_files: Optional[List[str]] = None, sugges
         # Phase 4: Complete the cycle (git operations, evaluation)
         progress_bar.progress(0.9, text="Finalizing...")
 
+        # Phase 24: Update timeline - Test stage
+        with timeline_placeholder.container():
+            display_interactive_timeline('test', 0.8)
+
         # Create git branch and commit
         from datetime import datetime
+        import subprocess
+        import re
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         branch_name = f"improvement/{mode.lower().replace(' ', '_')}_{timestamp}"
 
-        import subprocess
-        subprocess.run(['git', 'checkout', '-b', branch_name], cwd=str(improver.base_dir), check=True, capture_output=True)
-        subprocess.run(['git', 'add', '.'], cwd=str(improver.base_dir), check=True, capture_output=True)
+        # Issue 2 fix: Validate inputs for command injection protection
+        # Validate branch name (alphanumeric, underscore, hyphen, forward slash only)
+        if not re.match(r'^[a-zA-Z0-9_/-]+$', branch_name):
+            # Issue #13 fix: Don't echo back potentially malicious input in error messages
+            terminal_callback("Invalid branch name format", "error")
+            raise ValueError("Branch name contains invalid characters")
+
+        # Validate base_dir exists and is a directory
+        base_dir_path = Path(improver.base_dir)
+        if not base_dir_path.exists() or not base_dir_path.is_dir():
+            # Issue #13 fix: Don't reveal internal paths
+            terminal_callback("Invalid base directory configuration", "error")
+            raise ValueError("Base directory does not exist or is not a directory")
+
+        # Issue 4 fix: Add error handling for external processes
+        try:
+            result = subprocess.run(
+                ['git', 'checkout', '-b', branch_name],
+                cwd=str(improver.base_dir),
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=30  # 30 second timeout
+            )
+            terminal_callback(f"Created branch: {branch_name}", "success")
+        except subprocess.CalledProcessError as e:
+            terminal_callback(f"Git checkout failed: {e.stderr}", "error")
+            raise
+        except subprocess.TimeoutExpired:
+            terminal_callback("Git checkout timed out (30s)", "error")
+            raise
+        except Exception as e:
+            terminal_callback(f"Git checkout error: {str(e)}", "error")
+            raise
+
+        try:
+            subprocess.run(
+                ['git', 'add', '.'],
+                cwd=str(improver.base_dir),
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+        except subprocess.CalledProcessError as e:
+            terminal_callback(f"Git add failed: {e.stderr}", "error")
+            raise
+        except subprocess.TimeoutExpired:
+            terminal_callback("Git add timed out (30s)", "error")
+            raise
 
         commit_message = f"Apply {applied_fixes} improvements ({mode} mode)"
-        subprocess.run(['git', 'commit', '-m', commit_message], cwd=str(improver.base_dir), capture_output=True)
+        try:
+            result = subprocess.run(
+                ['git', 'commit', '-m', commit_message],
+                cwd=str(improver.base_dir),
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0:
+                terminal_callback("Changes committed successfully", "success")
+        except subprocess.TimeoutExpired:
+            terminal_callback("Git commit timed out (30s)", "error")
+            raise
 
-        commit_result = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=str(improver.base_dir), capture_output=True, text=True)
-        commit_hash = commit_result.stdout.strip()
+        # Get commit hash with error handling (Issue #6 fix)
+        try:
+            commit_result = subprocess.run(
+                ['git', 'rev-parse', 'HEAD'],
+                cwd=str(improver.base_dir),
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=True
+            )
+            commit_hash = commit_result.stdout.strip()
+        except subprocess.TimeoutExpired:
+            terminal_callback("Git rev-parse timed out (10s)", "warning")
+            commit_hash = "unknown"
+        except Exception as e:
+            terminal_callback(f"Failed to get commit hash: {str(e)}", "warning")
+            commit_hash = "unknown"
 
-        # Get diff
-        diff_result = subprocess.run(['git', 'diff', 'main'], cwd=str(improver.base_dir), capture_output=True, text=True)
-        diff_output = diff_result.stdout
+        # Get diff with error handling (Issue #6 fix)
+        try:
+            diff_result = subprocess.run(
+                ['git', 'diff', 'main'],
+                cwd=str(improver.base_dir),
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            diff_output = diff_result.stdout
+        except subprocess.TimeoutExpired:
+            terminal_callback("Git diff timed out (30s)", "warning")
+            diff_output = ""
+        except Exception as e:
+            terminal_callback(f"Failed to get diff: {str(e)}", "warning")
+            diff_output = ""
 
         # Evaluate improvement
         scores = improver._evaluate_improvement(diff_output, improvement_mode)
@@ -334,10 +837,19 @@ def run_single_cycle(mode: str, target_files: Optional[List[str]] = None, sugges
             'commit_hash': commit_hash,
             'issues': [improver._format_issue_summary(issue) for issue in issues_to_fix],
             'all_issues': [improver._format_issue_summary(issue) for issue in all_issues],
-            'export_path': export_path_hint  # Hint about where files were exported
+            'export_path': export_path_hint,  # Hint about where files were exported
+            'fixes': fixes  # Phase 23: Store fixes data for diff viewer
         }
 
         progress_bar.progress(1.0, text="Complete!")
+
+        # Phase 24: Update timeline - Complete!
+        with timeline_placeholder.container():
+            display_interactive_timeline('complete', 1.0)
+
+        # Phase 28: Celebrate success!
+        improvement_score = scores.get('improvement', 0) + scores.get('after', 5.0)
+        show_success_celebration(improvement_score, applied_fixes)
 
         # Display results
         with results_container:
@@ -410,6 +922,11 @@ def run_iterative_mode(mode: str, target_score: float, target_files: Optional[Li
 
         progress_bar.progress(1.0, text="Complete!")
 
+        # Phase 28: Celebrate iterative success!
+        final_score = final_state.get('current_score', 0)
+        total_fixes = final_state.get('total_fixes_applied', 0)
+        show_success_celebration(final_score, total_fixes)
+
         # Display iteration history
         with results_container:
             st.markdown("---")
@@ -470,7 +987,10 @@ def run_forever_mode(mode: str, target_files: Optional[List[str]] = None, sugges
     st.markdown("---")
     st.markdown("### 🔁 Forever Mode - Continuous Improvement")
 
-    st.warning("⚠️ **Forever mode is running!** The system will continuously improve until you stop it.")
+    # Issue 6 fix: Add maximum cycle limit to prevent infinite loops and memory leaks
+    MAX_FOREVER_CYCLES = 100
+
+    st.warning(f"⚠️ **Forever mode is running!** The system will continuously improve until you stop it (max {MAX_FOREVER_CYCLES} cycles).")
 
     # Stop button
     cols = st.columns(3, gap="small")
@@ -478,7 +998,10 @@ def run_forever_mode(mode: str, target_files: Optional[List[str]] = None, sugges
 
     if stop_button:
         st.session_state['forever_mode_active'] = False
-        st.success("✅ Forever mode stopped")
+        # Issue 6 fix: Clear accumulated data when stopping
+        if 'forever_cycles' in st.session_state:
+            del st.session_state['forever_cycles']
+        st.success("✅ Forever mode stopped and cleaned up")
         return
 
     # Initialize session state
@@ -487,7 +1010,8 @@ def run_forever_mode(mode: str, target_files: Optional[List[str]] = None, sugges
         st.session_state['forever_cycles'] = 0
 
     # Cycle counter
-    st.metric("Cycles Completed", st.session_state.get('forever_cycles', 0))
+    current_cycles = st.session_state.get('forever_cycles', 0)
+    st.metric("Cycles Completed", f"{current_cycles}/{MAX_FOREVER_CYCLES}")
 
     # Terminal
     terminal_placeholder = st.empty()
@@ -502,8 +1026,23 @@ def run_forever_mode(mode: str, target_files: Optional[List[str]] = None, sugges
 
         # Run cycles
         while st.session_state.get('forever_mode_active', False):
+            # Issue #5 fix: Double-check flag before expensive operation (race condition protection)
+            if not st.session_state.get('forever_mode_active', False):
+                break
+
             cycle_num = st.session_state['forever_cycles'] + 1
-            terminal_callback(f"🔄 Starting cycle {cycle_num}...", "info")
+
+            # Issue 6 fix: Enforce maximum cycle limit
+            if cycle_num > MAX_FOREVER_CYCLES:
+                terminal_callback(f"⚠️ Reached maximum cycle limit ({MAX_FOREVER_CYCLES}). Stopping forever mode.", "warning")
+                st.session_state['forever_mode_active'] = False
+                # Clear accumulated data
+                if 'forever_cycles' in st.session_state:
+                    del st.session_state['forever_cycles']
+                st.rerun()
+                break
+
+            terminal_callback(f"🔄 Starting cycle {cycle_num}/{MAX_FOREVER_CYCLES}...", "info")
 
             result = improver.run_cycle(
                 mode=mode,
@@ -519,16 +1058,27 @@ def run_forever_mode(mode: str, target_files: Optional[List[str]] = None, sugges
             if result['issues_found'] == 0:
                 terminal_callback("🎉 No more issues found! Codebase is optimized.", "success")
                 st.session_state['forever_mode_active'] = False
+                # Issue 6 fix: Clear accumulated data when done
+                if 'forever_cycles' in st.session_state:
+                    del st.session_state['forever_cycles']
                 # Force UI update to show final counter
                 st.rerun()
                 break
 
+            # Issue #5 fix: Check flag again before rerun (prevent extra cycles after stop)
+            if not st.session_state.get('forever_mode_active', False):
+                break
+
             # Rerun to update UI
             st.rerun()
+            break  # Issue #5 fix: Prevent code after rerun from executing
 
     except Exception as e:
         terminal_callback(f"Fatal error: {str(e)}", "error")
         st.session_state['forever_mode_active'] = False
+        # Issue 6 fix: Clear accumulated data on error
+        if 'forever_cycles' in st.session_state:
+            del st.session_state['forever_cycles']
 
 
 def generate_markdown_report(result: Dict[str, Any]) -> str:
@@ -585,40 +1135,44 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
     bugs = [i for i in all_issues if i.get('type') == 'BUG']
     enhancements = [i for i in all_issues if i.get('type') == 'ENHANCEMENT']
 
+    # Issue #16 fix: Use list concatenation instead of repeated += for better performance
+    report_parts = [report]
+
     if bugs:
-        report += f"### 🐛 Bugs ({len(bugs)})\n\n"
+        report_parts.append(f"### 🐛 Bugs ({len(bugs)})\n\n")
         for i, issue in enumerate(bugs, 1):
             severity_emoji = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}.get(issue['severity'], "⚪")
-            report += f"{i}. {severity_emoji} **[{issue['severity']}]** {issue['title']}\n"
-            report += f"   - **File:** `{issue['file']}`\n"
-            report += f"   - **Description:** {issue['description']}\n"
-            report += f"   - **Suggested Fix:** {issue['suggestion']}\n\n"
+            report_parts.append(f"{i}. {severity_emoji} **[{issue['severity']}]** {issue['title']}\n")
+            report_parts.append(f"   - **File:** `{issue['file']}`\n")
+            report_parts.append(f"   - **Description:** {issue['description']}\n")
+            report_parts.append(f"   - **Suggested Fix:** {issue['suggestion']}\n\n")
 
     if enhancements:
-        report += f"### 💡 Enhancements ({len(enhancements)})\n\n"
+        report_parts.append(f"### 💡 Enhancements ({len(enhancements)})\n\n")
         for i, issue in enumerate(enhancements, 1):
             severity_emoji = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}.get(issue['severity'], "⚪")
-            report += f"{i}. {severity_emoji} **[{issue['severity']}]** {issue['title']}\n"
-            report += f"   - **File:** `{issue['file']}`\n"
-            report += f"   - **Description:** {issue['description']}\n"
-            report += f"   - **Suggested Enhancement:** {issue['suggestion']}\n\n"
+            report_parts.append(f"{i}. {severity_emoji} **[{issue['severity']}]** {issue['title']}\n")
+            report_parts.append(f"   - **File:** `{issue['file']}`\n")
+            report_parts.append(f"   - **Description:** {issue['description']}\n")
+            report_parts.append(f"   - **Suggested Enhancement:** {issue['suggestion']}\n\n")
 
-    report += f"""
+    # Continue building report with list (Issue #16 fix)
+    report_parts.append(f"""
 ---
 
 ## Issues Prioritized & Fixed ({len(result.get('issues', []))})
 
-"""
+""")
 
     for i, issue in enumerate(result.get('issues', []), 1):
         severity_emoji = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}.get(issue['severity'], "⚪")
-        report += f"{i}. {severity_emoji} **[{issue['severity']}]** {issue['title']}\n"
-        report += f"   - **File:** `{issue['file']}`\n"
-        report += f"   - **Status:** ✅ FIXED\n"
-        report += f"   - **Description:** {issue['description']}\n"
-        report += f"   - **Fix Applied:** {issue['suggestion']}\n\n"
+        report_parts.append(f"{i}. {severity_emoji} **[{issue['severity']}]** {issue['title']}\n")
+        report_parts.append(f"   - **File:** `{issue['file']}`\n")
+        report_parts.append(f"   - **Status:** ✅ FIXED\n")
+        report_parts.append(f"   - **Description:** {issue['description']}\n")
+        report_parts.append(f"   - **Fix Applied:** {issue['suggestion']}\n\n")
 
-    report += f"""
+    report_parts.append(f"""
 ---
 
 ## Next Focus
@@ -627,9 +1181,10 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 ---
 
 *Report generated by Code Weaver Pro Self-Improvement System*
-"""
+""")
 
-    return report
+    # Join all parts once at the end (much more efficient than repeated +=)
+    return ''.join(report_parts)
 
 
 def generate_json_report(result: Dict[str, Any]) -> str:
@@ -654,6 +1209,682 @@ def generate_json_report(result: Dict[str, Any]) -> str:
     }
 
     return json.dumps(report_data, indent=2)
+
+
+def display_issue_card(issue: Dict[str, Any], index: int, is_fixed: bool = False) -> None:
+    """
+    Display a single issue as a visual card (Phase 22: Visual Issue Cards)
+
+    Args:
+        issue: Issue dictionary
+        index: Issue number
+        is_fixed: Whether this issue has been fixed
+    """
+    # Color scheme by severity
+    severity_colors = {
+        'HIGH': {'border': COLORS["severity_high"], 'bg': '#2a1a1a', 'badge': COLORS["severity_high"]},
+        'MEDIUM': {'border': COLORS["severity_medium"], 'bg': '#2a2410', 'badge': COLORS["severity_medium"]},
+        'LOW': {'border': COLORS["severity_low"], 'bg': '#1a2a1a', 'badge': COLORS["severity_low"]}
+    }
+
+    severity = issue.get('severity', 'LOW')
+    colors = severity_colors.get(severity, severity_colors['LOW'])
+
+    # Icon by type
+    icon = '🐛' if issue.get('type') == 'BUG' else '💡'
+
+    # Issue 1 fix: Sanitize all user-controlled content for XSS protection
+    title_text = sanitize_html(issue.get('title', 'Untitled Issue'))
+    description_text = sanitize_html(issue.get('description', 'No description available'))
+    suggestion_text = sanitize_html(issue.get('suggestion', 'No suggestion available'))
+    file_text = sanitize_html(issue.get('file', 'unknown'))
+    type_text = sanitize_html(issue.get('type', 'BUG'))
+
+    # Status badge
+    status_badge = ""
+    if is_fixed:
+        status_badge = f"""
+        <span style="
+            background: {COLORS["status_success"]};
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        ">
+            ✓ FIXED
+        </span>
+        """
+
+    # Card HTML with hover animation
+    card_html = f"""
+    <div style="
+        border-left: 4px solid {colors['border']};
+        background: {colors['bg']};
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: pointer;
+    " onmouseover="this.style.transform='translateX(4px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.3)';"
+       onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='none';">
+
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+            <div style="flex: 1;">
+                <span style="font-size: 1.3rem; margin-right: 8px;">{icon}</span>
+                <span style="font-weight: 600; font-size: 1.05rem; color: white;">
+                    {title_text}
+                </span>
+                {status_badge}
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <span style="
+                    background: {colors['badge']};
+                    color: #000;
+                    padding: 2px 8px;
+                    border-radius: 4px;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                ">
+                    {severity}
+                </span>
+                <span style="
+                    background: #333;
+                    color: #fff;
+                    padding: 2px 8px;
+                    border-radius: 4px;
+                    font-size: 0.75rem;
+                ">
+                    {type_text}
+                </span>
+            </div>
+        </div>
+
+        <div style="color: #bbb; font-size: 0.9rem; margin-bottom: 8px;">
+            📁 <code style="background: #1a1d29; padding: 2px 6px; border-radius: 3px; color: {COLORS["status_system"]};">
+                {file_text}
+            </code>
+        </div>
+
+        <div style="color: #ddd; font-size: 0.95rem; line-height: 1.5; margin-bottom: 12px;">
+            {description_text}
+        </div>
+
+        <details style="color: #aaa; font-size: 0.9rem;">
+            <summary style="cursor: pointer; color: {COLORS["status_system"]}; font-weight: 500;">
+                💡 {'Fix Applied' if is_fixed else 'Suggested Fix'}
+            </summary>
+            <div style="margin-top: 8px; padding: 12px; background: #1a1d29; border-radius: 6px; color: #ddd;">
+                {suggestion_text}
+            </div>
+        </details>
+    </div>
+    """
+
+    st.markdown(card_html, unsafe_allow_html=True)
+
+
+def display_interactive_timeline(current_stage: str, progress: float = 0.5) -> None:
+    """
+    Display animated workflow timeline (Phase 24: Interactive Progress Visualization)
+
+    Shows horizontal timeline with:
+    - Stage indicators (Analyze → Verify → Challenge → Fix → Test)
+    - Animated progress bar
+    - Status colors (complete, active, pending)
+    - Live progress within current stage
+
+    Args:
+        current_stage: One of 'analyze', 'verify', 'challenge', 'fix', 'test', 'complete'
+        progress: Progress within current stage (0.0 to 1.0)
+    """
+    stages = [
+        {'id': 'analyze', 'name': 'Analyze', 'icon': '🔍', 'color': '#00aaff'},
+        {'id': 'verify', 'name': 'Verify', 'icon': '✓', 'color': '#44ff44'},
+        {'id': 'challenge', 'name': 'Challenge', 'icon': '⚡', 'color': '#ffaa44'},
+        {'id': 'fix', 'name': 'Fix', 'icon': '🔧', 'color': '#ff44ff'},
+        {'id': 'test', 'name': 'Test', 'icon': '🧪', 'color': '#44ffff'},
+        {'id': 'complete', 'name': 'Done', 'icon': '✅', 'color': '#44ff44'}
+    ]
+
+    # Determine status for each stage
+    try:
+        current_idx = next(i for i, s in enumerate(stages) if s['id'] == current_stage)
+    except StopIteration:
+        current_idx = 0  # Default to first stage if not found
+
+    for i, stage in enumerate(stages):
+        if i < current_idx:
+            stage['status'] = 'complete'
+        elif i == current_idx:
+            stage['status'] = 'active'
+        else:
+            stage['status'] = 'pending'
+
+    # Build timeline HTML with animations
+    timeline_html = """
+    <style>
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        50% { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,150,255,0.6); }
+    }
+    @keyframes shimmer {
+        0% { background-position: -100% 0; }
+        100% { background-position: 100% 0; }
+    }
+    .timeline-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 24px;
+        background: linear-gradient(135deg, #1a1d29 0%, #2a2d39 100%);
+        border-radius: 12px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .timeline-stage {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+    }
+    .timeline-circle {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transition: all 0.3s ease;
+    }
+    .timeline-circle.active {
+        animation: pulse 1.5s infinite;
+    }
+    .timeline-label {
+        margin-top: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .timeline-connector {
+        flex: 1;
+        height: 3px;
+        margin: 0 -10px;
+        position: relative;
+        top: -30px;
+        transition: all 0.3s ease;
+    }
+    .timeline-progress {
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, transparent 0%, #333 0%);
+        border-radius: 2px;
+        margin-top: 4px;
+        overflow: hidden;
+    }
+    .timeline-progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, rgba(0,170,255,0.3) 0%, rgba(0,170,255,1) 50%, rgba(0,170,255,0.3) 100%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite linear;
+        transition: width 0.3s ease;
+    }
+    </style>
+    """
+
+    timeline_html += '<div class="timeline-container">'
+
+    for i, stage in enumerate(stages):
+        status = stage['status']
+
+        # Determine circle style
+        if status == 'complete':
+            bg_color = stage['color']
+            border_color = stage['color']
+            icon_opacity = '1'
+            animation_class = ''
+        elif status == 'active':
+            bg_color = stage['color']
+            border_color = stage['color']
+            icon_opacity = '1'
+            animation_class = 'active'
+        else:
+            bg_color = '#333'
+            border_color = '#555'
+            icon_opacity = '0.4'
+            animation_class = ''
+
+        label_color = 'white' if status != 'pending' else '#888'
+
+        timeline_html += f"""
+        <div class="timeline-stage">
+            <div class="timeline-circle {animation_class}" style="
+                background: {bg_color};
+                border: 3px solid {border_color};
+                opacity: {icon_opacity};
+            ">
+                {stage['icon']}
+            </div>
+            <div class="timeline-label" style="color: {label_color};">
+                {stage['name']}
+            </div>
+        """
+
+        # Show progress bar for active stage
+        if status == 'active':
+            # Issue #15 fix: Clamp progress to [0, 1] range to prevent overflow
+            clamped_progress = max(0.0, min(1.0, progress))
+            progress_width = int(clamped_progress * 100)
+            timeline_html += f"""
+            <div class="timeline-progress">
+                <div class="timeline-progress-bar" style="width: {progress_width}%;"></div>
+            </div>
+            """
+
+        timeline_html += '</div>'
+
+        # Add connector line between stages
+        if i < len(stages) - 1:
+            connector_color = stage['color'] if status == 'complete' else '#555'
+            timeline_html += f'<div class="timeline-connector" style="background: {connector_color};"></div>'
+
+    timeline_html += '</div>'
+
+    st.markdown(timeline_html, unsafe_allow_html=True)
+
+
+def display_issue_heat_map(issues: List[Dict[str, Any]]) -> None:
+    """
+    Display visual heat map of issues by file/folder (Phase 25: Issue Density Visualization)
+
+    Shows:
+    - Color-coded folders by issue count (red = many, green = few)
+    - Issue count badges on each file
+    - Expandable folder tree structure
+    - Quick visual identification of problem areas
+
+    Args:
+        issues: List of all issues found
+    """
+    from collections import defaultdict
+
+    if not issues:
+        st.info("✅ No issues found! Heat map not needed.")
+        return
+
+    st.markdown("### 🗺️ Issue Heat Map")
+    st.caption("Color intensity shows issue density - red = high, yellow = medium, green = low")
+
+    # Count issues per file
+    issue_counts = defaultdict(int)
+    for issue in issues:
+        file_path = issue.get('file', '')
+        if file_path:
+            # Issue 3 & 9 fix: Validate file path to prevent path traversal (improved normalization)
+            try:
+                path_obj = Path(file_path)
+
+                # Issue #9 fix: Normalize path to resolve . and .. (catches more traversal attempts)
+                try:
+                    normalized = path_obj.resolve(strict=False)  # strict=False allows non-existent paths
+                except Exception:
+                    st.warning(f"⚠️ Invalid file path in issue: {file_path}")
+                    continue
+
+                # Check for absolute paths (security risk)
+                if path_obj.is_absolute() or normalized.is_absolute():
+                    st.warning(f"⚠️ Skipping absolute path in issue: {file_path}")
+                    continue
+
+                # Check for path traversal in original path
+                if '..' in path_obj.parts:
+                    st.warning(f"⚠️ Skipping path traversal attempt: {file_path}")
+                    continue
+
+                # Path is safe, count it
+                issue_counts[file_path] += 1
+            except Exception as e:
+                st.warning(f"⚠️ Invalid file path in issue: {file_path} ({str(e)})")
+                continue
+
+    if not issue_counts:
+        st.info("No file paths in issues")
+        return
+
+    # Build folder tree (bug fix: store full paths to avoid path separator issues)
+    folder_tree = defaultdict(list)
+    for file_path in issue_counts.keys():
+        path = Path(file_path)
+        folder = str(path.parent)
+        # Store tuple of (filename, full_path) to preserve original path
+        folder_tree[folder].append((path.name, file_path))
+
+    # Determine color based on issue count
+    def get_color(count):
+        if count == 0:
+            return COLORS["severity_low"]  # Green
+        elif count <= 2:
+            return '#ffaa44'  # Orange
+        elif count <= 5:
+            return '#ff8844'  # Dark orange
+        else:
+            return COLORS["severity_high"]  # Red
+
+    # Build heat map HTML
+    heat_map_html = """
+    <style>
+    .heatmap-container {
+        background: #1a1d29;
+        padding: 20px;
+        border-radius: 12px;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    .heatmap-folder {
+        margin-bottom: 12px;
+    }
+    .heatmap-folder-header {
+        cursor: pointer;
+        padding: 10px;
+        border-radius: 6px;
+        font-weight: 600;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
+    }
+    .heatmap-folder-header:hover {
+        transform: translateX(2px);
+    }
+    .heatmap-file {
+        padding: 8px 12px;
+        margin-bottom: 4px;
+        margin-left: 20px;
+        border-radius: 4px;
+        color: #ddd;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
+    }
+    .heatmap-file:hover {
+        transform: translateX(4px);
+    }
+    .heatmap-badge {
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #000;
+    }
+    </style>
+    <div class="heatmap-container">
+    """
+
+    # Sort folders by total issue count (descending)
+    folder_issue_counts = {
+        folder: sum(issue_counts[full_path] for _, full_path in files)
+        for folder, files in folder_tree.items()
+    }
+    sorted_folders = sorted(folder_issue_counts.items(), key=lambda x: x[1], reverse=True)
+
+    for folder, folder_issue_count in sorted_folders:
+        files = folder_tree[folder]
+        folder_color = get_color(folder_issue_count)
+
+        # Issue 1 fix: Sanitize folder name for XSS protection
+        safe_folder = sanitize_html(folder if folder != '.' else 'Root')
+
+        # Folder summary
+        heat_map_html += f"""
+        <details class="heatmap-folder" open>
+            <summary class="heatmap-folder-header" style="
+                background: linear-gradient(90deg, {folder_color}22 0%, transparent 100%);
+                border-left: 4px solid {folder_color};
+            ">
+                <span>📁 {safe_folder}</span>
+                <span class="heatmap-badge" style="background: {folder_color};">
+                    {folder_issue_count}
+                </span>
+            </summary>
+        """
+
+        # Files in folder (sorted by issue count)
+        # Bug fix: files is now a list of (filename, full_path) tuples
+        file_issues = [(file_name, issue_counts[full_path]) for file_name, full_path in files]
+        sorted_files = sorted(file_issues, key=lambda x: x[1], reverse=True)
+
+        for file_name, count in sorted_files:
+            color = get_color(count)
+
+            # Issue 1 fix: Sanitize file name for XSS protection
+            safe_file_name = sanitize_html(file_name)
+
+            heat_map_html += f"""
+            <div class="heatmap-file" style="
+                background: linear-gradient(90deg, {color}11 0%, transparent 100%);
+                border-left: 2px solid {color};
+            ">
+                <span>📄 {safe_file_name}</span>
+                <span class="heatmap-badge" style="background: {color};">
+                    {count}
+                </span>
+            </div>
+            """
+
+        heat_map_html += '</details>'
+
+    heat_map_html += '</div>'
+
+    st.markdown(heat_map_html, unsafe_allow_html=True)
+
+    # Summary statistics
+    col1, col2, col3 = st.columns(3)
+
+    # Issue #18 fix: Add defensive check for division by zero
+    if issue_counts:
+        max_issues = max(issue_counts.values())
+        avg_issues = sum(issue_counts.values()) / len(issue_counts)
+        col1.metric("Total Files", len(issue_counts))
+        col2.metric("Most Issues (1 file)", max_issues)
+        col3.metric("Avg Issues/File", f"{avg_issues:.1f}")
+    else:
+        col1.metric("Total Files", 0)
+        col2.metric("Most Issues (1 file)", 0)
+        col3.metric("Avg Issues/File", "0.0")
+
+
+def display_syntax_highlighted_diff(file_path: str, before_content: str, after_content: str) -> None:
+    """
+    Display side-by-side syntax-highlighted diff (Phase 23: Visual Diff Viewer)
+
+    Shows before/after code comparison with:
+    - Side-by-side layout
+    - Syntax highlighting (language-specific)
+    - Line-level diff highlighting
+    - Change metrics
+
+    Args:
+        file_path: Path to file being compared
+        before_content: Original file content
+        after_content: Fixed file content
+    """
+    import difflib
+    from pathlib import Path
+
+    # Issue #11 fix: Validate file_path before use
+    try:
+        safe_path = Path(file_path)
+        # Check for absolute paths or path traversal
+        if safe_path.is_absolute() or '..' in safe_path.parts:
+            st.error(f"⚠️ Invalid file path: {file_path}")
+            return
+        display_name = sanitize_html(safe_path.name)
+    except Exception as e:
+        st.error(f"⚠️ Invalid file path: {file_path}")
+        return
+
+    try:
+        from pygments import highlight
+        from pygments.lexers import get_lexer_for_filename, TextLexer
+        from pygments.formatters import HtmlFormatter
+        has_pygments = True
+    except ImportError:
+        has_pygments = False
+        st.warning("⚠️ Pygments not installed. Install with: pip install pygments")
+
+    st.markdown("### 🔍 Code Comparison")
+    st.info(f"**File:** `{display_name}`")
+
+    # Generate diff statistics
+    diff_lines = list(difflib.unified_diff(
+        before_content.splitlines(keepends=False),
+        after_content.splitlines(keepends=False),
+        lineterm=''
+    ))
+
+    # Count changes
+    added_lines = sum(1 for line in diff_lines if line.startswith('+') and not line.startswith('+++'))
+    removed_lines = sum(1 for line in diff_lines if line.startswith('-') and not line.startswith('---'))
+
+    # Show metrics
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Lines Added", f"+{added_lines}", delta_color="normal")
+    col2.metric("Lines Removed", f"-{removed_lines}", delta_color="inverse")
+    col3.metric("Net Change", f"{added_lines - removed_lines:+d}")
+
+    if has_pygments:
+        # Detect language and get lexer
+        try:
+            lexer = get_lexer_for_filename(file_path)
+            language = lexer.name
+        except:
+            lexer = TextLexer()
+            language = "Text"
+
+        st.caption(f"Language: {language}")
+
+        # Create formatter with line numbers
+        formatter = HtmlFormatter(
+            style='monokai',
+            linenos='inline',
+            cssclass='highlight',
+            wrapcode=True
+        )
+
+        # Highlight both versions
+        before_html = highlight(before_content, lexer, formatter)
+        after_html = highlight(after_content, lexer, formatter)
+
+        # Get CSS for syntax highlighting
+        css = formatter.get_style_defs('.highlight')
+
+        # Issue #19 fix: Use viewport-relative height instead of hardcoded 600px
+        # This adapts better to different screen sizes (70% of viewport height)
+        diff_max_height = "70vh"
+
+        # Build side-by-side comparison
+        diff_html = f"""
+        <style>
+        {css}
+        .diff-container {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            max-height: {diff_max_height};
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 16px;
+            overflow: hidden;
+        }}
+        .diff-column {{
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }}
+        .diff-header {{
+            padding: 8px;
+            border-radius: 6px 6px 0 0;
+            font-weight: 600;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }}
+        .diff-before {{
+            background: #2a1a1a;
+            color: {COLORS["severity_high"]};
+        }}
+        .diff-after {{
+            background: #1a2a1a;
+            color: {COLORS["severity_low"]};
+        }}
+        .diff-content {{
+            padding: 12px;
+            overflow-x: auto;
+            overflow-y: auto;
+            flex: 1;
+            background: #1e1e1e;
+        }}
+        .diff-content .highlight {{
+            background: transparent !important;
+            margin: 0;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }}
+        .diff-content pre {{
+            margin: 0;
+            background: transparent !important;
+        }}
+        </style>
+
+        <div class="diff-container">
+            <!-- Before column -->
+            <div class="diff-column" style="border-right: 2px solid #444;">
+                <div class="diff-header diff-before">
+                    ❌ Before ({len(before_content.splitlines())} lines)
+                </div>
+                <div class="diff-content">
+                    {before_html}
+                </div>
+            </div>
+
+            <!-- After column -->
+            <div class="diff-column">
+                <div class="diff-header diff-after">
+                    ✅ After ({len(after_content.splitlines())} lines)
+                </div>
+                <div class="diff-content">
+                    {after_html}
+                </div>
+            </div>
+        </div>
+        """
+
+        st.markdown(diff_html, unsafe_allow_html=True)
+    else:
+        # Fallback to plain text columns without syntax highlighting
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("**❌ Before**")
+            st.code(before_content, language=None)
+
+        with col2:
+            st.markdown("**✅ After**")
+            st.code(after_content, language=None)
+
+    # Show unified diff in expander
+    with st.expander("📝 View Unified Diff"):
+        diff_text = '\n'.join(diff_lines)
+        if diff_text:
+            st.code(diff_text, language='diff')
+        else:
+            st.info("No differences found")
 
 
 def display_improvement_results(result: Dict[str, Any], improver: 'SelfImprover') -> None:
@@ -760,23 +1991,12 @@ def display_improvement_results(result: Dict[str, Any], improver: 'SelfImprover'
             help="Machine-readable report for programmatic analysis"
         )
 
-    # Issues found (prioritized for fixing)
+    # Issues found (prioritized for fixing) - Phase 22: Visual Issue Cards
     if result['issues']:
         st.markdown("### 🔍 Issues Prioritized & Fixed")
 
         for i, issue in enumerate(result['issues'], 1):
-            severity = issue['severity']
-            severity_color = {
-                'HIGH': COLORS["severity_high"],
-                'MEDIUM': COLORS["severity_medium"],
-                'LOW': COLORS["severity_low"]
-            }.get(severity, COLORS["text_primary"])
-
-            with st.expander(f"{i}. [{severity}] {issue['title']}", expanded=i == 1):
-                st.markdown(f"**File:** `{issue['file']}`")
-                st.markdown(f"**Severity:** <span style='color: {severity_color}; font-weight: bold;'>{severity}</span>", unsafe_allow_html=True)
-                st.markdown(f"**Description:** {issue['description']}")
-                st.markdown(f"**Fix Applied:** {issue['suggestion']}")
+            display_issue_card(issue, i, is_fixed=True)
 
     # All issues found
     if result.get('all_issues') and len(result.get('all_issues', [])) > len(result.get('issues', [])):
@@ -784,39 +2004,67 @@ def display_improvement_results(result: Dict[str, Any], improver: 'SelfImprover'
         st.markdown(f"### 📋 All Issues Found ({len(result['all_issues'])} total)")
         st.info(f"**Note:** {len(result['issues'])} issues were prioritized and fixed. {remaining_issues} additional issues were identified for future improvement.")
 
+        # Phase 25: Display heat map for visual issue density
+        st.markdown("---")
+        display_issue_heat_map(result['all_issues'])
+        st.markdown("---")
+
         with st.expander(f"View All {len(result['all_issues'])} Issues", expanded=False):
-            # Group by type
+            # Group by type (Phase 22: Visual Issue Cards)
             bugs = [i for i in result['all_issues'] if i.get('type') == 'BUG']
             enhancements = [i for i in result['all_issues'] if i.get('type') == 'ENHANCEMENT']
 
             if bugs:
                 st.markdown(f"#### 🐛 Bugs ({len(bugs)})")
                 for i, issue in enumerate(bugs, 1):
-                    severity = issue['severity']
-                    severity_emoji = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}.get(severity, "⚪")
-                    st.markdown(f"{i}. {severity_emoji} **[{severity}]** {issue['title']}")
-                    st.markdown(f"   - File: `{issue['file']}`")
-                    st.markdown(f"   - {issue['description']}")
-                    st.markdown("")
+                    display_issue_card(issue, i, is_fixed=False)
 
             if enhancements:
                 st.markdown(f"#### 💡 Enhancements ({len(enhancements)})")
                 for i, issue in enumerate(enhancements, 1):
-                    severity = issue['severity']
-                    severity_emoji = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}.get(severity, "⚪")
-                    st.markdown(f"{i}. {severity_emoji} **[{severity}]** {issue['title']}")
-                    st.markdown(f"   - File: `{issue['file']}`")
-                    st.markdown(f"   - {issue['description']}")
-                    st.markdown("")
+                    display_issue_card(issue, i, is_fixed=False)
+
+    # Phase 23: Visual Diff Viewer for Applied Fixes
+    if result.get('fixes') and result['fixes_applied'] > 0:
+        st.markdown("---")
+        st.markdown("### 🔍 Code Changes Review")
+        st.info(f"💡 **Tip:** Review the before/after comparisons below to see exactly what was changed")
+
+        applied_fixes = [fix for fix in result.get('fixes', []) if fix.get('fixed_content')]
+
+        if applied_fixes:
+            for idx, fix in enumerate(applied_fixes[:5], 1):  # Show first 5 fixes
+                file_path = fix.get('file', 'unknown')
+                issue = fix.get('issue', {})
+
+                with st.expander(f"📄 Fix {idx}: {Path(file_path).name} - {issue.get('title', 'Untitled')}", expanded=(idx == 1)):
+                    # Show issue context
+                    st.caption(f"**Issue Type:** {issue.get('type', 'UNKNOWN')} | **Severity:** {issue.get('severity', 'UNKNOWN')}")
+
+                    # Display syntax-highlighted diff
+                    display_syntax_highlighted_diff(
+                        file_path,
+                        fix.get('original_content', ''),
+                        fix.get('fixed_content', '')
+                    )
+
+            if len(applied_fixes) > 5:
+                st.caption(f"ℹ️ Showing first 5 of {len(applied_fixes)} fixes. Use git diff to see all changes.")
 
     # Git diff
     if result['diff']:
-        st.markdown("### 📝 Changes Made")
+        st.markdown("### 📝 Git Summary")
         st.markdown(f"**Branch:** `{result['branch_name']}`")
         st.markdown(f"**Commit:** `{result['commit_hash'][:8]}`")
 
-        with st.expander("View Git Diff", expanded=False):
-            st.code(result['diff'][:3000], language="diff")  # Limit to 3000 chars
+        with st.expander("View Complete Git Diff", expanded=False):
+            # Issue #20 fix: Warn user if diff is truncated
+            diff_text = result['diff']
+            if len(diff_text) > 3000:
+                st.warning(f"⚠️ Diff truncated ({len(diff_text)} → 3000 chars). Download full report to see all changes.")
+                st.code(diff_text[:3000], language="diff")
+            else:
+                st.code(diff_text, language="diff")
 
     # Impact scores
     st.markdown("### 📊 Impact Assessment")
@@ -1007,15 +2255,50 @@ def display_issue_selection_ui(all_issues: List[Dict[str, Any]], improver: 'Self
 def merge_to_main(branch_name: str) -> None:
     """Merge improvement branch to main"""
     import subprocess
+    import re
+    from core.config import load_config
 
     try:
-        # Switch to main
-        subprocess.run(['git', 'checkout', 'main'], check=True, capture_output=True)
+        # CRITICAL FIX (Issue #1): Validate branch name for command injection protection
+        if not re.match(r'^[a-zA-Z0-9_/-]+$', branch_name):
+            st.error("❌ Invalid branch name format")
+            return
 
-        # Merge branch
-        subprocess.run(['git', 'merge', branch_name], check=True, capture_output=True)
+        # Get base directory from config
+        config = load_config()
+        base_dir = Path(config.get('base_dir', '.'))
+
+        # Validate base directory
+        if not base_dir.exists() or not base_dir.is_dir():
+            st.error("❌ Invalid base directory configuration")
+            return
+
+        # Switch to main with proper error handling
+        subprocess.run(
+            ['git', 'checkout', 'main'],
+            cwd=str(base_dir),
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        # Merge branch with proper error handling
+        subprocess.run(
+            ['git', 'merge', branch_name],
+            cwd=str(base_dir),
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
 
         st.success(f"✅ Merged {branch_name} to main!")
 
+    except subprocess.TimeoutExpired:
+        st.error("❌ Git operation timed out (30s)")
     except subprocess.CalledProcessError as e:
-        st.error(f"❌ Merge failed: {e}")
+        error_msg = e.stderr if e.stderr else str(e)
+        st.error(f"❌ Merge failed: {error_msg}")
+    except Exception as e:
+        st.error(f"❌ Unexpected error: {str(e)}")

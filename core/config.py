@@ -82,6 +82,13 @@ def load_config() -> Dict[str, Any]:
         "terminal_callback": None,  # Will be set by UI
     }
 
+    # Self-improvement configuration (Phase 9: Parallel batch processing)
+    self_improvement_config = {
+        "max_parallel_batches": 3,  # Max concurrent batches (prevent rate limit issues)
+        "batch_size": 3,            # Files per batch
+        "enable_parallel": True,    # Enable/disable parallel processing
+    }
+
     config = {
         "base_dir": str(base_dir),
         "projects_dir": str(projects_dir),
@@ -96,6 +103,7 @@ def load_config() -> Dict[str, Any]:
         "testing": test_config,
         "server": server_config,
         "orchestration": orchestration_config,
+        "self_improvement": self_improvement_config,
     }
 
     return config
