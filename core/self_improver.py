@@ -112,6 +112,13 @@ class SelfImprover:
         enhancement_count = len([i for i in issues if i.get('type') == 'ENHANCEMENT'])
         self._log(f"Found {len(issues)} total issues: {bug_count} bugs [BUG], {enhancement_count} enhancements [ENHANCEMENT]")
 
+        # Log detailed issues to console and export to file
+        if issues:
+            self._log_all_issues_detailed(issues, mode)
+            export_path = self._export_issues_to_file(issues, mode)
+        else:
+            export_path = None
+
         if not issues:
             self._log("[OK] No issues found! Codebase is in great shape.", "success")
             return {
@@ -187,7 +194,8 @@ class SelfImprover:
             'branch_name': branch_name,
             'commit_hash': commit_hash,
             'issues': [self._format_issue_summary(issue) for issue in prioritized_issues],
-            'all_issues': [self._format_issue_summary(issue) for issue in issues]  # NEW: All issues for export
+            'all_issues': [self._format_issue_summary(issue) for issue in issues],  # All issues for export
+            'export_path': export_path  # Path to exported markdown file
         }
 
         self._log("[OK] Improvement cycle complete!", "success")
@@ -410,8 +418,10 @@ class SelfImprover:
         self._log(f"   Team: {', '.join(team)}", "info")
 
         # Create all agents in the team
+        preset = MODEL_PRESETS[self.config['model']['default_preset']]
+        default_model = preset['default']
         analysis_agents = [
-            create_agent_with_model(agent_name, MODEL_PRESETS[self.config['model']['default_preset']])
+            create_agent_with_model(agent_name, default_model)
             for agent_name in team
         ]
 
@@ -600,15 +610,42 @@ ONLY REMOVE if:
 [OK] Small optimizations
 [OK] Readability improvements
 
-OUTPUT FORMAT:
+⚠️ CRITICAL OUTPUT REQUIREMENT:
+
+YOU MUST output your FINAL consolidated list of issues DIRECTLY in your response.
+DO NOT say "the issues above" or "the list provided earlier" - OUTPUT THEM NOW.
+DO NOT reference previous messages - this is your FINAL output that will be parsed.
+
+Your response MUST contain the issues in this EXACT format (one issue per block):
+
 ISSUE: [title]
 FILE: [path]
 SEVERITY: [HIGH/MEDIUM/LOW]
-TYPE: [BUG/ENHANCEMENT] (if marked ENHANCEMENT by Research/Ideas agents, keep it; otherwise default to BUG)
+TYPE: [BUG/ENHANCEMENT]
 DESCRIPTION: [what's wrong or what's missing]
 SUGGESTION: [how to fix or what to add]
 
-GOAL: Output ALL valid issues + any new ones you find. Be thorough and demanding!
+EXAMPLE (copy this structure):
+
+ISSUE: Missing alt text on logo image
+FILE: components/Header.tsx
+SEVERITY: HIGH
+TYPE: BUG
+DESCRIPTION: The logo image at line 23 has no alt attribute, failing WCAG accessibility standards
+SUGGESTION: Add alt="Company Logo" to the img tag
+
+ISSUE: Hard-coded API timeout value
+FILE: api/client.ts
+SEVERITY: MEDIUM
+TYPE: BUG
+DESCRIPTION: Timeout value of 5000ms is hard-coded at line 45, making it hard to configure
+SUGGESTION: Move timeout to a constant at the top of the file or config file
+
+⚠️ REMEMBER:
+- Your response is the FINAL output that will be parsed
+- MUST contain lines starting with ISSUE:, FILE:, SEVERITY:, TYPE:, DESCRIPTION:, SUGGESTION:
+- Output ALL validated issues DIRECTLY (don't reference "above")
+- Be thorough and demanding - find everything!
 """
 
             challenger_task = Task(
@@ -665,6 +702,150 @@ GOAL: Output ALL valid issues + any new ones you find. Be thorough and demanding
                 self._log(f"Analysis failed for batch: {e}", "error")
 
         return issues
+
+    def _log_all_issues_detailed(self, issues: List[Dict], mode: str) -> None:
+        """
+        Log ALL issues with full details for user review
+
+        Args:
+            issues: All issues found across all batches
+            mode: Improvement mode for context
+        """
+        if not issues:
+            self._log("[STATS] No issues found!", "success")
+            return
+
+        # Group by type
+        bugs = [i for i in issues if i.get('type') == 'BUG']
+        enhancements = [i for i in issues if i.get('type') == 'ENHANCEMENT']
+
+        self._log("=" * 80, "info")
+        self._log(f"[DETAILED ISSUE REPORT] All {len(issues)} Issues Found", "info")
+        self._log("=" * 80, "info")
+
+        # BUGS section
+        if bugs:
+            self._log(f"\n🐛 BUGS ({len(bugs)} total)", "error")
+            self._log("-" * 80, "info")
+            for idx, issue in enumerate(bugs, 1):
+                severity = issue.get('severity', 'UNKNOWN')
+                severity_emoji = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}.get(severity, "⚪")
+
+                self._log(f"\n{idx}. {severity_emoji} [{severity}] {issue.get('title', 'Untitled')}", "warning")
+                self._log(f"   File: {issue.get('file', 'unknown')}", "info")
+                self._log(f"   Description: {issue.get('description', 'No description')}", "info")
+                self._log(f"   Suggestion: {issue.get('suggestion', 'No suggestion')}", "info")
+
+        # ENHANCEMENTS section
+        if enhancements:
+            self._log(f"\n💡 ENHANCEMENTS ({len(enhancements)} total)", "success")
+            self._log("-" * 80, "info")
+            for idx, issue in enumerate(enhancements, 1):
+                severity = issue.get('severity', 'UNKNOWN')
+                severity_emoji = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}.get(severity, "⚪")
+
+                self._log(f"\n{idx}. {severity_emoji} [{severity}] {issue.get('title', 'Untitled')}", "info")
+                self._log(f"   File: {issue.get('file', 'unknown')}", "info")
+                self._log(f"   Description: {issue.get('description', 'No description')}", "info")
+                self._log(f"   Suggestion: {issue.get('suggestion', 'No suggestion')}", "info")
+
+        self._log("=" * 80, "info")
+        self._log(f"[END DETAILED REPORT] {len(bugs)} bugs, {len(enhancements)} enhancements", "info")
+        self._log("=" * 80, "info")
+
+    def _export_issues_to_file(self, issues: List[Dict], mode: str) -> str:
+        """
+        Export all issues to a dedicated file for review
+
+        Returns:
+            Path to the exported file
+        """
+        from datetime import datetime
+        import json
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        export_dir = self.base_dir / "reports"
+        export_dir.mkdir(exist_ok=True)
+
+        # Markdown export (human-readable)
+        md_file = export_dir / f"issues_detailed_{mode}_{timestamp}.md"
+
+        bugs = [i for i in issues if i.get('type') == 'BUG']
+        enhancements = [i for i in issues if i.get('type') == 'ENHANCEMENT']
+
+        md_content = f"""# Detailed Issue Report
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Mode: {mode}
+Total Issues: {len(issues)} ({len(bugs)} bugs, {len(enhancements)} enhancements)
+
+---
+
+## 🐛 Bugs ({len(bugs)})
+
+"""
+
+        for idx, issue in enumerate(bugs, 1):
+            severity = issue.get('severity', 'UNKNOWN')
+            md_content += f"""
+### {idx}. [{severity}] {issue.get('title', 'Untitled')}
+
+- **File:** `{issue.get('file', 'unknown')}`
+- **Type:** BUG
+- **Severity:** {severity}
+
+**Description:**
+{issue.get('description', 'No description')}
+
+**Suggested Fix:**
+{issue.get('suggestion', 'No suggestion')}
+
+---
+"""
+
+        md_content += f"""
+## 💡 Enhancements ({len(enhancements)})
+
+"""
+
+        for idx, issue in enumerate(enhancements, 1):
+            severity = issue.get('severity', 'UNKNOWN')
+            md_content += f"""
+### {idx}. [{severity}] {issue.get('title', 'Untitled')}
+
+- **File:** `{issue.get('file', 'unknown')}`
+- **Type:** ENHANCEMENT
+- **Severity:** {severity}
+
+**Description:**
+{issue.get('description', 'No description')}
+
+**Suggested Enhancement:**
+{issue.get('suggestion', 'No suggestion')}
+
+---
+"""
+
+        # Write markdown file
+        with open(md_file, 'w', encoding='utf-8') as f:
+            f.write(md_content)
+
+        # Also export JSON for programmatic access
+        json_file = export_dir / f"issues_detailed_{mode}_{timestamp}.json"
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump({
+                'generated_at': datetime.now().isoformat(),
+                'mode': mode,
+                'total_issues': len(issues),
+                'bugs': bugs,
+                'enhancements': enhancements,
+                'all_issues': issues
+            }, f, indent=2)
+
+        self._log(f"[EXPORT] Detailed issues exported to:", "success")
+        self._log(f"  Markdown: {md_file}", "info")
+        self._log(f"  JSON: {json_file}", "info")
+
+        return str(md_file)
 
     def _get_analysis_prompt(self, file_contents: Dict[str, str], mode: str, screenshots: List[Dict] = None) -> str:
         """Generate mode-specific analysis prompt"""
@@ -1334,7 +1515,7 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
         # Analysis stays on Haiku (fast), but fixes need higher quality output
         fix_agent = create_agent_with_model(
             agent_id,
-            MODEL_PRESETS["Grok Reasoning"]  # Fast reasoning model with high rate limits
+            MODEL_PRESETS["Grok Reasoning"]['default']  # Fast reasoning model with high rate limits
         )
 
         self._log(f"[FIX] Fix generation using Grok 4 Fast Reasoning (480 rpm, 4M tpm)", "info")
@@ -1854,7 +2035,7 @@ START YOUR RESPONSE NOW WITH: <file_content>
         # Use Sonnet for fix regeneration (better quality than Haiku)
         fix_agent = create_agent_with_model(
             agent_id,
-            MODEL_PRESETS["Grok Reasoning"]  # Fast reasoning model with high rate limits
+            MODEL_PRESETS["Grok Reasoning"]['default']  # Fast reasoning model with high rate limits
         )
 
         fix_prompt = f"""
@@ -2103,9 +2284,10 @@ Auto-generated by Code Weaver Pro Self-Improvement Engine
                 'improvement': 1
             }
 
+        preset = MODEL_PRESETS[self.config['model']['default_preset']]
         scorer_agent = create_agent_with_model(
             "Scorer",
-            MODEL_PRESETS[self.config['model']['default_preset']]
+            preset['default']
         )
 
         eval_prompt = f"""

@@ -231,8 +231,9 @@ def quality_approval_node(state: ImprovementState) -> ImprovementState:
     Uses a Senior agent to provide human-readable assessment and praise
     when code quality is genuinely high.
     """
-    from crewai import Agent, Task, Crew
+    from crewai import Task, Crew
     from core.config import load_config
+    from multi_agent_team import create_agent_with_model, MODEL_PRESETS
 
     config = load_config()
     score = state.get('current_score', 0)
@@ -246,21 +247,9 @@ def quality_approval_node(state: ImprovementState) -> ImprovementState:
 
     print(f"\n[QUALITY APPROVAL] Running AI quality assessment...")
 
-    # Create approval agent (uses default LLM from environment)
-    approver = Agent(
-        role='Senior Code Quality Reviewer',
-        goal='Provide constructive feedback on overall code quality',
-        backstory="""You are a senior engineer who recognizes excellent work.
-        Your job is to assess the codebase holistically and provide:
-        - Praise for what's done well
-        - Recognition when quality standards are met
-        - Balanced perspective (not just finding flaws)
-
-        You understand that perfect code doesn't exist, and minor issues
-        don't prevent production deployment.""",
-        verbose=False,
-        allow_delegation=False
-    )
+    # Create approval agent with configured LLM (uses Grok instead of OpenAI)
+    model_preset = MODEL_PRESETS[config['model']['default_preset']]
+    approver = create_agent_with_model('Senior', model_preset['default'])
 
     # Build context
     high_issues = len([i for i in state['issues_found'] if i.get('severity') == 'HIGH'])
@@ -421,7 +410,10 @@ def run_iterative_improvement(
 
     # Compile with checkpointing (enables pause/resume)
     memory = MemorySaver()
-    app = workflow.compile(checkpointer=memory)
+
+    # FIX: Use synchronous execution to avoid Streamlit threading conflicts
+    # Compile WITHOUT debug mode and use invoke instead of stream
+    app = workflow.compile(checkpointer=memory, debug=False)
 
     # Initial state
     initial_state = {
@@ -450,14 +442,10 @@ def run_iterative_improvement(
     }
 
     try:
-        final_state = None
-        for state in app.stream(initial_state, config):
-            # Each state update
-            if 'evaluate_quality' in state:
-                # After evaluation, increment iteration for next loop
-                current = state['evaluate_quality']
-                current['iteration'] += 1
-                final_state = current
+        # FIX: Use invoke() for synchronous execution instead of stream()
+        # This prevents threading issues with Streamlit
+        print("\n[INFO] Running workflow synchronously (Streamlit-compatible mode)...")
+        final_state = app.invoke(initial_state, config)
 
         # Print summary
         print("\n" + "=" * 80)

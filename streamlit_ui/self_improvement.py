@@ -210,13 +210,14 @@ def render_self_improvement() -> None:
 
 
 def run_single_cycle(mode: str, target_files: Optional[List[str]] = None, suggest_enhancements: bool = False) -> None:
-    """Run a single improvement cycle"""
+    """Run a single improvement cycle with optional manual issue selection"""
     st.markdown("---")
     st.markdown("### 📋 Improvement Cycle Results")
 
     # Create progress container
     progress_container = st.container()
     terminal_container = st.container()
+    selection_container = st.container()
     results_container = st.container()
 
     with progress_container:
@@ -236,17 +237,105 @@ def run_single_cycle(mode: str, target_files: Optional[List[str]] = None, sugges
 
         # Create improver
         improver = SelfImprover(config)
+        improver.set_log_callback(terminal_callback)
+
+        # Get mode enum
+        from core.self_improver import ImprovementMode
+        mode_map = {
+            'UI/UX': ImprovementMode.UI_UX,
+            'Performance': ImprovementMode.PERFORMANCE,
+            'Agent Quality': ImprovementMode.AGENT_QUALITY,
+            'Code Quality': ImprovementMode.CODE_QUALITY,
+            'Everything': ImprovementMode.EVERYTHING
+        }
+        improvement_mode = mode_map.get(mode, ImprovementMode.UI_UX)
 
         # Update progress
         progress_bar.progress(0.1, text="Analyzing codebase...")
 
-        # Run cycle
-        result = improver.run_cycle(
-            mode=mode,
-            target_files=target_files,
-            max_issues=5,
-            suggest_enhancements=suggest_enhancements
-        )
+        # Phase 1: Analyze and identify issues (don't fix yet)
+        files_to_analyze = improver._get_files_to_analyze(target_files=target_files, mode=improvement_mode)
+        screenshots = improver._capture_app_screenshots() if improvement_mode == ImprovementMode.UI_UX else []
+        all_issues = improver._identify_issues(files_to_analyze, improvement_mode, screenshots, suggest_enhancements)
+
+        terminal_callback(f"Found {len(all_issues)} issues total", "success")
+
+        progress_bar.progress(0.4, text="Analysis complete")
+
+        # Phase 2: Show issue selection UI
+        with selection_container:
+            selected_issues = display_issue_selection_ui(all_issues, improver)
+
+        if selected_issues is None:
+            # Auto mode - let agents prioritize
+            terminal_callback("Running auto mode - agents will select top 5 issues", "info")
+            issues_to_fix = improver._prioritize_issues(all_issues)[:5]
+        elif len(selected_issues) > 0:
+            # Manual mode - use user selection
+            terminal_callback(f"Fixing {len(selected_issues)} user-selected issues", "info")
+            issues_to_fix = selected_issues
+        else:
+            # No selection made yet - stop here
+            progress_bar.progress(0.4, text="Waiting for issue selection...")
+            return
+
+        # Phase 3: Generate and apply fixes for selected issues
+        progress_bar.progress(0.6, text="Generating fixes...")
+        fixes = improver._generate_fixes(issues_to_fix, improvement_mode)
+
+        progress_bar.progress(0.8, text="Applying fixes...")
+        applied_fixes = improver._apply_and_test_fixes(fixes, issues_to_fix, improvement_mode)
+
+        terminal_callback(f"Applied {applied_fixes}/{len(fixes)} fixes", "success")
+
+        # Phase 4: Complete the cycle (git operations, evaluation)
+        progress_bar.progress(0.9, text="Finalizing...")
+
+        # Create git branch and commit
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        branch_name = f"improvement/{mode.lower().replace(' ', '_')}_{timestamp}"
+
+        import subprocess
+        subprocess.run(['git', 'checkout', '-b', branch_name], cwd=str(improver.base_dir), check=True, capture_output=True)
+        subprocess.run(['git', 'add', '.'], cwd=str(improver.base_dir), check=True, capture_output=True)
+
+        commit_message = f"Apply {applied_fixes} improvements ({mode} mode)"
+        subprocess.run(['git', 'commit', '-m', commit_message], cwd=str(improver.base_dir), capture_output=True)
+
+        commit_result = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=str(improver.base_dir), capture_output=True, text=True)
+        commit_hash = commit_result.stdout.strip()
+
+        # Get diff
+        diff_result = subprocess.run(['git', 'diff', 'main'], cwd=str(improver.base_dir), capture_output=True, text=True)
+        diff_output = diff_result.stdout
+
+        # Evaluate improvement
+        scores = improver._evaluate_improvement(diff_output, improvement_mode)
+
+        # Plan next iteration
+        next_focus = improver._plan_next_iteration(all_issues, issues_to_fix)
+
+        # Build result dictionary
+        # Note: export_path was already written by _identify_issues calling _export_issues_to_file
+        # We can construct the expected path or set to None
+        from datetime import datetime as dt
+        timestamp_approx = dt.now().strftime("%Y%m%d")
+        export_path_hint = f"reports/issues_detailed_{mode.lower().replace(' ', '_')}_{timestamp_approx}_*.md"
+
+        result = {
+            'files_analyzed': len(files_to_analyze),
+            'issues_found': len(all_issues),
+            'fixes_applied': applied_fixes,
+            'diff': diff_output,
+            'scores': scores,
+            'next_focus': next_focus,
+            'branch_name': branch_name,
+            'commit_hash': commit_hash,
+            'issues': [improver._format_issue_summary(issue) for issue in issues_to_fix],
+            'all_issues': [improver._format_issue_summary(issue) for issue in all_issues],
+            'export_path': export_path_hint  # Hint about where files were exported
+        }
 
         progress_bar.progress(1.0, text="Complete!")
 
@@ -571,6 +660,57 @@ def display_improvement_results(result: Dict[str, Any], improver: 'SelfImprover'
     """Display improvement cycle results"""
     st.markdown("---")
 
+    # Quick Actions Panel (prominent at top)
+    with st.container():
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+            <h3 style="color: white; margin: 0;">📥 Quick Actions</h3>
+        </div>
+        """, unsafe_allow_html=True)
+
+        issue_count = len(result.get('all_issues', []))
+        bug_count = len([i for i in result.get('all_issues', []) if i.get('type') == 'BUG'])
+        enhancement_count = len([i for i in result.get('all_issues', []) if i.get('type') == 'ENHANCEMENT'])
+
+        # Show summary
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Issues", issue_count)
+        col2.metric("🐛 Bugs", bug_count)
+        col3.metric("💡 Enhancements", enhancement_count)
+
+        # Download buttons (prominent)
+        st.markdown("**Download Full Reports:**")
+
+        markdown_report = generate_markdown_report(result)
+        json_report = generate_json_report(result)
+
+        button_cols = st.columns(2)
+        with button_cols[0]:
+            st.download_button(
+                "📄 Markdown (All Issues)",
+                markdown_report,
+                f"all_issues_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                mime="text/markdown",
+                use_container_width=True,
+                type="primary"
+            )
+        with button_cols[1]:
+            st.download_button(
+                "📊 JSON (All Issues)",
+                json_report,
+                f"all_issues_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json",
+                use_container_width=True,
+                type="primary"
+            )
+
+        # Show export path if available
+        if result.get('export_path'):
+            st.info(f"💾 **Files also exported to:** `{result['export_path']}`")
+
+    st.markdown("---")
+
     # Summary metrics
     cols = st.columns(4, gap="small")
     cols[0].metric("Files Analyzed", result['files_analyzed'])
@@ -710,6 +850,158 @@ def display_improvement_results(result: Dict[str, Any], improver: 'SelfImprover'
             st.success("✅ Rolled back to main branch")
         else:
             st.error("❌ Rollback failed")
+
+
+def display_issue_selection_ui(all_issues: List[Dict[str, Any]], improver: 'SelfImprover') -> Optional[List[Dict[str, Any]]]:
+    """
+    Display interactive UI for user to select issues to fix
+
+    Returns:
+        Selected issues, or None if user chooses auto-selection
+    """
+    st.markdown("---")
+    st.markdown("### 🎯 Select Issues to Fix")
+
+    # Choice buttons
+    col1, col2 = st.columns(2)
+
+    with col1:
+        manual_mode = st.button(
+            "📝 I'll Pick Issues",
+            use_container_width=True,
+            type="primary",
+            help="Review all issues and manually select which to fix"
+        )
+
+    with col2:
+        auto_mode = st.button(
+            "🤖 Let Agents Decide",
+            use_container_width=True,
+            type="secondary",
+            help="Agents will automatically prioritize and fix top 5 issues"
+        )
+
+    if manual_mode:
+        st.session_state['selection_mode'] = 'manual'
+    elif auto_mode:
+        st.session_state['selection_mode'] = 'auto'
+
+    # Show selection UI if manual mode
+    if st.session_state.get('selection_mode') == 'manual':
+        st.markdown("#### Select Issues to Fix")
+        st.info("💡 **Tip:** Start with HIGH severity bugs for maximum impact")
+
+        # Group by type and severity
+        bugs_high = [i for i in all_issues if i.get('type') == 'BUG' and i.get('severity') == 'HIGH']
+        bugs_medium = [i for i in all_issues if i.get('type') == 'BUG' and i.get('severity') == 'MEDIUM']
+        bugs_low = [i for i in all_issues if i.get('type') == 'BUG' and i.get('severity') == 'LOW']
+        enh_high = [i for i in all_issues if i.get('type') == 'ENHANCEMENT' and i.get('severity') == 'HIGH']
+        enh_medium = [i for i in all_issues if i.get('type') == 'ENHANCEMENT' and i.get('severity') == 'MEDIUM']
+        enh_low = [i for i in all_issues if i.get('type') == 'ENHANCEMENT' and i.get('severity') == 'LOW']
+
+        selected_issues = []
+
+        # Tabs for better organization
+        tab1, tab2 = st.tabs(["🐛 Bugs", "💡 Enhancements"])
+
+        with tab1:
+            # HIGH priority bugs
+            if bugs_high:
+                st.markdown("##### 🔴 HIGH Priority")
+                for idx, issue in enumerate(bugs_high):
+                    key = f"bug_high_{idx}"
+                    selected = st.checkbox(
+                        f"{issue.get('title', 'Untitled')} - `{issue.get('file', 'unknown')}`",
+                        key=key,
+                        help=issue.get('description', 'No description')
+                    )
+                    if selected:
+                        selected_issues.append(issue)
+
+            # MEDIUM priority bugs
+            if bugs_medium:
+                st.markdown("##### 🟡 MEDIUM Priority")
+                with st.expander(f"View {len(bugs_medium)} medium priority bugs"):
+                    for idx, issue in enumerate(bugs_medium):
+                        key = f"bug_medium_{idx}"
+                        selected = st.checkbox(
+                            f"{issue.get('title', 'Untitled')} - `{issue.get('file', 'unknown')}`",
+                            key=key,
+                            help=issue.get('description', 'No description')
+                        )
+                        if selected:
+                            selected_issues.append(issue)
+
+            # LOW priority bugs
+            if bugs_low:
+                st.markdown("##### 🟢 LOW Priority")
+                with st.expander(f"View {len(bugs_low)} low priority bugs"):
+                    for idx, issue in enumerate(bugs_low):
+                        key = f"bug_low_{idx}"
+                        selected = st.checkbox(
+                            f"{issue.get('title', 'Untitled')} - `{issue.get('file', 'unknown')}`",
+                            key=key,
+                            help=issue.get('description', 'No description')
+                        )
+                        if selected:
+                            selected_issues.append(issue)
+
+        with tab2:
+            # HIGH priority enhancements
+            if enh_high:
+                st.markdown("##### 🔴 HIGH Priority")
+                for idx, issue in enumerate(enh_high):
+                    key = f"enh_high_{idx}"
+                    selected = st.checkbox(
+                        f"{issue.get('title', 'Untitled')} - `{issue.get('file', 'unknown')}`",
+                        key=key,
+                        help=issue.get('description', 'No description')
+                    )
+                    if selected:
+                        selected_issues.append(issue)
+
+            # MEDIUM priority enhancements
+            if enh_medium:
+                st.markdown("##### 🟡 MEDIUM Priority")
+                with st.expander(f"View {len(enh_medium)} medium priority enhancements"):
+                    for idx, issue in enumerate(enh_medium):
+                        key = f"enh_medium_{idx}"
+                        selected = st.checkbox(
+                            f"{issue.get('title', 'Untitled')} - `{issue.get('file', 'unknown')}`",
+                            key=key,
+                            help=issue.get('description', 'No description')
+                        )
+                        if selected:
+                            selected_issues.append(issue)
+
+            # LOW priority enhancements
+            if enh_low:
+                st.markdown("##### 🟢 LOW Priority")
+                with st.expander(f"View {len(enh_low)} low priority enhancements"):
+                    for idx, issue in enumerate(enh_low):
+                        key = f"enh_low_{idx}"
+                        selected = st.checkbox(
+                            f"{issue.get('title', 'Untitled')} - `{issue.get('file', 'unknown')}`",
+                            key=key,
+                            help=issue.get('description', 'No description')
+                        )
+                        if selected:
+                            selected_issues.append(issue)
+
+        # Show selection summary and action button
+        st.markdown("---")
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.info(f"✅ **{len(selected_issues)} issues selected**")
+        with col2:
+            if st.button("🔧 Fix Selected", use_container_width=True, type="primary", disabled=len(selected_issues) == 0):
+                return selected_issues
+
+    elif st.session_state.get('selection_mode') == 'auto':
+        st.success("✅ **Auto mode**: Agents will prioritize and fix top 5 issues")
+        return None  # None = auto mode
+
+    return []  # Empty list = no selection yet
 
 
 def merge_to_main(branch_name: str) -> None:
