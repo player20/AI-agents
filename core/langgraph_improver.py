@@ -180,7 +180,6 @@ def evaluate_quality_node(state: ImprovementState) -> ImprovementState:
     should_continue = (
         score < state['target_score'] and
         state['iteration'] < 10 and  # Max 10 iterations
-        state['fixes_applied'] > 0 and  # Only continue if we're making progress
         stuck_iterations < 3  # Stop if stuck for 3 consecutive iterations
     )
 
