@@ -151,33 +151,36 @@ def evaluate_quality_node(state: ImprovementState) -> ImprovementState:
 
     print(f"\n[EVALUATE] Iteration {state['iteration']}: Evaluating quality...")
 
-    # Enhanced scoring with quality recognition
-    score = state.get('current_score', 5.0)
+    # Enhanced scoring with quality recognition and progress tracking
+    previous_score = state.get('current_score', 5.0)
+    total_fixes_applied = state.get('total_fixes_applied', 0)
 
-    # Count issues by severity
+    # Count issues by severity (only UNFIXED issues should lower score)
     high_priority = len([i for i in state['issues_found'] if i.get('severity') == 'HIGH'])
     medium_priority = len([i for i in state['issues_found'] if i.get('severity') == 'MEDIUM'])
     low_priority = len([i for i in state['issues_found'] if i.get('severity') == 'LOW'])
 
-    # Positive scoring: Start high if no critical issues
+    # Base score on total progress (fixes applied over time)
+    base_score = 5.0 + (total_fixes_applied * 0.5)  # Each fix permanently improves base
+
+    # Bonus for no HIGH priority issues
     if high_priority == 0:
-        score = max(score, 8.0)  # No HIGH issues = at least 8/10
+        base_score = max(base_score, 8.0)  # No HIGH issues = at least 8/10
         print(f"   ✅ No HIGH priority issues found!")
 
     if high_priority == 0 and medium_priority <= 3:
-        score = max(score, 9.0)  # Minimal issues = 9/10
+        base_score = max(base_score, 9.0)  # Minimal issues = 9/10
         print(f"   🎉 Code quality is excellent!")
 
-    # Each fix improves score
-    score += state['fixes_applied'] * 0.3
+    # Deduct ONLY for genuinely problematic issues (less punitive)
+    # Most issues are already fixed, so we should be more forgiving
+    score = base_score
+    score -= min(high_priority, 3) * 0.3  # Cap deduction at 3 issues max
+    score -= min(medium_priority, 5) * 0.1  # Cap deduction at 5 issues max
+    score -= min(low_priority, 10) * 0.02  # Cap deduction at 10 issues max
 
-    # Deduct for remaining issues (weighted by severity)
-    score -= high_priority * 0.5
-    score -= medium_priority * 0.2
-    score -= low_priority * 0.05
-
-    # Cap at 10
-    score = min(10.0, max(0.0, score))
+    # Cap at 10, but don't go below 3.0 if any fixes were applied
+    score = min(10.0, max(3.0 if total_fixes_applied > 0 else 0.0, score))
 
     # Track if we're stuck (no improvement)
     previous_score = state.get('previous_score', 5.0)
