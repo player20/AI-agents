@@ -40,6 +40,7 @@ class ImprovementState(TypedDict):
     error_message: str
     previous_score: float  # Track previous score to detect stagnation
     stuck_iterations: int  # Count consecutive iterations with no score improvement
+    quality_feedback: str  # AI-generated positive feedback when quality is high
 
 
 def analyze_issues_node(state: ImprovementState) -> ImprovementState:
@@ -140,28 +141,40 @@ def generate_and_apply_fixes_node(state: ImprovementState) -> ImprovementState:
 
 def evaluate_quality_node(state: ImprovementState) -> ImprovementState:
     """
-    Evaluate current codebase quality
+    Evaluate current codebase quality with AI-powered assessment
 
     Scores the codebase and determines if more iterations are needed.
+    Includes positive feedback when quality is genuinely high.
     """
     from core.self_improver import SelfImprover
     from core.config import load_config
 
     print(f"\n[EVALUATE] Iteration {state['iteration']}: Evaluating quality...")
 
-    # Simple heuristic scoring
-    # Start at current score, add points for fixes, subtract for remaining high-priority issues
+    # Enhanced scoring with quality recognition
     score = state.get('current_score', 5.0)
 
-    # Each fix improves score
-    score += state['fixes_applied'] * 0.5
+    # Count issues by severity
+    high_priority = len([i for i in state['issues_found'] if i.get('severity') == 'HIGH'])
+    medium_priority = len([i for i in state['issues_found'] if i.get('severity') == 'MEDIUM'])
+    low_priority = len([i for i in state['issues_found'] if i.get('severity') == 'LOW'])
 
-    # Remaining HIGH priority issues lower score
-    high_priority_remaining = len([
-        issue for issue in state['issues_found']
-        if issue.get('severity') == 'HIGH'
-    ])
-    score -= high_priority_remaining * 0.2
+    # Positive scoring: Start high if no critical issues
+    if high_priority == 0:
+        score = max(score, 8.0)  # No HIGH issues = at least 8/10
+        print(f"   ✅ No HIGH priority issues found!")
+
+    if high_priority == 0 and medium_priority <= 3:
+        score = max(score, 9.0)  # Minimal issues = 9/10
+        print(f"   🎉 Code quality is excellent!")
+
+    # Each fix improves score
+    score += state['fixes_applied'] * 0.3
+
+    # Deduct for remaining issues (weighted by severity)
+    score -= high_priority * 0.5
+    score -= medium_priority * 0.2
+    score -= low_priority * 0.05
 
     # Cap at 10
     score = min(10.0, max(0.0, score))
@@ -208,6 +221,106 @@ def evaluate_quality_node(state: ImprovementState) -> ImprovementState:
     }
 
 
+def quality_approval_node(state: ImprovementState) -> ImprovementState:
+    """
+    AI-powered quality approval with positive feedback
+
+    Uses a Senior agent to provide human-readable assessment and praise
+    when code quality is genuinely high.
+    """
+    from crewai import Agent, Task, Crew
+    from core.config import load_config
+
+    config = load_config()
+    score = state.get('current_score', 0)
+
+    # Only run approval if score is 8+ or stuck iterations
+    if score < 8.0 and state.get('stuck_iterations', 0) < 2:
+        return {
+            **state,
+            'quality_feedback': ''
+        }
+
+    print(f"\n[QUALITY APPROVAL] Running AI quality assessment...")
+
+    # Create approval agent
+    approver = Agent(
+        role='Senior Code Quality Reviewer',
+        goal='Provide constructive feedback on overall code quality',
+        backstory="""You are a senior engineer who recognizes excellent work.
+        Your job is to assess the codebase holistically and provide:
+        - Praise for what's done well
+        - Recognition when quality standards are met
+        - Balanced perspective (not just finding flaws)
+
+        You understand that perfect code doesn't exist, and minor issues
+        don't prevent production deployment.""",
+        verbose=False,
+        allow_delegation=False,
+        llm=config['llm']['primary_model']
+    )
+
+    # Build context
+    high_issues = len([i for i in state['issues_found'] if i.get('severity') == 'HIGH'])
+    medium_issues = len([i for i in state['issues_found'] if i.get('severity') == 'MEDIUM'])
+    low_issues = len([i for i in state['issues_found'] if i.get('severity') == 'LOW'])
+
+    assessment_prompt = f"""
+# Codebase Quality Assessment
+
+**Score:** {score:.1f}/10
+**Iteration:** {state['iteration']}
+**Fixes Applied:** {state.get('total_fixes_applied', 0)}
+
+**Remaining Issues:**
+- HIGH priority: {high_issues}
+- MEDIUM priority: {medium_issues}
+- LOW priority: {low_issues}
+
+**Task:** Provide a brief (2-3 sentences) quality assessment.
+
+If score >= 8.0 and HIGH issues = 0:
+- Start with praise (e.g., "Great work!", "Excellent quality!")
+- Acknowledge what's been achieved
+- Note that remaining issues are minor and acceptable for production
+
+If stuck for 2+ iterations with no progress:
+- Acknowledge diminishing returns
+- Suggest stopping here (quality is acceptable)
+- Avoid over-engineering
+
+Be constructive and balanced. Don't just find flaws - recognize good work!
+"""
+
+    task = Task(
+        description=assessment_prompt,
+        agent=approver,
+        expected_output="A brief, constructive quality assessment with positive recognition"
+    )
+
+    crew = Crew(
+        agents=[approver],
+        tasks=[task],
+        verbose=False
+    )
+
+    try:
+        result = crew.kickoff()
+        feedback = str(result)
+        print(f"   {feedback}")
+
+        return {
+            **state,
+            'quality_feedback': feedback
+        }
+    except Exception as e:
+        print(f"   [WARNING] Quality approval failed: {e}")
+        return {
+            **state,
+            'quality_feedback': ''
+        }
+
+
 def increment_iteration(state: ImprovementState) -> ImprovementState:
     """
     Increment iteration counter before looping back
@@ -237,11 +350,11 @@ def create_improvement_graph() -> StateGraph:
     Create the LangGraph workflow for iterative self-improvement
 
     Flow:
-        START → analyze → generate_and_apply → evaluate → should_continue?
-                ↑                                              ↓
-                └──────────── continue ────────────────────────┘
-                                                               ↓
-                                                              END
+        START → analyze → generate_and_apply → evaluate → quality_approval → should_continue?
+                ↑                                                                ↓
+                └────────────────────── continue ───────────────────────────────┘
+                                                                                 ↓
+                                                                                END
     """
     # Create graph
     workflow = StateGraph(ImprovementState)
@@ -250,16 +363,18 @@ def create_improvement_graph() -> StateGraph:
     workflow.add_node("analyze_issues", analyze_issues_node)
     workflow.add_node("generate_and_apply_fixes", generate_and_apply_fixes_node)
     workflow.add_node("evaluate_quality", evaluate_quality_node)
+    workflow.add_node("quality_approval", quality_approval_node)  # NEW: AI feedback
     workflow.add_node("increment_iteration", increment_iteration)
 
     # Define edges
     workflow.set_entry_point("analyze_issues")
     workflow.add_edge("analyze_issues", "generate_and_apply_fixes")
     workflow.add_edge("generate_and_apply_fixes", "evaluate_quality")
+    workflow.add_edge("evaluate_quality", "quality_approval")  # NEW: Get AI feedback
 
     # Conditional edge - loop back or end
     workflow.add_conditional_edges(
-        "evaluate_quality",
+        "quality_approval",  # Changed from evaluate_quality
         should_continue_improvement,
         {
             "continue": "increment_iteration",  # Increment before looping back
@@ -322,7 +437,8 @@ def run_iterative_improvement(
         'should_continue': True,
         'error_message': '',
         'previous_score': initial_score,
-        'stuck_iterations': 0
+        'stuck_iterations': 0,
+        'quality_feedback': ''
     }
 
     # Run workflow with increased recursion limit

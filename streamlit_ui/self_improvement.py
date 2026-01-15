@@ -347,6 +347,12 @@ def run_iterative_mode(mode: str, target_score: float, target_files: Optional[Li
                         cols[1].metric("Fixes Applied", entry['fixes_applied'])
                         cols[2].metric("Score", f"{entry['score']:.1f}/10")
 
+            # Quality feedback from AI (positive recognition!)
+            quality_feedback = final_state.get('quality_feedback', '')
+            if quality_feedback:
+                st.markdown("### 🎉 Quality Assessment")
+                st.info(quality_feedback)
+
             # Final status
             if final_state.get('current_score', 0) >= target_score:
                 st.success(f"✅ **Target score reached!** Final score: {final_state.get('current_score', 0):.1f}/10")
