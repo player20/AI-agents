@@ -48,11 +48,11 @@ def create_terminal_callback(terminal_placeholder: Any) -> Callable[[str, str], 
 
         timestamp = datetime.now().strftime("%H:%M:%S")
         color = {
-            "info": COLORS["info"],
-            "success": COLORS["success"],
-            "warning": COLORS["warning"],
-            "error": COLORS["error"]
-        }.get(level, COLORS["info"])
+            "info": COLORS["status_info"],
+            "success": COLORS["status_success"],
+            "warning": COLORS["status_warning"],
+            "error": COLORS["status_error"]
+        }.get(level, COLORS["status_info"])
 
         # Store in session state for persistence
         st.session_state.terminal_messages.append(

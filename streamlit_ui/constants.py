@@ -1,10 +1,10 @@
 """
-Centralized constants for Streamlit UI
+Centralized UI constants for Code Weaver Pro
 Defines colors, spacing, sizes, and thresholds used across UI components
 """
 
-# Color Palette
-COLORS = {
+# UI Color Palette
+UI_COLORS = {
     # Terminal & Background
     "terminal_bg": "#1a1d29",
     "component_bg": "#333333",
@@ -12,11 +12,11 @@ COLORS = {
     "text_secondary": "#d9d9d9",  # Adjusted to have higher contrast ratio (4.5:1)
 
     # Status Colors (consistent across all components)
-    "success": "#44ff44",
-    "info": "#00ff00",
-    "warning": "#ffff00",
-    "error": "#ff4444",
-    "system": "#00aaff",
+    "status_success": "#44ff44",
+    "status_info": "#00ff00",
+    "status_warning": "#ffff00",
+    "status_error": "#ff4444",
+    "status_system": "#00aaff",
 
     # Test Results
     "test_passed": "#44ff44",
@@ -59,3 +59,6 @@ THRESHOLDS = {
     "score_good": 7,                # Score >= 7 = good
     "score_fair": 5,                # Score >= 5 = fair
 }
+
+# Backward compatibility aliases
+COLORS = UI_COLORS  # Alias for backward compatibility

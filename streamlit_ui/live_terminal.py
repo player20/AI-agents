@@ -27,11 +27,6 @@ class LiveTerminalOutput:
         """
         try:
             # Sanitize user input to prevent security vulnerabilities
-            line = str(line).strip()
-            if not line:
-                return
-
-            # Validate input to prevent injection attacks
             line = self._sanitize_input(line)
 
             timestamp = datetime.now().strftime("%H:%M:%S")
@@ -70,11 +65,11 @@ class LiveTerminalOutput:
         try:
             # Define colors based on level
             color_map = {
-                "info": COLORS["info"],
-                "success": COLORS["success"],
-                "warning": COLORS["warning"],
-                "error": COLORS["error"],
-                "system": COLORS["system"]
+                "info": COLORS["status_info"],
+                "success": COLORS["status_success"],
+                "warning": COLORS["status_warning"],
+                "error": COLORS["status_error"],
+                "system": COLORS["status_system"]
             }
 
             # Build HTML for terminal display
