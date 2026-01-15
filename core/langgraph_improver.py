@@ -243,7 +243,7 @@ def quality_approval_node(state: ImprovementState) -> ImprovementState:
 
     print(f"\n[QUALITY APPROVAL] Running AI quality assessment...")
 
-    # Create approval agent
+    # Create approval agent (uses default LLM from environment)
     approver = Agent(
         role='Senior Code Quality Reviewer',
         goal='Provide constructive feedback on overall code quality',
@@ -256,8 +256,7 @@ def quality_approval_node(state: ImprovementState) -> ImprovementState:
         You understand that perfect code doesn't exist, and minor issues
         don't prevent production deployment.""",
         verbose=False,
-        allow_delegation=False,
-        llm=config['llm']['primary_model']
+        allow_delegation=False
     )
 
     # Build context
