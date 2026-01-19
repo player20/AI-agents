@@ -88,11 +88,90 @@ def check_module_availability():
     return all_available
 
 
-# Export functions for backward compatibility
-__all__ = [
-    'render_enhanced_interface',
-    'render_clarification_flow',
-    'run_enhanced_execution',
-    'display_enhanced_results_from_orchestrator',
-    'display_enhanced_results'
-]
+def render_main_interface():
+    """
+    Render the main interface with responsive design.
+    """
+
+    if not check_module_availability():
+        return
+
+    st.set_page_config(
+        page_title="Code Weaver Pro",
+        page_icon="🧠",
+        layout="wide",
+        initial_sidebar_state="auto"
+    )
+
+    if CONSTANTS_AVAILABLE:
+        st.markdown(f"""
+        <style>
+            .main {{
+                max-width: {DIMENSIONS['max_width']}px;
+                margin: {SPACING['xxl']} auto;
+            }}
+
+            @media (max-width: {DIMENSIONS['breakpoint_lg']}px) {{
+                .main {{
+                    max-width: {DIMENSIONS['max_width_sm']}px;
+                    margin: {SPACING['xl']} auto;
+                }}
+            }}
+
+            @media (max-width: {DIMENSIONS['breakpoint_sm']}px) {{
+                .main {{
+                    max-width: 90%;
+                    margin: {SPACING['lg']} auto;
+                }}
+            }}
+        </style>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <style>
+            .main {{
+                max-width: 1200px;
+                margin: 40px auto;
+            }}
+
+            @media (max-width: 992px) {{
+                .main {{
+                    max-width: 800px;
+                    margin: 32px auto;
+                }}
+            }}
+
+            @media (max-width: 576px) {{
+                .main {{
+                    max-width: 90%;
+                    margin: 24px auto;
+                }}
+            }}
+        </style>
+        """, unsafe_allow_html=True)
+
+    with st.container():
+        st.markdown(
+            f"""
+            <div class="main">
+                <h1 style="text-align: center; margin-bottom: {SPACING['lg']};">🧠 Code Weaver Pro</h1>
+                <p style="text-align: center; color: {COLORS['text_secondary']}; margin-bottom: {SPACING['xl']};">
+                    Generate your next app with AI-powered development and analysis.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        render_enhanced_interface()
+
+        st.markdown("---")
+        st.markdown("""
+        <div style="text-align: center; color: {COLORS['text_secondary']}; margin-top: {SPACING['xl']};">
+            ⚠️ This is a demo version. Refer to the documentation for the latest features and capabilities.
+        </div>
+        """.format(COLORS=COLORS, SPACING=SPACING), unsafe_allow_html=True)
+
+
+if __name__ == "__main__":
+    render_main_interface()

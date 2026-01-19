@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SampleApp - Proposed Changes | Demo Client</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #0f172a;
+            --light: #f1f5f9;
+            --before-color: #64748b;
+            --after-color: #10b981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        /* Header */
+        .header {
+            padding: 40px 20px 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .header .subtitle {
+            color: #94a3b8;
+            font-size: 16px;
+        }
+
+        /* Navigation */
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 20px;
+            flex-wrap: wrap;
+            background: rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-tab {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .nav-tab:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .nav-tab.active {
+            background: var(--primary);
+        }
+
+        /* Screen Panel */
+        .screen-panel {
+            padding: 40px 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .screen-title {
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 40px;
+        }
+
+        /* Comparison Container */
+        .comparison-container {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+
+        .comparison-side {
+            flex: 1;
+            max-width: 400px;
+            min-width: 300px;
+        }
+
+        .comparison-arrow {
+            display: flex;
+            align-items: center;
+            padding-top: 200px;
+            color: var(--primary);
+        }
+
+        @media (max-width: 900px) {
+            .comparison-arrow {
+                transform: rotate(90deg);
+                padding: 20px 0;
+            }
+        }
+
+        /* Side Header */
+        .side-header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .badge-before {
+            background: rgba(100, 116, 139, 0.3);
+            color: #94a3b8;
+        }
+
+        .badge-after {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        /* Phone Frame */
+        .phone-frame {
+            background: #000;
+            border-radius: 40px;
+            padding: 12px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        .phone-notch {
+            width: 150px;
+            height: 30px;
+            background: #000;
+            border-radius: 0 0 20px 20px;
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        .phone-content {
+            background: white;
+            border-radius: 32px;
+            min-height: 600px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .screen-image {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .placeholder, .description-placeholder {
+            padding: 60px 20px;
+            text-align: center;
+            color: #64748b;
+            font-style: italic;
+            background: #f8fafc;
+            min-height: 600px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .inline-mockup {
+            min-height: 600px;
+        }
+
+        /* Description */
+        .side-description {
+            margin-top: 24px;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+        }
+
+        .side-description p {
+            color: #cbd5e1;
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+
+        /* Issues List (Before) */
+        .issues-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .issues-list li {
+            position: relative;
+            padding-left: 24px;
+            margin-bottom: 8px;
+            color: #f87171;
+            font-size: 14px;
+        }
+
+        .issues-list li::before {
+            content: "!";
+            position: absolute;
+            left: 0;
+            width: 16px;
+            height: 16px;
+            background: #dc2626;
+            color: white;
+            border-radius: 50%;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 16px;
+        }
+
+        /* Changes List (After) */
+        .changes-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .changes-list li {
+            position: relative;
+            padding-left: 24px;
+            margin-bottom: 8px;
+            color: #4ade80;
+            font-size: 14px;
+        }
+
+        .changes-list li::before {
+            content: "+";
+            position: absolute;
+            left: 0;
+            width: 16px;
+            height: 16px;
+            background: #22c55e;
+            color: white;
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 16px;
+        }
+
+        /* Toggle View */
+        .toggle-container {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            background: rgba(0,0,0,0.8);
+            padding: 8px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .toggle-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn:hover, .toggle-btn.active {
+            background: var(--primary);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+            font-size: 12px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Summary Stats */
+        .summary-stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            padding: 30px;
+            background: rgba(255,255,255,0.02);
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        /* Slider view (alternative) */
+        .slider-view {
+            display: none;
+        }
+
+        .slider-view.active {
+            display: block;
+        }
+
+        .comparison-view {
+            display: flex;
+        }
+
+        .comparison-view.hidden {
+            display: none;
+        }
+
+        /* Image Overlay Slider */
+        .slider-container {
+            position: relative;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .slider-container .phone-frame {
+            position: relative;
+        }
+
+        .slider-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .slider-handle {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--primary);
+            cursor: ew-resize;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .slider-handle::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            border-radius: 50%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        @media print {
+            body {
+                background: white;
+                color: black;
+            }
+            .nav, .toggle-container { display: none; }
+            .screen-panel { display: block !important; page-break-after: always; }
+            .phone-frame { box-shadow: 0 0 0 2px #ddd; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>SampleApp</h1>
+        <p class="subtitle">Proposed UX Improvements for Demo Client</p>
+    </div>
+
+    <div class="summary-stats">
+        <div class="stat">
+            <div class="stat-value">4</div>
+            <div class="stat-label">Screens Updated</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">16</div>
+            <div class="stat-label">Improvements</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">16</div>
+            <div class="stat-label">Issues Addressed</div>
+        </div>
+    </div>
+
+    <nav class="nav">
+        
+            <button class="nav-tab active" onclick="showScreen('landing')" data-screen="landing">
+                Landing Page
+            </button>
+            
+            <button class="nav-tab " onclick="showScreen('signup')" data-screen="signup">
+                Sign Up Form
+            </button>
+            
+            <button class="nav-tab " onclick="showScreen('profile')" data-screen="profile">
+                Profile Setup
+            </button>
+            
+            <button class="nav-tab " onclick="showScreen('success')" data-screen="success">
+                Success / Completion
+            </button>
+            
+    </nav>
+
+    <main>
+        
+            <div class="screen-panel" id="screen-landing" style="display: flex">
+                <h2 class="screen-title">Landing Page</h2>
+
+                <div class="comparison-container">
+                    <!-- Before -->
+                    <div class="comparison-side before">
+                        <div class="side-header">
+                            <span class="badge badge-before">CURRENT</span>
+                        </div>
+                        <div class="phone-frame">
+                            <div class="phone-notch"></div>
+                            <div class="phone-content">
+                                <div class="inline-mockup"><div style='padding:20px;background:#f5f5f5;min-height:600px'><h1 style='color:#333;font-size:24px'>Welcome to Our App</h1><p style='color:#666;margin:20px 0'>Sign up today.</p><button style='background:#999;color:white;padding:8px 16px;border:none;border-radius:4px'>Sign Up</button></div></div>
+                            </div>
+                        </div>
+                        <div class="side-description">
+                            <p>Generic landing page with no clear direction for users</p>
+                            <ul class="issues-list"><li>No clear value proposition above the fold</li><li>Missing social proof / testimonials</li><li>CTA button is too small and uses generic text</li><li>No indication of what happens after signup</li></ul>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="comparison-arrow">
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
+                            <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8-8-8z"/>
+                        </svg>
+                    </div>
+
+                    <!-- After -->
+                    <div class="comparison-side after">
+                        <div class="side-header">
+                            <span class="badge badge-after">PROPOSED</span>
+                        </div>
+                        <div class="phone-frame">
+                            <div class="phone-notch"></div>
+                            <div class="phone-content">
+                                <div class="inline-mockup"><div style='padding:20px;background:linear-gradient(135deg,#667eea,#764ba2);min-height:600px;color:white'><h1 style='font-size:28px;margin-bottom:8px'>Earn $180-320/month</h1><p style='opacity:0.9;margin-bottom:24px'>Share your EV charger with drivers nearby</p><div style='display:flex;gap:12px'><div style='flex:1;background:rgba(255,255,255,0.2);padding:16px;border-radius:12px;text-align:center'><div style='font-size:24px'>Find Chargers</div><small>Browse nearby spots</small></div><div style='flex:1;background:rgba(255,255,255,0.3);padding:16px;border-radius:12px;text-align:center;border:2px solid white'><div style='font-size:24px'>Earn Money</div><small>List your charger</small></div></div><p style='margin-top:24px;font-size:12px;opacity:0.8'>Trusted by 10,000+ EV owners</p></div></div>
+                            </div>
+                        </div>
+                        <div class="side-description">
+                            <p>Clear value proposition with role selection and earnings preview</p>
+                            <ul class="changes-list"><li>Added compelling headline with specific benefit</li><li>Added role selection (Guest/Host cards)</li><li>Added earnings preview for hosts ($180-320/mo)</li><li>Added trust badges and social proof</li></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="screen-panel" id="screen-signup" style="display: none">
+                <h2 class="screen-title">Sign Up Form</h2>
+
+                <div class="comparison-container">
+                    <!-- Before -->
+                    <div class="comparison-side before">
+                        <div class="side-header">
+                            <span class="badge badge-before">CURRENT</span>
+                        </div>
+                        <div class="phone-frame">
+                            <div class="phone-notch"></div>
+                            <div class="phone-content">
+                                <div class="description-placeholder">Standard signup form with minimal guidance</div>
+                            </div>
+                        </div>
+                        <div class="side-description">
+                            <p>Standard signup form with minimal guidance</p>
+                            <ul class="issues-list"><li>No explanation why we need personal info</li><li>No progress indicator for multi-step flow</li><li>Privacy concerns not addressed</li><li>Form feels impersonal and corporate</li></ul>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="comparison-arrow">
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
+                            <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8-8-8z"/>
+                        </svg>
+                    </div>
+
+                    <!-- After -->
+                    <div class="comparison-side after">
+                        <div class="side-header">
+                            <span class="badge badge-after">PROPOSED</span>
+                        </div>
+                        <div class="phone-frame">
+                            <div class="phone-notch"></div>
+                            <div class="phone-content">
+                                <div class="description-placeholder">Friendly signup with trust signals and progress</div>
+                            </div>
+                        </div>
+                        <div class="side-description">
+                            <p>Friendly signup with trust signals and progress</p>
+                            <ul class="changes-list"><li>Added step indicator (Step 1 of 3)</li><li>Added privacy text under sensitive fields</li><li>Added encouraging microcopy</li><li>Added 'Why we need this' tooltips</li></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="screen-panel" id="screen-profile" style="display: none">
+                <h2 class="screen-title">Profile Setup</h2>
+
+                <div class="comparison-container">
+                    <!-- Before -->
+                    <div class="comparison-side before">
+                        <div class="side-header">
+                            <span class="badge badge-before">CURRENT</span>
+                        </div>
+                        <div class="phone-frame">
+                            <div class="phone-notch"></div>
+                            <div class="phone-content">
+                                <div class="description-placeholder">Long form requesting DOB and address without explanation</div>
+                            </div>
+                        </div>
+                        <div class="side-description">
+                            <p>Long form requesting DOB and address without explanation</p>
+                            <ul class="issues-list"><li>Users drop off when asked for DOB</li><li>Address field creates privacy concerns</li><li>No explanation of how data is used</li><li>Feels intrusive and unnecessary</li></ul>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="comparison-arrow">
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
+                            <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8-8-8z"/>
+                        </svg>
+                    </div>
+
+                    <!-- After -->
+                    <div class="comparison-side after">
+                        <div class="side-header">
+                            <span class="badge badge-after">PROPOSED</span>
+                        </div>
+                        <div class="phone-frame">
+                            <div class="phone-notch"></div>
+                            <div class="phone-content">
+                                <div class="description-placeholder">Contextual form with privacy reassurance</div>
+                            </div>
+                        </div>
+                        <div class="side-description">
+                            <p>Contextual form with privacy reassurance</p>
+                            <ul class="changes-list"><li>Added: 'Required by Stripe for payouts - never shared publicly'</li><li>Added: 'Your exact address is never shown to other users'</li><li>Reordered fields: required first, optional clearly labeled</li><li>Added friendly illustrations</li></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="screen-panel" id="screen-success" style="display: none">
+                <h2 class="screen-title">Success / Completion</h2>
+
+                <div class="comparison-container">
+                    <!-- Before -->
+                    <div class="comparison-side before">
+                        <div class="side-header">
+                            <span class="badge badge-before">CURRENT</span>
+                        </div>
+                        <div class="phone-frame">
+                            <div class="phone-notch"></div>
+                            <div class="phone-content">
+                                <div class="description-placeholder">Basic confirmation with no next steps</div>
+                            </div>
+                        </div>
+                        <div class="side-description">
+                            <p>Basic confirmation with no next steps</p>
+                            <ul class="issues-list"><li>User left wondering what to do next</li><li>No celebration or positive reinforcement</li><li>Missing share/referral opportunity</li><li>No upsell or additional engagement</li></ul>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="comparison-arrow">
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
+                            <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8-8-8z"/>
+                        </svg>
+                    </div>
+
+                    <!-- After -->
+                    <div class="comparison-side after">
+                        <div class="side-header">
+                            <span class="badge badge-after">PROPOSED</span>
+                        </div>
+                        <div class="phone-frame">
+                            <div class="phone-notch"></div>
+                            <div class="phone-content">
+                                <div class="description-placeholder">Celebratory success with social sharing</div>
+                            </div>
+                        </div>
+                        <div class="side-description">
+                            <p>Celebratory success with social sharing</p>
+                            <ul class="changes-list"><li>Added confetti animation and celebration</li><li>Added 'Share with friends' button</li><li>Added 'Add another location' prompt</li><li>Added estimated first payout date</li></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+    </main>
+
+    <div class="toggle-container">
+        <button class="toggle-btn active" onclick="setView('comparison')">Side by Side</button>
+        <button class="toggle-btn" onclick="setView('slider')">Slider</button>
+    </div>
+
+    <footer class="footer">
+        <p>This prototype shows proposed changes. Actual implementation may vary slightly.</p>
+        <p>Generated: 2026-01-15 | Confidential - For Demo Client Only</p>
+    </footer>
+
+    <script>
+        function showScreen(screenId) {
+            // Hide all screens
+            document.querySelectorAll('.screen-panel').forEach(panel => {
+                panel.style.display = 'none';
+            });
+
+            // Show selected screen
+            document.getElementById('screen-' + screenId).style.display = 'flex';
+
+            // Update active tab
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.screen === screenId) {
+                    tab.classList.add('active');
+                }
+            });
+        }
+
+        function setView(view) {
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Toggle view mode (comparison vs slider)
+            // This is a placeholder - would need more implementation for slider view
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            const tabs = Array.from(document.querySelectorAll('.nav-tab'));
+            const activeTab = document.querySelector('.nav-tab.active');
+            const currentIndex = tabs.indexOf(activeTab);
+
+            if (e.key === 'ArrowRight' && currentIndex < tabs.length - 1) {
+                tabs[currentIndex + 1].click();
+            } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
+                tabs[currentIndex - 1].click();
+            }
+        });
+    </script>
+</body>
+</html>

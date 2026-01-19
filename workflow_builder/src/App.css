@@ -1,3 +1,4 @@
+/* Reset and base styles */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -6,44 +7,92 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  /* Unified font family matching design tokens */
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color: #171717;
+  line-height: 1.5;
 }
 
+/* App container */
 .App {
   height: 100vh;
   width: 100vw;
   display: flex;
   flex-direction: column;
-  background: #f8f9fa;
+  background: #f5f5f5;
+}
+
+/* Skip link for accessibility */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #667eea;
+  color: white;
+  padding: 8px 16px;
+  z-index: 100;
+  transition: top 0.2s ease;
+  border-radius: 0 0 8px 0;
+}
+
+.skip-link:focus {
+  top: 0;
 }
 
 /* Navigation */
 .app-nav {
   background: white;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 1px solid #e5e5e5;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 32px;
-  height: 70px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  height: 64px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-brand-logo {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 16px;
 }
 
 .nav-brand h1 {
-  font-size: 20px;
-  color: #2c3e50;
+  font-size: 18px;
+  color: #171717;
   font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
+}
+
+.nav-brand-subtitle {
+  font-size: 12px;
+  color: #737373;
+  font-weight: 500;
 }
 
 .nav-tabs {
   display: flex;
-  gap: 8px;
+  gap: 4px;
 }
 
 .nav-tab {
@@ -53,62 +102,255 @@ body {
   background: transparent;
   border: none;
   border-radius: 8px;
-  padding: 10px 20px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #7f8c8d;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  /* Fixed: Changed from #7f8c8d to #525252 for better contrast */
+  color: #525252;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
 }
 
 .nav-tab:hover {
-  background: #f8f9fa;
-  color: #4A90E2;
+  background: #f5f5f5;
+  /* Fixed: Changed from #4A90E2 to brand color */
+  color: #667eea;
+}
+
+.nav-tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.4);
 }
 
 .nav-tab.active {
-  color: #4A90E2;
-  background: #e3f2fd;
+  /* Fixed: Changed from #4A90E2 to brand color */
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
 }
 
 .nav-tab.active::after {
   content: '';
   position: absolute;
-  bottom: -2px;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: #4A90E2;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 3px;
+  /* Fixed: Changed from #4A90E2 to brand gradient */
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 3px 3px 0 0;
+}
+
+.nav-tab-icon {
+  font-size: 18px;
 }
 
 /* App Content */
 .app-content {
   flex: 1;
   overflow: auto;
+  /* Add max-width constraint for wide screens */
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content-inner {
+  flex: 1;
+  max-width: 1600px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Page header */
+.page-header {
+  padding: 24px 32px;
+  background: white;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.page-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #171717;
+  margin: 0 0 4px 0;
+}
+
+.page-header p {
+  font-size: 14px;
+  color: #737373;
+  margin: 0;
+}
+
+/* Loading states */
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.loading-spinner::after {
+  content: '';
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e5e5;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Toast notifications */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideIn 0.3s ease;
+}
+
+.toast.success {
+  background: #10b981;
+  color: white;
+}
+
+.toast.error {
+  background: #ef4444;
+  color: white;
+}
+
+.toast.warning {
+  background: #f59e0b;
+  color: white;
+}
+
+.toast.info {
+  background: #3b82f6;
+  color: white;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .nav-tab,
+  .skip-link,
+  .loading-spinner::after,
+  .toast {
+    animation: none;
+    transition: none;
+  }
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+  .app-nav {
+    padding: 0 24px;
+  }
+}
+
 @media (max-width: 768px) {
   .app-nav {
-    padding: 0 16px;
+    padding: 12px 16px;
     height: auto;
     flex-direction: column;
-    align-items: flex-start;
-    padding: 16px;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .nav-brand {
+    justify-content: center;
   }
 
   .nav-brand h1 {
-    font-size: 18px;
-    margin-bottom: 12px;
+    font-size: 16px;
   }
 
   .nav-tabs {
     width: 100%;
+    justify-content: center;
   }
 
   .nav-tab {
     flex: 1;
     justify-content: center;
+    padding: 10px 12px;
+    font-size: 13px;
   }
+
+  .nav-tab-label {
+    display: none;
+  }
+
+  .page-header {
+    padding: 16px;
+  }
+
+  .page-header h2 {
+    font-size: 20px;
+  }
+
+  .toast-container {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+  }
+
+  .toast {
+    width: 100%;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .app-nav {
+    border-bottom-width: 2px;
+    border-bottom-color: #171717;
+  }
+
+  .nav-tab {
+    color: #171717;
+  }
+
+  .nav-tab.active {
+    background: #171717;
+    color: white;
+  }
+}
+
+/* Focus visible for all interactive elements */
+:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Remove default focus outline */
+:focus:not(:focus-visible) {
+  outline: none;
 }

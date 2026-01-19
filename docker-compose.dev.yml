@@ -1,0 +1,135 @@
+version: '3.8'
+
+# Code Weaver Pro - Local Development Stack
+# Usage: docker-compose -f docker-compose.dev.yml up
+#
+# This starts all services needed for local development:
+# - FastAPI backend
+# - Next.js frontend
+# - Redis for message queue
+# - PostgreSQL for local database (optional)
+
+services:
+  # ===========================================
+  # Backend API (FastAPI)
+  # ===========================================
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api:/app
+      - ./core:/app/core:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - REDIS_URL=redis://redis:6379
+    env_file:
+      - ./apps/api/.env.local
+    depends_on:
+      - redis
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - code-weaver-network
+
+  # ===========================================
+  # Frontend (Next.js)
+  # ===========================================
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - WATCHPACK_POLLING=true
+    env_file:
+      - ./apps/web/.env.local
+    command: npm run dev
+    depends_on:
+      - api
+    networks:
+      - code-weaver-network
+
+  # ===========================================
+  # Redis (Message Queue & Caching)
+  # ===========================================
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - code-weaver-network
+
+  # ===========================================
+  # PostgreSQL (Optional - Local Database)
+  # ===========================================
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=codeweaver
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - code-weaver-network
+    profiles:
+      - with-db
+
+  # ===========================================
+  # Redis Commander (Optional - Redis UI)
+  # ===========================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    networks:
+      - code-weaver-network
+    profiles:
+      - with-tools
+
+volumes:
+  redis-data:
+  postgres-data:
+
+networks:
+  code-weaver-network:
+    driver: bridge

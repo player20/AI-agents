@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mira-news-frontend
+  namespace: mira-news
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mira-news-frontend
+  template:
+    metadata:
+      labels:
+        app: mira-news-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: ${{ secrets.DOCKER_USERNAME }}/mira-news-frontend:${{ github.sha }}
+        ports:
+        - containerPort: 3000
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 10

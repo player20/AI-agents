@@ -2,7 +2,14 @@ import os
 # Disable CrewAI telemetry before importing to avoid signal handler errors
 os.environ['OTEL_SDK_DISABLED'] = 'true'
 
-import gradio as gr
+# Gradio is optional - only needed for gradio UI, not for Streamlit
+try:
+    import gradio as gr
+    GRADIO_AVAILABLE = True
+except ImportError:
+    gr = None
+    GRADIO_AVAILABLE = False
+
 from crewai import Agent, Task, Crew, Process
 from crewai.llm import LLM  # Explicit provider
 import json
@@ -75,9 +82,10 @@ AVAILABLE_MODELS = {
     "claude-3-sonnet-20240229": {"name": "Sonnet", "tier": 2, "cost": "Medium", "speed": "Medium", "provider": "anthropic"},
     "claude-3-haiku-20240307": {"name": "Haiku", "tier": 1, "cost": "Low", "speed": "Fast", "provider": "anthropic"},
     # xAI Grok models (code-specific, high rate limits)
-    "grok-code-fast-1": {"name": "Grok Code", "tier": 2, "cost": "Low-Medium", "speed": "Fast", "provider": "openai", "base_url": "https://api.x.ai/v1"},
-    "grok-4-1-fast-reasoning": {"name": "Grok 4 Reasoning", "tier": 3, "cost": "Low", "speed": "Fast", "provider": "openai", "base_url": "https://api.x.ai/v1"},
-    "grok-3-mini": {"name": "Grok 3 Mini", "tier": 1, "cost": "Very Low", "speed": "Very Fast", "provider": "openai", "base_url": "https://api.x.ai/v1"}
+    # NOTE: Uses "xai" provider with OpenAI-compatible API at api.x.ai
+    "grok-code-fast-1": {"name": "Grok Code", "tier": 2, "cost": "Low-Medium", "speed": "Fast", "provider": "xai", "base_url": "https://api.x.ai/v1"},
+    "grok-4-1-fast-reasoning": {"name": "Grok 4 Reasoning", "tier": 3, "cost": "Low", "speed": "Fast", "provider": "xai", "base_url": "https://api.x.ai/v1"},
+    "grok-3-mini": {"name": "Grok 3 Mini", "tier": 1, "cost": "Very Low", "speed": "Very Fast", "provider": "xai", "base_url": "https://api.x.ai/v1"}
 }
 
 # Default model
@@ -441,19 +449,23 @@ def create_llm_for_model(model_id):
         model_info = AVAILABLE_MODELS.get(model_id, {})
         provider = model_info.get("provider", "anthropic")
 
-        if provider == "openai":
-            # Grok API uses OpenAI-compatible interface
+        if provider == "xai":
+            # xAI Grok API uses OpenAI-compatible interface
             import os
             xai_api_key = os.getenv("XAI_API_KEY")
             base_url = model_info.get("base_url", "https://api.x.ai/v1")
 
             if not xai_api_key:
-                log_agent_message("System", f"XAI_API_KEY not found, falling back to Anthropic")
+                model_name = model_info.get('name', model_id)
+                log_agent_message("System", f"XAI_API_KEY not found in environment.")
+                log_agent_message("System", f"Model '{model_name}' ({model_id}) requires xAI/Grok API access.")
+                log_agent_message("System", f"Falling back to Anthropic Claude (set XAI_API_KEY to use Grok models)")
                 return LLM(model=DEFAULT_MODEL, provider="anthropic")
 
+            # Use "openai" provider type since xAI API is OpenAI-compatible
             return LLM(
                 model=model_id,
-                provider="openai",
+                provider="openai",  # xAI uses OpenAI-compatible API format
                 api_key=xai_api_key,
                 base_url=base_url
             )

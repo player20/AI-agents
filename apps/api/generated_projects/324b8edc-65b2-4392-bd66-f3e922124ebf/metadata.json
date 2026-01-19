@@ -1,0 +1,198 @@
+{
+  "files": {
+    "app/main.py": {
+      "language": "python",
+      "size_bytes": 870,
+      "checksum": "3004cd86811d15d3f9f1db38600d9ff5",
+      "updated_at": "2026-01-19T17:51:00.645150"
+    },
+    "app/routers/auth.py": {
+      "language": "python",
+      "size_bytes": 3196,
+      "checksum": "40428b5ef12ffd4fb5d8e8190b67a088",
+      "updated_at": "2026-01-19T17:51:00.647257"
+    },
+    "app/routers/news.py": {
+      "language": "python",
+      "size_bytes": 2394,
+      "checksum": "1e263f4d3a54a1bae722850e93bf4f77",
+      "updated_at": "2026-01-19T17:51:00.655097"
+    },
+    "app/routers/user.py": {
+      "language": "python",
+      "size_bytes": 791,
+      "checksum": "e55549a4c6ddfa4eedfe60b9ac77cb0a",
+      "updated_at": "2026-01-19T17:51:00.661673"
+    },
+    "app/models/news.py": {
+      "language": "python",
+      "size_bytes": 573,
+      "checksum": "fa3fe5732f58b271a0f6556adab83e1a",
+      "updated_at": "2026-01-19T17:51:00.668618"
+    },
+    "app/models/user.py": {
+      "language": "python",
+      "size_bytes": 492,
+      "checksum": "23ca7baa0bf8a2a81fbcf47f5c236be0",
+      "updated_at": "2026-01-19T17:51:00.675487"
+    },
+    "app/database.py": {
+      "language": "python",
+      "size_bytes": 538,
+      "checksum": "9056629edce6f4379a612f52c08bfb15",
+      "updated_at": "2026-01-19T17:51:00.683310"
+    },
+    "app/services/ai_summarizer.py": {
+      "language": "python",
+      "size_bytes": 304,
+      "checksum": "3d2ca4eaa521ffc16d19f35e5742de12",
+      "updated_at": "2026-01-19T17:51:00.689349"
+    },
+    "requirements.txt": {
+      "language": null,
+      "size_bytes": 168,
+      "checksum": "6aee7f0d1033e755951e514a11790cac",
+      "updated_at": "2026-01-19T17:51:00.695933"
+    },
+    "README.md": {
+      "language": "markdown",
+      "size_bytes": 1499,
+      "checksum": "5c4ccefa5acab5d5482ae71af413cb3a",
+      "updated_at": "2026-01-19T17:51:00.701833"
+    },
+    "package.json": {
+      "language": "json",
+      "size_bytes": 635,
+      "checksum": "23e27e8c064dff9bd7b0a3c6d9d49078",
+      "updated_at": "2026-01-19T17:51:00.707669"
+    },
+    "tailwind.config.ts": {
+      "language": "typescript",
+      "size_bytes": 1350,
+      "checksum": "8ecaa5b58474079545a9a0d111b17c60",
+      "updated_at": "2026-01-19T17:51:00.713604"
+    },
+    "postcss.config.mjs": {
+      "language": null,
+      "size_bytes": 80,
+      "checksum": "c6b223994720cbbb46eb850686641b34",
+      "updated_at": "2026-01-19T17:51:00.718986"
+    },
+    "tsconfig.json": {
+      "language": "json",
+      "size_bytes": 598,
+      "checksum": "d5a7cd1429acf6692f78848e20128ba1",
+      "updated_at": "2026-01-19T17:51:00.724673"
+    },
+    "next.config.ts": {
+      "language": "typescript",
+      "size_bytes": 136,
+      "checksum": "11e146d9f2c4e0d13918382fad4e4ffa",
+      "updated_at": "2026-01-19T17:51:00.730830"
+    },
+    "src/app/layout.tsx": {
+      "language": "typescript",
+      "size_bytes": 642,
+      "checksum": "c4bb21464b442b8642bc3236a6860dd4",
+      "updated_at": "2026-01-19T17:51:00.737083"
+    },
+    "src/app/page.tsx": {
+      "language": "typescript",
+      "size_bytes": 5714,
+      "checksum": "1a139eb861eef12247d3cd00856c3e54",
+      "updated_at": "2026-01-19T17:51:00.742391"
+    },
+    "src/app/globals.css": {
+      "language": "css",
+      "size_bytes": 1560,
+      "checksum": "935e5c0d16441c9bb789c2007351d490",
+      "updated_at": "2026-01-19T17:51:00.748636"
+    },
+    "src/components/ui/button.tsx": {
+      "language": "typescript",
+      "size_bytes": 1840,
+      "checksum": "229657bf3abc05714dcff17b5ebdce0e",
+      "updated_at": "2026-01-19T17:51:00.754415"
+    },
+    "src/components/ui/card.tsx": {
+      "language": "typescript",
+      "size_bytes": 1891,
+      "checksum": "5bacd9f88c929dde5f1b5d054eb216d4",
+      "updated_at": "2026-01-19T17:51:00.759814"
+    },
+    "src/components/layout/header.tsx": {
+      "language": "typescript",
+      "size_bytes": 1577,
+      "checksum": "2cb5d537f4944d0e50d28ee8be766e26",
+      "updated_at": "2026-01-19T17:51:00.766313"
+    },
+    "src/components/layout/footer.tsx": {
+      "language": "typescript",
+      "size_bytes": 3395,
+      "checksum": "9dc1d77967b0d33ec61de24dd8d176f6",
+      "updated_at": "2026-01-19T17:51:00.771383"
+    },
+    "src/lib/utils.ts": {
+      "language": "typescript",
+      "size_bytes": 168,
+      "checksum": "f9be4f094b904a88a1082be7c9cf34d7",
+      "updated_at": "2026-01-19T17:51:00.777626"
+    },
+    "docker-compose.yml": {
+      "language": "yaml",
+      "size_bytes": 807,
+      "checksum": "31ea435fc9f3ac913213e2ef07fc849f",
+      "updated_at": "2026-01-19T17:51:00.783575"
+    },
+    "backend/Dockerfile": {
+      "language": null,
+      "size_bytes": 201,
+      "checksum": "9b188041e662a2aad5b6b4da49a9c507",
+      "updated_at": "2026-01-19T17:51:00.789725"
+    },
+    "frontend/Dockerfile": {
+      "language": null,
+      "size_bytes": 117,
+      "checksum": "8e8d4a418672af60a039348442fe33dd",
+      "updated_at": "2026-01-19T17:51:00.795500"
+    },
+    ".github/workflows/ci-cd.yml": {
+      "language": "yaml",
+      "size_bytes": 2647,
+      "checksum": "67f9718ad3794437b5167027ca3c1952",
+      "updated_at": "2026-01-19T17:51:00.801507"
+    },
+    "k8s/backend-deployment.yaml": {
+      "language": "yaml",
+      "size_bytes": 995,
+      "checksum": "604f0edcf9d419b6c1d995840b76285b",
+      "updated_at": "2026-01-19T17:51:00.807422"
+    },
+    "k8s/backend-service.yaml": {
+      "language": "yaml",
+      "size_bytes": 218,
+      "checksum": "399ff2447296a9de5374faac3ad6d51b",
+      "updated_at": "2026-01-19T17:51:00.813592"
+    },
+    "k8s/frontend-deployment.yaml": {
+      "language": "yaml",
+      "size_bytes": 693,
+      "checksum": "db79a8823ab44e00de84b6e74452dcd3",
+      "updated_at": "2026-01-19T17:51:00.819745"
+    },
+    "k8s/frontend-service.yaml": {
+      "language": "yaml",
+      "size_bytes": 223,
+      "checksum": "d2f99d03e0b16fa9dfa24c7979a7d46c",
+      "updated_at": "2026-01-19T17:51:00.825412"
+    },
+    "terraform/main.tf": {
+      "language": null,
+      "size_bytes": 1249,
+      "checksum": "ba15fa1ca144aa8b60b21da8ed151658",
+      "updated_at": "2026-01-19T17:51:00.831692"
+    }
+  },
+  "created_at": "2026-01-19T17:51:00.645686",
+  "updated_at": "2026-01-19T17:51:00.835816"
+}

@@ -1,16 +1,92 @@
 """
 Meta Self-Improvement Engine for Code Weaver Pro
 Analyzes and improves its own codebase using AI agents
+
+Admin access required: Set ADMIN_API_KEY in environment and pass admin_token parameter.
 """
 
 import os
 import subprocess
 import asyncio
+import warnings
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime
 import json
 import difflib
+import time
+import threading
+
+# Admin authentication and audit logging
+from core.auth import is_admin
+from core.audit_log import log_improvement
+
+
+class RateLimiter:
+    """
+    Thread-safe rate limiter for API calls.
+
+    Implements token bucket algorithm to prevent exceeding API rate limits.
+    Default: max 4 requests per minute (conservative for Anthropic's limits).
+    """
+
+    def __init__(self, max_requests: int = 4, time_window: float = 60.0):
+        """
+        Initialize rate limiter.
+
+        Args:
+            max_requests: Maximum number of requests allowed in time window
+            time_window: Time window in seconds (default 60s = 1 minute)
+        """
+        self.max_requests = max_requests
+        self.time_window = time_window
+        self.requests: List[float] = []
+        self.lock = threading.Lock()
+
+    def wait_if_needed(self) -> float:
+        """
+        Wait if rate limit would be exceeded.
+
+        Returns:
+            Time waited in seconds (0 if no wait needed)
+        """
+        with self.lock:
+            now = time.time()
+
+            # Remove requests outside the time window
+            self.requests = [t for t in self.requests if now - t < self.time_window]
+
+            if len(self.requests) >= self.max_requests:
+                # Calculate wait time until oldest request expires
+                oldest = min(self.requests)
+                wait_time = self.time_window - (now - oldest) + 0.5  # +0.5s buffer
+
+                if wait_time > 0:
+                    time.sleep(wait_time)
+                    # Clean up after waiting
+                    now = time.time()
+                    self.requests = [t for t in self.requests if now - t < self.time_window]
+                    self.requests.append(now)
+                    return wait_time
+
+            self.requests.append(now)
+            return 0.0
+
+    def get_status(self) -> Dict:
+        """Get current rate limiter status."""
+        with self.lock:
+            now = time.time()
+            active_requests = len([t for t in self.requests if now - t < self.time_window])
+            return {
+                'active_requests': active_requests,
+                'max_requests': self.max_requests,
+                'time_window': self.time_window,
+                'available': self.max_requests - active_requests
+            }
+
+
+# Global rate limiter instance (shared across all SelfImprover instances)
+_api_rate_limiter = RateLimiter(max_requests=4, time_window=60.0)
 
 # Disable CrewAI telemetry to avoid signal handler errors in background threads
 os.environ['OTEL_SDK_DISABLED'] = 'true'
@@ -33,14 +109,28 @@ class ImprovementMode:
 class SelfImprover:
     """Meta self-improvement engine that analyzes and improves the codebase"""
 
-    def __init__(self, config: Dict, base_dir: str = None):
+    def __init__(self, config: Dict, base_dir: str = None, admin_token: str = None):
         """
         Initialize self-improvement engine
 
         Args:
             config: Configuration dictionary
             base_dir: Base directory to analyze (defaults to MultiAgentTeam root)
+            admin_token: Admin API key for authorization (required in production)
         """
+        # Admin authentication check
+        self._admin_authenticated = is_admin(admin_token)
+        if not self._admin_authenticated:
+            # Warn but don't block (for backward compatibility during transition)
+            # In future: raise PermissionError("Admin token required for self-improvement")
+            warnings.warn(
+                "SelfImprover initialized without valid admin_token. "
+                "Set ADMIN_API_KEY env var and pass admin_token parameter. "
+                "Future versions will require authentication.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+
         self.config = config
         self.base_dir = Path(base_dir) if base_dir else Path(__file__).parent.parent
         self.agents_config = load_agent_configs()
@@ -52,6 +142,13 @@ class SelfImprover:
         # Callbacks for UI updates
         self.progress_callback = config['orchestration'].get('progress_callback')
         self.terminal_callback = config['orchestration'].get('terminal_callback')
+
+        # Audit log: track initialization
+        if self._admin_authenticated:
+            log_improvement("self_improver_init", {
+                "base_dir": str(self.base_dir),
+                "authenticated": True
+            })
 
     def _log(self, message: str, level: str = "info"):
         """Log message to file and callback"""
@@ -138,18 +235,36 @@ class SelfImprover:
 
         # Step 1.5: Capture screenshots for UI/UX analysis
         screenshots = []
+        console_errors = []
+        performance_metrics = {}
         if mode == ImprovementMode.UI_UX or mode == ImprovementMode.EVERYTHING:
-            self._log("[CAPTURE] Capturing screenshots of running application...")
-            screenshots = self._capture_app_screenshots()
+            self._log("[CAPTURE] Capturing comprehensive screenshots of running application...")
+            capture_result = self._capture_app_screenshots()
+
+            # Extract data from capture result
+            screenshots = capture_result.get("screenshots", [])
+            console_errors = capture_result.get("console_errors", [])
+            performance_metrics = capture_result.get("performance_metrics", {})
+
             if screenshots:
                 self._log(f"[+] Captured {len(screenshots)} screenshots for visual analysis")
+                # Log state breakdown
+                states = {}
+                for s in screenshots:
+                    state = s.get("state", "default")
+                    states[state] = states.get(state, 0) + 1
+                if len(states) > 1:
+                    self._log(f"    States captured: {states}")
             # Note: Empty screenshots list is handled gracefully - analysis continues without visual data
 
         # Step 2: Identify issues
         self._log("[ANALYZE] Identifying issues...")
         if suggest_enhancements:
             self._log("[ENHANCEMENT] Enhancement mode enabled - Research/Ideas agents will suggest new features", "info")
-        issues = self._identify_issues(files_to_analyze, mode, screenshots, suggest_enhancements)
+        issues = self._identify_issues(
+            files_to_analyze, mode, screenshots, suggest_enhancements,
+            console_errors=console_errors, performance_metrics=performance_metrics
+        )
 
         # Log issue breakdown by type
         bug_count = len([i for i in issues if i.get('type') == 'BUG'])
@@ -245,12 +360,26 @@ class SelfImprover:
         self._log("[OK] Improvement cycle complete!", "success")
         return result
 
-    def _capture_app_screenshots(self) -> List[Dict]:
-        """Capture screenshots of the running application for visual analysis
+    def _capture_app_screenshots(self) -> Dict[str, Any]:
+        """Capture comprehensive screenshots of the running application for visual analysis.
 
         Runs screenshot capture in a separate Python process to avoid Windows
         asyncio event loop conflicts with Streamlit.
+
+        Returns:
+            Dict with keys:
+            - screenshots: List of screenshot dicts
+            - console_errors: List of JS console errors
+            - performance_metrics: Dict with load_time_ms, fcp, lcp, etc.
+            - total_screenshots: int
         """
+        empty_result = {
+            "screenshots": [],
+            "console_errors": [],
+            "performance_metrics": {},
+            "total_screenshots": 0
+        }
+
         try:
             import subprocess
             import json
@@ -260,45 +389,84 @@ class SelfImprover:
 
             server_url = "http://localhost:8501"
 
-            self._log(f"Launching screenshot capture (separate process) for {server_url}...", "info")
+            self._log(f"Launching comprehensive screenshot capture for {server_url}...", "info")
 
             # Run screenshot capture in separate process with its own event loop
             capture_script = self.base_dir / 'core' / 'capture_screenshots.py'
 
+            # Use "thorough" mode with state capture and interaction states
             result = subprocess.run(
-                ['python', str(capture_script), server_url, str(screenshots_dir)],
+                ['python', str(capture_script), server_url, str(screenshots_dir), 'thorough'],
                 capture_output=True,
                 text=True,
                 encoding='utf-8',
                 errors='replace',
-                timeout=60  # 60 second timeout
+                timeout=180  # 180 second timeout for comprehensive capture
             )
 
             if result.returncode == 0:
                 # Parse JSON output from subprocess
-                screenshots = json.loads(result.stdout)
+                capture_result = json.loads(result.stdout)
+
+                # Handle both old format (list) and new format (dict)
+                if isinstance(capture_result, list):
+                    # Old format - just screenshots
+                    screenshots = capture_result
+                    capture_result = {
+                        "screenshots": screenshots,
+                        "console_errors": [],
+                        "performance_metrics": {},
+                        "total_screenshots": len(screenshots)
+                    }
+
+                screenshots = capture_result.get("screenshots", [])
+                console_errors = capture_result.get("console_errors", [])
+                perf_metrics = capture_result.get("performance_metrics", {})
+
                 self._log(f"[+] Captured {len(screenshots)} screenshots successfully", "info")
+
+                # Log performance metrics if available
+                if perf_metrics:
+                    load_time = perf_metrics.get("load_time_ms", "N/A")
+                    self._log(f"[PERF] Page load time: {load_time}ms", "info")
+                    if "fcp" in perf_metrics:
+                        self._log(f"[PERF] First Contentful Paint: {perf_metrics['fcp']}ms", "info")
+                    if "lcp" in perf_metrics:
+                        self._log(f"[PERF] Largest Contentful Paint: {perf_metrics['lcp']}ms", "info")
+
+                # Log console errors if any
+                if console_errors:
+                    self._log(f"[WARNING] {len(console_errors)} JavaScript console errors detected", "warning")
+                    for err in console_errors[:5]:  # Show first 5
+                        self._log(f"  - {err[:100]}", "warning")
+
+                # Log screenshot summary by type
+                states = {}
                 for screenshot in screenshots:
-                    self._log(f"  - {screenshot['name']}: {screenshot['path']}", "info")
-                return screenshots
+                    state = screenshot.get("state", "default")
+                    states[state] = states.get(state, 0) + 1
+                if len(states) > 1:
+                    self._log(f"[INFO] Screenshot breakdown: {states}", "info")
+
+                return capture_result
             else:
                 # Subprocess failed
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
                 self._log(f"[WARNING] Screenshot capture failed: {error_msg}", "warning")
                 self._log("   UI/UX analysis will continue without screenshots", "info")
-                return []
+                return empty_result
 
         except subprocess.TimeoutExpired:
-            self._log("[WARNING] Screenshot capture timed out after 60 seconds", "warning")
+            self._log("[WARNING] Screenshot capture timed out after 180 seconds", "warning")
             self._log("   UI/UX analysis will continue without screenshots", "info")
-            return []
+            return empty_result
         except FileNotFoundError:
             self._log("[WARNING] Could not find capture_screenshots.py script", "warning")
-            return []
+            return empty_result
         except Exception as e:
             self._log(f"Screenshot capture failed: {type(e).__name__}: {str(e)}", "warning")
             self._log("   UI/UX analysis will continue without screenshots", "info")
-            return []
+            return empty_result
 
     def _get_files_to_analyze(self, target_files: Optional[List[str]] = None, mode: str = None) -> List[Path]:
         """Get list of files to analyze based on improvement mode"""
@@ -384,7 +552,15 @@ class SelfImprover:
 
         return files
 
-    def _identify_issues(self, files: List[Path], mode: str, screenshots: List[Dict] = None, suggest_enhancements: bool = False) -> List[Dict]:
+    def _identify_issues(
+        self,
+        files: List[Path],
+        mode: str,
+        screenshots: List[Dict] = None,
+        suggest_enhancements: bool = False,
+        console_errors: List[str] = None,
+        performance_metrics: Dict[str, Any] = None
+    ) -> List[Dict]:
         """
         Use specialized agent TEAMS based on mode to identify issues
 
@@ -393,6 +569,8 @@ class SelfImprover:
             mode: Improvement mode (ui_ux, performance, etc.)
             screenshots: Optional screenshots for UI/UX analysis
             suggest_enhancements: If True, add Research/Ideas agents to suggest features
+            console_errors: JavaScript console errors from screenshot capture
+            performance_metrics: Performance data (load times, Core Web Vitals)
 
         Returns:
             List of issues with type classification (BUG or ENHANCEMENT)
@@ -400,6 +578,74 @@ class SelfImprover:
         issues = []
         if screenshots is None:
             screenshots = []
+        if console_errors is None:
+            console_errors = []
+        if performance_metrics is None:
+            performance_metrics = {}
+
+        # ========== VISION ANALYSIS: Let Claude ACTUALLY SEE the screenshots ==========
+        # This sends actual images to Claude Vision API for true visual analysis
+        vision_issues = []
+        if screenshots and len(screenshots) > 0:
+            try:
+                from core.vision_analyzer import VisionAnalyzer
+                self._log("[VISION] Running multimodal vision analysis on screenshots...", "info")
+                self._log(f"[VISION] Analyzing {len(screenshots)} screenshots with Claude Vision API", "info")
+
+                # Log additional context being sent
+                if console_errors:
+                    self._log(f"[VISION] Including {len(console_errors)} console errors in analysis", "info")
+                if performance_metrics:
+                    self._log(f"[VISION] Including performance metrics: {list(performance_metrics.keys())}", "info")
+
+                vision_analyzer = VisionAnalyzer()
+
+                # Get relevant code context for the vision analysis
+                code_context = ""
+                ui_files = [f for f in files if 'streamlit_ui' in str(f) or '.py' in str(f)]
+                for ui_file in ui_files[:3]:  # Limit to 3 files for context
+                    try:
+                        content = ui_file.read_text(encoding='utf-8')
+                        code_context += f"\n--- {ui_file.name} ---\n{content[:1500]}\n"
+                    except:
+                        pass
+
+                # Focus areas based on mode
+                mode_value = mode.value if hasattr(mode, 'value') else str(mode)
+                focus_areas = ["UI consistency", "Responsive design", "Accessibility", "Professional polish"]
+                if mode_value == "ui_ux":
+                    focus_areas.extend(["Color contrast", "Typography hierarchy", "Touch targets", "Visual alignment"])
+
+                vision_result = vision_analyzer.analyze_screenshots(
+                    screenshots=screenshots,
+                    code_context=code_context[:3000],
+                    focus_areas=focus_areas,
+                    max_images=10,  # Limit for cost control
+                    console_errors=console_errors,
+                    performance_metrics=performance_metrics
+                )
+
+                vision_issues = vision_result.get("issues", [])
+                self._log(f"[VISION] Found {len(vision_issues)} visual issues from screenshot analysis", "success")
+
+                # Convert vision issues to standard issue format
+                for vi in vision_issues:
+                    issues.append({
+                        'title': vi.get('title', 'Visual issue'),
+                        'file': vi.get('file', 'streamlit_ui/main_interface.py'),
+                        'severity': vi.get('severity', 'medium').upper(),
+                        'type': 'BUG',
+                        'description': vi.get('description', ''),
+                        'suggestion': vi.get('suggestion', ''),
+                        'source': 'vision_analysis',
+                        'page': vi.get('page', 'Unknown')
+                    })
+
+            except ImportError:
+                self._log("[VISION] Vision analyzer not available - continuing with code analysis only", "warning")
+            except Exception as e:
+                self._log(f"[VISION] Vision analysis failed: {type(e).__name__}: {str(e)}", "warning")
+                self._log("[VISION] Continuing with code-only analysis", "info")
 
         # Phase 8: Initialize agent cache for 80% faster subsequent runs
         from core.agent_cache import AgentCache
@@ -641,6 +887,12 @@ SEVERITY: [HIGH/MEDIUM/LOW]
 DESCRIPTION: [what's wrong]
 SUGGESTION: [how to fix]
 
+⚠️ CRITICAL: Your response will be PARSED BY A MACHINE.
+- START immediately with "ISSUE:" - no preamble!
+- DO NOT write "Here are the issues:" or "Based on analysis..."
+- If no valid issues exist, output exactly: "NO ISSUES FOUND"
+- ONLY output the issue blocks, nothing else
+
 REMEMBER: When in doubt, KEEP the issue. We want to be demanding and find everything!
 """
 
@@ -723,11 +975,28 @@ TYPE: BUG
 DESCRIPTION: Timeout value of 5000ms is hard-coded at line 45, making it hard to configure
 SUGGESTION: Move timeout to a constant at the top of the file or config file
 
-⚠️ REMEMBER:
-- Your response is the FINAL output that will be parsed
-- MUST contain lines starting with ISSUE:, FILE:, SEVERITY:, TYPE:, DESCRIPTION:, SUGGESTION:
-- Output ALL validated issues DIRECTLY (don't reference "above")
-- Be thorough and demanding - find everything!
+⚠️ CRITICAL RULES:
+1. Your response is the FINAL output that will be PARSED BY A MACHINE
+2. You MUST output lines starting with ISSUE:, FILE:, SEVERITY:, TYPE:, DESCRIPTION:, SUGGESTION:
+3. DO NOT write meta-commentary like "the issues above" or "as previously mentioned"
+4. DO NOT write summaries or conclusions - ONLY the issue blocks
+5. If you found NO valid issues, output exactly: "NO ISSUES FOUND"
+6. START your response IMMEDIATELY with "ISSUE:" or "NO ISSUES FOUND" - nothing else first!
+
+WRONG OUTPUT (will fail parsing):
+"The final consolidated list of issues is..."  <-- NO! Don't write this!
+"Based on my analysis..."  <-- NO! Don't write this!
+"Here are the issues I found:"  <-- NO! Don't write this!
+
+CORRECT OUTPUT (will be parsed):
+ISSUE: Missing alt text
+FILE: components/Header.tsx
+SEVERITY: HIGH
+TYPE: BUG
+DESCRIPTION: Image missing alt attribute
+SUGGESTION: Add alt text
+
+Start your response NOW with "ISSUE:" (or "NO ISSUES FOUND" if none exist):
 """
 
             challenger_task = Task(
@@ -752,6 +1021,11 @@ SUGGESTION: Move timeout to a constant at the top of the file or config file
             )
 
             try:
+                # Apply rate limiting before API call
+                wait_time = _api_rate_limiter.wait_if_needed()
+                if wait_time > 0:
+                    self._log(f"  [RATE LIMIT] Waited {wait_time:.1f}s before API call", "info")
+
                 result = crew.kickoff()
                 # Result comes from Challenger (last task) - the final consolidated output
                 result_text = result.raw if hasattr(result, 'raw') else str(result)
@@ -778,28 +1052,39 @@ SUGGESTION: Move timeout to a constant at the top of the file or config file
                     # Agent returned content but parser found nothing - log for debugging
                     self._log(f"  [!] WARNING: Parser found 0 issues from {len(result_text)} chars of agent output", "warning")
                     self._log(f"  First 300 chars: {result_text[:300]}", "warning")
+                    # Try fallback parser for non-compliant output
+                    batch_issues = self._parse_issues_fallback(result_text, batch)
+                    if batch_issues:
+                        self._log(f"  [FALLBACK] Extracted {len(batch_issues)} issues using fallback parser", "info")
 
                 issues.extend(batch_issues)
 
                 # Phase 8: Cache results for each file in this batch
-                # Group issues by file and cache them separately
-                from collections import defaultdict
-                file_issue_map = defaultdict(list)
-                for issue in batch_issues:
-                    file_path = issue.get('file', '')
-                    if file_path:
-                        file_issue_map[file_path].append(issue)
+                # IMPORTANT: Only cache if parser succeeded (found issues) OR output was truly empty (<100 chars)
+                # Don't cache 0 issues when parser failed on non-empty output (format compliance issue)
+                parser_failed = len(batch_issues) == 0 and len(result_text) > 100
 
-                # Cache results for each file
-                for file_path, file_issues in file_issue_map.items():
-                    cache.set_cached_analysis(file_path, mode_value, file_issues)
-                    cache_stats['files_analyzed'] += 1
+                if parser_failed:
+                    self._log(f"  [CACHE SKIP] Not caching - parser failed on non-empty output", "warning")
+                else:
+                    # Group issues by file and cache them separately
+                    from collections import defaultdict
+                    file_issue_map = defaultdict(list)
+                    for issue in batch_issues:
+                        file_path = issue.get('file', '')
+                        if file_path:
+                            file_issue_map[file_path].append(issue)
 
-                # Also cache empty results for files with no issues (prevent re-analysis)
-                for file_path in file_contents.keys():
-                    if file_path not in file_issue_map:
-                        cache.set_cached_analysis(file_path, mode_value, [])
+                    # Cache results for each file
+                    for file_path, file_issues in file_issue_map.items():
+                        cache.set_cached_analysis(file_path, mode_value, file_issues)
                         cache_stats['files_analyzed'] += 1
+
+                    # Also cache empty results for files with no issues (prevent re-analysis)
+                    for file_path in file_contents.keys():
+                        if file_path not in file_issue_map:
+                            cache.set_cached_analysis(file_path, mode_value, [])
+                            cache_stats['files_analyzed'] += 1
 
             except Exception as e:
                 self._log(f"Analysis failed for batch: {e}", "error")
@@ -807,6 +1092,16 @@ SUGGESTION: Move timeout to a constant at the top of the file or config file
         # Log final cache statistics
         if cache_stats['files_analyzed'] > 0:
             self._log(f"[CACHE] Cached analysis results for {cache_stats['files_analyzed']} files", "success")
+
+        # Audit log: track analysis completion
+        if self._admin_authenticated:
+            mode_value = mode.value if hasattr(mode, 'value') else str(mode)
+            log_improvement("analysis_complete", {
+                "mode": mode_value,
+                "files_analyzed": len(files),
+                "issues_found": len(issues),
+                "cached_files": cache_stats.get('files_analyzed', 0)
+            })
 
         return issues
 
@@ -1185,6 +1480,90 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
 
         return issues
 
+    def _parse_issues_fallback(self, analysis_result: str, files: List[Path]) -> List[Dict]:
+        """
+        Fallback parser for non-compliant agent output.
+
+        Tries to extract ANY structured information when the primary parser fails.
+        This handles cases where the agent returns content but not in the expected format.
+        """
+        import re
+        issues = []
+
+        # Try to find JSON blocks
+        json_pattern = r'\{[^{}]*"(?:issue|title|severity|file)"[^{}]*\}'
+        json_matches = re.findall(json_pattern, analysis_result, re.IGNORECASE | re.DOTALL)
+
+        for match in json_matches:
+            try:
+                import json
+                issue_data = json.loads(match)
+                if issue_data.get('title') or issue_data.get('issue'):
+                    issues.append({
+                        'title': issue_data.get('title', issue_data.get('issue', 'Unknown Issue')),
+                        'file': issue_data.get('file', str(files[0]) if files else 'unknown'),
+                        'severity': issue_data.get('severity', 'MEDIUM').upper(),
+                        'type': 'BUG' if 'ENHANCEMENT' not in str(issue_data.get('type', '')).upper() else 'ENHANCEMENT',
+                        'description': issue_data.get('description', ''),
+                        'suggestion': issue_data.get('suggestion', issue_data.get('fix', ''))
+                    })
+            except (json.JSONDecodeError, KeyError):
+                pass
+
+        # Try to find numbered lists (1. Issue..., 2. Problem..., etc.)
+        numbered_pattern = r'(?:^|\n)\s*(\d+)\.\s*(?:\*\*)?([^:\n]+?)(?:\*\*)?(?::|-)?\s*([^\n]+)'
+        numbered_matches = re.findall(numbered_pattern, analysis_result)
+
+        for num, title, desc in numbered_matches:
+            if title and len(title) > 5:  # Filter out too-short matches
+                # Try to extract file from description
+                file_match = re.search(r'(?:in|at|file:?)\s*[`"]?([^\s`"]+\.(?:py|js|tsx|ts|css|html))', desc, re.IGNORECASE)
+                file_path = file_match.group(1) if file_match else (str(files[0]) if files else 'unknown')
+
+                # Determine severity from keywords
+                severity = 'MEDIUM'
+                if any(kw in (title + desc).lower() for kw in ['critical', 'severe', 'major', 'important']):
+                    severity = 'HIGH'
+                elif any(kw in (title + desc).lower() for kw in ['minor', 'trivial', 'low', 'small']):
+                    severity = 'LOW'
+
+                issues.append({
+                    'title': title.strip(),
+                    'file': file_path,
+                    'severity': severity,
+                    'type': 'BUG',
+                    'description': desc.strip(),
+                    'suggestion': ''
+                })
+
+        # Try to find markdown bullet points with issues
+        bullet_pattern = r'(?:^|\n)\s*[-*]\s*(?:\*\*)?([^:\n*]+?)(?:\*\*)?(?::|-)?\s*([^\n]+)'
+        bullet_matches = re.findall(bullet_pattern, analysis_result)
+
+        for title, desc in bullet_matches[:10]:  # Limit to first 10
+            if title and len(title) > 10 and 'issue' not in title.lower():  # Filter noise
+                continue
+            if title and len(title) > 5:
+                issues.append({
+                    'title': title.strip(),
+                    'file': str(files[0]) if files else 'unknown',
+                    'severity': 'MEDIUM',
+                    'type': 'BUG',
+                    'description': desc.strip(),
+                    'suggestion': ''
+                })
+
+        # Deduplicate by title
+        seen_titles = set()
+        unique_issues = []
+        for issue in issues:
+            title_key = issue['title'].lower()[:50]
+            if title_key not in seen_titles:
+                seen_titles.add(title_key)
+                unique_issues.append(issue)
+
+        return unique_issues
+
     def _estimate_complexity(self, issue: Dict) -> str:
         """
         Estimate fix complexity based on issue description
@@ -1299,14 +1678,90 @@ BEGIN OUTPUT NOW (start with "ISSUE:" immediately):
             context_lines = lines[context_start:context_end]
             context_snippet = '\n'.join(f"{i+context_start+1}: {line}" for i, line in enumerate(context_lines))
         else:
-            # Show first 100 and last 100 lines as context
-            context_snippet = (
-                "FIRST 100 LINES:\n" +
-                '\n'.join(f"{i+1}: {line}" for i, line in enumerate(lines[:100])) +
-                "\n\n... [middle section omitted] ...\n\n" +
-                "LAST 100 LINES:\n" +
-                '\n'.join(f"{i+len(lines)-100+1}: {line}" for i, line in enumerate(lines[-100:]))
-            )
+            # IMPROVED: Search for relevant keywords from issue to find the right section
+            # Extract keywords from issue title/description
+            import re
+            issue_text = f"{issue.get('title', '')} {issue.get('description', '')} {issue.get('suggestion', '')}"
+
+            # Extract potential identifiers (function names, CSS classes, variable names)
+            keywords = []
+            # Look for function definitions, CSS selectors, variable assignments
+            keyword_patterns = [
+                r'def\s+(\w+)',           # Python function names
+                r'\.(\w+[-\w]*)',         # CSS classes
+                r'#(\w+[-\w]*)',          # CSS IDs
+                r'(\w+_\w+)',             # snake_case identifiers
+                r'([A-Z][a-z]+[A-Z]\w*)', # CamelCase identifiers
+                r'"([^"]+)"',             # Quoted strings
+                r"'([^']+)'",             # Single-quoted strings
+            ]
+
+            for pattern in keyword_patterns:
+                matches = re.findall(pattern, issue_text)
+                keywords.extend([m for m in matches if len(m) > 3])
+
+            # Also add specific common terms from the issue
+            common_terms = ['color', 'contrast', 'button', 'text', 'heading', 'card', 'icon',
+                           'hover', 'focus', 'style', 'css', 'background', 'font', 'padding',
+                           'margin', 'border', 'gradient', 'animation', 'transition']
+            for term in common_terms:
+                if term.lower() in issue_text.lower():
+                    keywords.append(term)
+
+            # Deduplicate and limit
+            keywords = list(set(keywords))[:10]
+
+            # Search for keywords in the file content
+            relevant_lines = set()
+            for i, line in enumerate(lines):
+                line_lower = line.lower()
+                for keyword in keywords:
+                    if keyword.lower() in line_lower:
+                        # Add this line and surrounding context (±20 lines)
+                        for j in range(max(0, i-20), min(len(lines), i+20)):
+                            relevant_lines.add(j)
+
+            if relevant_lines and len(relevant_lines) < len(lines) * 0.8:
+                # Found relevant sections, show them
+                relevant_lines = sorted(relevant_lines)
+
+                # Group continuous line ranges
+                ranges = []
+                start = relevant_lines[0]
+                end = relevant_lines[0]
+                for line_num in relevant_lines[1:]:
+                    if line_num <= end + 3:  # Allow small gaps
+                        end = line_num
+                    else:
+                        ranges.append((start, end))
+                        start = line_num
+                        end = line_num
+                ranges.append((start, end))
+
+                # Build context from ranges (limit to 300 lines total)
+                context_parts = []
+                total_lines = 0
+                for start, end in ranges:
+                    if total_lines > 300:
+                        break
+                    range_lines = end - start + 1
+                    if total_lines + range_lines > 300:
+                        end = start + (300 - total_lines)
+                    context_parts.append(f"LINES {start+1}-{end+1}:\n" +
+                        '\n'.join(f"{i+1}: {lines[i]}" for i in range(start, min(end+1, len(lines)))))
+                    total_lines += range_lines
+
+                context_snippet = "\n\n...\n\n".join(context_parts)
+                self._log(f"  [CONTEXT] Found {len(relevant_lines)} relevant lines using keywords: {keywords[:5]}", "info")
+            else:
+                # Fallback: Show first 150 and last 150 lines (more context than before)
+                context_snippet = (
+                    "FIRST 150 LINES:\n" +
+                    '\n'.join(f"{i+1}: {line}" for i, line in enumerate(lines[:150])) +
+                    "\n\n... [middle section omitted - search for relevant CSS/code] ...\n\n" +
+                    "LAST 150 LINES:\n" +
+                    '\n'.join(f"{i+len(lines)-150+1}: {line}" for i, line in enumerate(lines[-150:]))
+                )
 
         # Generate diff-based fix
         diff_prompt = f"""
@@ -1341,6 +1796,18 @@ RULES:
 7. NO explanations outside markers
 8. First line MUST be "DIFF_CHANGES_START"
 9. Last line MUST be "DIFF_CHANGES_END"
+10. NEVER output empty changes - always provide at least one change
+
+IMPORTANT: If you cannot find the exact code in the provided snippet, make your BEST GUESS
+based on the issue description. Common CSS fixes for UI issues:
+
+- Color contrast issues: Look for 'color:' or 'background' and change hex values
+  Example: color: #d1d5db -> color: #374151 (improves contrast)
+- Button/hover states: Look for ':hover' or 'hover' classes
+- Font issues: Look for 'font-size' or 'font-weight'
+- Spacing issues: Look for 'padding' or 'margin'
+
+If the fix is for a CSS style in Python/Streamlit, look for st.markdown with <style> tags.
 
 ===============================================================================
 
@@ -1351,16 +1818,17 @@ ISSUE: {issue.get('title', 'Unknown issue')}
 DESCRIPTION: {issue.get('description', '')}
 SUGGESTION: {issue.get('suggestion', '')}
 
-RELEVANT CODE SECTION:
+RELEVANT CODE SECTION (search for CSS color values, style definitions, or related code):
 ```
 {context_snippet}
 ```
 
 YOUR TASK:
-1. Identify the specific lines that need to change
-2. Provide TARGETED changes in the format above
+1. Find lines containing relevant CSS/styling code (color, background, font, etc.)
+2. Provide TARGETED changes in the exact format above
 3. DO NOT regenerate the entire file
 4. Be precise with line numbers and old/new text
+5. YOU MUST provide at least ONE change - empty output is NOT acceptable
 
 BEGIN NOW - First line must be "DIFF_CHANGES_START":
 """
@@ -1385,6 +1853,11 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
 
             for attempt in range(1, max_retries + 1):
                 try:
+                    # Apply rate limiting before API call
+                    wait_time = _api_rate_limiter.wait_if_needed()
+                    if wait_time > 0:
+                        self._log(f"  [RATE LIMIT] Waited {wait_time:.1f}s before API call", "info")
+
                     result = crew.kickoff()
                     result_text = str(result)
                     break  # Success - exit retry loop
@@ -1679,23 +2152,24 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
                 self._log(f"Could not read {file_path}: {e}", "error")
                 continue
 
-            # Check file size - skip files that are too large for reliable full rewrites
+            # Check file size - determine approach based on file length
             line_count = len(current_content.splitlines())
 
-            # Skip files over 400 lines - Grok consistently outputs incomplete rewrites for large files
-            # Reduced from 800 to 400 to prevent truncation issues (96% file shrinkage bug)
-            if line_count > 400:
+            # UPDATED: Lowered diff threshold from 600 to 300 to prevent truncation issues
+            # Files 0-300 lines: Full rewrite (safe range for most models)
+            # Files 301-1500 lines: Diff-based targeted fixes (safer for larger files)
+            # Files >1500 lines: Skip (too risky even with diff approach)
+            if line_count > 1500:
                 issue_title = issue.get('title', 'Unknown issue')
-                self._log(f"[!] Skipping issue '{issue_title}': File too large ({line_count} lines, max 400)", "warning")
+                self._log(f"[!] Skipping issue '{issue_title}': File too large ({line_count} lines, max 1500)", "warning")
                 self._log(f"    Large file: {Path(file_path).name} - Consider breaking into smaller modules", "info")
                 self._log(f"    💡 Tip: For large files, create separate targeted issues for specific functions/sections", "info")
                 continue
 
-            # Threshold for diff-based approach: DISABLED (Grok handles full rewrites better)
-            # With Grok's 4M tokens/min and 480 rpm, we can do full rewrites for all files under 400 lines
-            # Diff-based approach was causing Grok to ignore format requirements
-            # Note: Reduced from 800 to 400 lines to prevent truncation issues (Phase 0C fix)
-            if False:  # Disabled - always use full rewrites
+            # Use diff-based approach for files between 301-1500 lines
+            # This generates targeted line-by-line changes instead of full rewrites
+            # Lowered from 600 to 300 to prevent truncation issues (Bug #5 fix)
+            if line_count > 300:
                 self._log(f"[SIZE] Large file detected ({line_count} lines) - using diff-based approach", "info")
 
                 # Generate diff-based fix
@@ -1721,9 +2195,9 @@ BEGIN NOW - First line must be "DIFF_CHANGES_START":
                     self._log(f"  [!] Diff-based fix generation failed, skipping", "warning")
                     continue
 
-            # For files ≤1000 lines, use full-file regeneration (best quality with Grok)
+            # For files ≤600 lines, use full-file regeneration (best quality with Grok)
+            # With anti-truncation prompts, Grok handles these reliably
             # Generate fix with ULTRA-EXPLICIT format requirements
-            # Problem: Grok ignores format requirements and adds explanations
             # Solution: Use XML tags and make it a code completion task, not a chat
             fix_prompt = f"""
 YOU ARE A CODE FILE GENERATOR. YOUR ONLY JOB IS TO OUTPUT VALID CODE FILES.
@@ -1744,6 +2218,28 @@ DO NOT say "Here's the fixed code"
 DO NOT add any prose or commentary
 
 ONLY output: <file_content> [code] </file_content>
+
+===================================================================================
+CRITICAL: ANTI-TRUNCATION RULES (FIX BUG #5)
+===================================================================================
+
+NEVER abbreviate or truncate the code. You MUST output EVERY SINGLE LINE.
+
+FORBIDDEN PATTERNS - Using any of these will cause REJECTION:
+- "..." or "…" to skip code
+- "# ... rest of code"
+- "// ... (remaining code)"
+- "# TODO: Add remaining"
+- "// TODO: Add remaining"
+- "/* rest of implementation */"
+- "[rest of file unchanged]"
+- "// ... existing code ..."
+
+The output file must be COMPLETE and RUNNABLE. Every line from the original
+file must appear in your output (either unchanged or fixed).
+
+If the file is long, that's okay - output ALL of it. Do not skip any functions,
+classes, imports, or code blocks. Partial output will be REJECTED.
 
 ===================================================================================
 EXAMPLE OF CORRECT OUTPUT:
@@ -1771,16 +2267,17 @@ ISSUE: {issue.get('title', 'Unknown issue')}
 WHAT'S WRONG: {issue.get('description', '')}
 HOW TO FIX: {issue.get('suggestion', '')}
 
-CURRENT FILE CONTENT ({len(current_content)} chars - THIS IS THE COMPLETE FILE):
+CURRENT FILE CONTENT ({len(current_content)} chars, {line_count} lines - OUTPUT ALL LINES):
 ```
 {current_content}
 ```
 
 INSTRUCTIONS:
 1. Apply the fix described above
-2. Output the ENTIRE fixed file (start to finish, every line)
+2. Output the ENTIRE fixed file (start to finish, every line - NO SKIPPING)
 3. Wrap ONLY in <file_content></file_content> tags
 4. DO NOT add explanations, summaries, or any text outside the tags
+5. DO NOT use "..." or ellipsis to abbreviate - output COMPLETE code
 
 START YOUR RESPONSE NOW WITH: <file_content>
 """
@@ -1806,6 +2303,11 @@ START YOUR RESPONSE NOW WITH: <file_content>
 
                 for attempt in range(1, max_retries + 1):
                     try:
+                        # Apply rate limiting before API call
+                        wait_time = _api_rate_limiter.wait_if_needed()
+                        if wait_time > 0:
+                            self._log(f"  [RATE LIMIT] Waited {wait_time:.1f}s before API call", "info")
+
                         result = crew.kickoff()
                         result_text = result.raw if hasattr(result, 'raw') else str(result)
 
@@ -1884,16 +2386,43 @@ START YOUR RESPONSE NOW WITH: <file_content>
                             is_incomplete = True
                             break
 
-                    if is_incomplete:
-                        continue
+                    # Check for truncation - if detected, fallback to diff-based approach
+                    truncation_detected = is_incomplete
 
                     # Also check: file should end properly (not truncated mid-line)
-                    if not fixed_content.endswith('\n') and len(fixed_content) > 100:
+                    if not truncation_detected and not fixed_content.endswith('\n') and len(fixed_content) > 100:
                         last_lines = fixed_content.split('\n')[-3:]  # Check last 3 lines
                         if any(line.strip().endswith('...') or line.strip().endswith('# ...') for line in last_lines):
                             self._log(f"  [!] File appears to be truncated (ends with '...')", "warning")
                             self._log(f"     Last 100 chars: {repr(fixed_content[-100:])}", "warning")
-                            continue
+                            truncation_detected = True
+
+                    # Check if content is too short (less than 50% of original)
+                    if not truncation_detected and len(fixed_content) < len(current_content) * 0.5:
+                        self._log(f"  [!] Fix suspiciously short ({len(fixed_content)} chars vs {len(current_content)} original)", "warning")
+                        truncation_detected = True
+
+                    # FALLBACK: If truncation detected, try diff-based approach instead
+                    if truncation_detected:
+                        self._log(f"  [FALLBACK] Full-file rewrite truncated, trying diff-based approach...", "info")
+                        diff_fix = self._generate_diff_based_fix(issue, file_path, current_content, fix_agent)
+
+                        if diff_fix and diff_fix.get('type') == 'diff':
+                            fixed_content = self._apply_diff_based_fix(file_path, diff_fix['changes'])
+                            if fixed_content:
+                                fixes.append({
+                                    'file': file_path,
+                                    'issue': issue,
+                                    'original_content': current_content,
+                                    'fixed_content': fixed_content,
+                                    'fix_type': 'diff_fallback'
+                                })
+                                self._log(f"  [SUCCESS] Diff-based fallback generated fix for {Path(file_path).name}", "info")
+                            else:
+                                self._log(f"  [!] Diff-based fallback also failed for {Path(file_path).name}", "warning")
+                        else:
+                            self._log(f"  [!] Could not generate diff-based fix, skipping {Path(file_path).name}", "warning")
+                        continue
 
                     # Validate we got substantial content
                     if len(fixed_content) > 50:
@@ -1904,8 +2433,20 @@ START YOUR RESPONSE NOW WITH: <file_content>
                             'fixed_content': fixed_content
                         })
                     else:
-                        self._log(f"  [!] Fix too short for {Path(file_path).name} ({len(fixed_content)} chars), skipping", "warning")
-                        self._log(f"     Content received: {repr(fixed_content[:100])}", "warning")
+                        self._log(f"  [!] Fix too short for {Path(file_path).name} ({len(fixed_content)} chars), trying diff fallback...", "warning")
+                        # Try diff-based as last resort for tiny outputs
+                        diff_fix = self._generate_diff_based_fix(issue, file_path, current_content, fix_agent)
+                        if diff_fix and diff_fix.get('type') == 'diff':
+                            fixed_content = self._apply_diff_based_fix(file_path, diff_fix['changes'])
+                            if fixed_content:
+                                fixes.append({
+                                    'file': file_path,
+                                    'issue': issue,
+                                    'original_content': current_content,
+                                    'fixed_content': fixed_content,
+                                    'fix_type': 'diff_fallback'
+                                })
+                                self._log(f"  [SUCCESS] Diff fallback succeeded for {Path(file_path).name}", "info")
 
                 # Fallback: Legacy FILE_CONTENT_START/END markers (for backwards compatibility)
                 elif 'FILE_CONTENT_START' in result_text and 'FILE_CONTENT_END' in result_text:
@@ -1982,6 +2523,26 @@ START YOUR RESPONSE NOW WITH: <file_content>
                         self._log(f"  [!] Could not find any code blocks in fix for {Path(file_path).name}", "warning")
                         # Show first 200 chars of output for debugging
                         self._log(f"  Agent output preview: {result_text[:200]}", "warning")
+
+                        # FINAL FALLBACK: Try diff-based approach since all extraction methods failed
+                        self._log(f"  [FINAL FALLBACK] All extraction methods failed, trying diff-based approach...", "info")
+                        diff_fix = self._generate_diff_based_fix(issue, file_path, current_content, fix_agent)
+
+                        if diff_fix and diff_fix.get('type') == 'diff':
+                            fixed_content = self._apply_diff_based_fix(file_path, diff_fix['changes'])
+                            if fixed_content:
+                                fixes.append({
+                                    'file': file_path,
+                                    'issue': issue,
+                                    'original_content': current_content,
+                                    'fixed_content': fixed_content,
+                                    'fix_type': 'diff_final_fallback'
+                                })
+                                self._log(f"  [SUCCESS] Final diff-based fallback succeeded for {Path(file_path).name}", "info")
+                            else:
+                                self._log(f"  [X] All fix generation methods exhausted for {Path(file_path).name}", "error")
+                        else:
+                            self._log(f"  [X] All fix generation methods exhausted for {Path(file_path).name}", "error")
 
             except Exception as e:
                 self._log(f"Fix generation failed for {file_path}: {e}", "error")
@@ -2072,6 +2633,16 @@ START YOUR RESPONSE NOW WITH: <file_content>
                     changes_summary = self._summarize_changes(original_content, fixed_content)
                     self._log(f"  [+] Fix applied and tested successfully", "success")
                     self._log(f"     Changes: {changes_summary}", "info")
+
+                    # Audit log: track successful fix
+                    if self._admin_authenticated:
+                        log_improvement("fix_applied", {
+                            "file": file_path,
+                            "mode": mode,
+                            "issue_type": issue.get("type", "unknown"),
+                            "changes_summary": changes_summary,
+                            "attempt": attempt
+                        })
 
                     applied += 1
                     break
@@ -2255,6 +2826,11 @@ BEGIN NOW:
                 process=Process.sequential,
                 verbose=False
             )
+
+            # Apply rate limiting before API call
+            wait_time = _api_rate_limiter.wait_if_needed()
+            if wait_time > 0:
+                self._log(f"  [RATE LIMIT] Waited {wait_time:.1f}s before API call", "info")
 
             result = crew.kickoff()
             result_text = result.raw if hasattr(result, 'raw') else str(result)
@@ -2479,6 +3055,11 @@ REASONING: [why this is an improvement or not]
         )
 
         try:
+            # Apply rate limiting before API call
+            wait_time = _api_rate_limiter.wait_if_needed()
+            if wait_time > 0:
+                self._log(f"  [RATE LIMIT] Waited {wait_time:.1f}s before API call", "info")
+
             result = crew.kickoff()
             result_text = result.raw if hasattr(result, 'raw') else str(result)
 
@@ -2488,19 +3069,19 @@ REASONING: [why this is an improvement or not]
                 if 'BEFORE:' in line.upper():
                     try:
                         scores['before'] = int(line.split(':')[1].strip().split()[0])
-                    except:
-                        pass
+                    except (ValueError, IndexError) as e:
+                        self._log(f"Could not parse BEFORE score from line: {line[:50]}... ({e})", "warning")
                 elif 'AFTER:' in line.upper():
                     try:
                         scores['after'] = int(line.split(':')[1].strip().split()[0])
-                    except:
-                        pass
+                    except (ValueError, IndexError) as e:
+                        self._log(f"Could not parse AFTER score from line: {line[:50]}... ({e})", "warning")
                 elif 'IMPROVEMENT:' in line.upper():
                     try:
                         imp_str = line.split(':')[1].strip()
                         scores['improvement'] = int(imp_str.replace('+', ''))
-                    except:
-                        pass
+                    except (ValueError, IndexError) as e:
+                        self._log(f"Could not parse IMPROVEMENT score from line: {line[:50]}... ({e})", "warning")
 
             return scores
 

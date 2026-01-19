@@ -55,7 +55,6 @@ dspy-ai>=2.4.0
 faker>=22.0.0
 
 # Utilities
-shutil-which>=1.1.0
 reportlab>=4.0.0
 
 # Analytics SDK simulation

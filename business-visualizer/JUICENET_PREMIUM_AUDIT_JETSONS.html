@@ -1,0 +1,3334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JuiceNet - Comprehensive Audit Report</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        /* Theme: Jetsons */
+        
+        :root {
+            --primary: #FF6B6B;
+            --primary-light: #FFA5A5;
+            --secondary: #4ECDC4;
+            --accent: #FFE66D;
+            --dark: #2C3E50;
+            --dark-secondary: #34495E;
+            --light: #ECF0F1;
+            --text: #2C3E50;
+            --text-light: #7F8C8D;
+            --success: #2ECC71;
+            --warning: #F39C12;
+            --danger: #E74C3C;
+            --info: #3498DB;
+            --heading-font: 'Quicksand', 'Comfortaa', sans-serif;
+            --body-font: 'Nunito', 'Quicksand', sans-serif;
+            --mono-font: 'Space Mono', monospace;
+            --button-radius: 50px;
+        }
+        
+
+        /* Theme Special Effects */
+        
+        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Nunito:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Comfortaa:wght@400;500;600;700&display=swap');
+
+        /* Atomic-era styling */
+        .section {
+            border-radius: 30px;
+            border: 3px solid #4ECDC4;
+        }
+
+        .cover-stat {
+            border-radius: 50%;
+            width: 140px;
+            height: 140px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Bubble/orbit decorations */
+        .cover::before {
+            content: '';
+            position: absolute;
+            top: 10%;
+            right: 10%;
+            width: 200px;
+            height: 200px;
+            border: 3px solid rgba(78, 205, 196, 0.3);
+            border-radius: 50%;
+        }
+
+        .cover::after {
+            content: '';
+            position: absolute;
+            bottom: 20%;
+            left: 5%;
+            width: 150px;
+            height: 150px;
+            border: 3px solid rgba(255, 107, 107, 0.3);
+            border-radius: 50%;
+        }
+
+        /* Floating animation */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .section-icon {
+            animation: float 3s ease-in-out infinite;
+            border-radius: 50%;
+        }
+
+        /* Space-age gradients */
+        .cover-badge {
+            background: linear-gradient(135deg, #FF6B6B, #4ECDC4);
+            border-radius: 50px;
+        }
+
+        /* Rounded everything */
+        .metrics-table, .issues-grid, .heuristics-grid {
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        /* Playful shadows */
+        .section {
+            box-shadow: 8px 8px 0 rgba(78, 205, 196, 0.3);
+        }
+    
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--light);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* Cover */
+        .cover {
+            background: linear-gradient(135deg, var(--dark) 0%, var(--dark-secondary) 100%);
+            color: white;
+            padding: 80px 60px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cover::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(239,68,68,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .cover::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(249,115,22,0.1) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .cover-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+        }
+
+        .cover-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            padding: 10px 24px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 28px;
+        }
+
+        .cover h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 52px;
+            font-weight: 700;
+            line-height: 1.15;
+            margin-bottom: 20px;
+        }
+
+        .cover h1 span {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .cover .subtitle {
+            font-size: 20px;
+            opacity: 0.85;
+            margin-bottom: 48px;
+            line-height: 1.6;
+            max-width: 600px;
+        }
+
+        .cover-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            max-width: 700px;
+        }
+
+        .cover-stat {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .cover-stat-value {
+            font-size: 36px;
+            font-weight: 800;
+        }
+
+        .cover-stat-value.danger { color: var(--danger); }
+        .cover-stat-value.warning { color: var(--warning); }
+        .cover-stat-value.success { color: var(--success); }
+        .cover-stat-value.info { color: #60A5FA; }
+
+        .cover-stat-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.7;
+            margin-top: 8px;
+        }
+
+        .cover-meta {
+            position: absolute;
+            bottom: 40px;
+            right: 60px;
+            text-align: right;
+            font-size: 14px;
+            opacity: 0.6;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 60px 40px;
+        }
+
+        /* Sections */
+        .section {
+            background: white;
+            border-radius: 24px;
+            padding: 48px;
+            margin-bottom: 32px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .section-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+
+        .section-icon.danger { background: linear-gradient(135deg, #EF4444, #DC2626); }
+        .section-icon.success { background: linear-gradient(135deg, #10B981, #059669); }
+        .section-icon.warning { background: linear-gradient(135deg, #F59E0B, #D97706); }
+        .section-icon.info { background: linear-gradient(135deg, #3B82F6, #2563EB); }
+        .section-icon.purple { background: linear-gradient(135deg, #8B5CF6, #7C3AED); }
+
+        .section h2 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .section-intro {
+            font-size: 17px;
+            color: var(--text-light);
+            margin-bottom: 32px;
+            line-height: 1.7;
+        }
+
+        /* Bottom Line Box */
+        .bottom-line {
+            background: linear-gradient(135deg, #FEF2F2, #FEE2E2);
+            border: 1px solid #FECACA;
+            border-radius: 16px;
+            padding: 28px;
+            margin-top: 24px;
+        }
+
+        .bottom-line h4 {
+            color: #991B1B;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bottom-line p {
+            color: #7F1D1D;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        /* Metrics Table */
+        .metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+        }
+
+        .metrics-table th {
+            text-align: left;
+            padding: 16px;
+            background: var(--light);
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-light);
+            border-radius: 8px 8px 0 0;
+        }
+
+        .metrics-table td {
+            padding: 18px 16px;
+            border-bottom: 1px solid #E2E8F0;
+            font-size: 15px;
+        }
+
+        .metrics-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .assessment-critical {
+            background: #FEE2E2;
+            color: #DC2626;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .assessment-warning {
+            background: #FEF3C7;
+            color: #D97706;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .assessment-good {
+            background: #D1FAE5;
+            color: #059669;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Visual Funnel */
+        .funnel-visual {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin: 32px 0;
+        }
+
+        .funnel-stage {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .funnel-bar-container {
+            flex: 1;
+            position: relative;
+        }
+
+        .funnel-bar {
+            height: 56px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            color: white;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .funnel-bar:hover {
+            transform: translateX(4px);
+        }
+
+        .funnel-count {
+            width: 120px;
+            text-align: right;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--dark);
+        }
+
+        .funnel-rate {
+            font-size: 14px;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        .funnel-arrow {
+            text-align: center;
+            padding: 8px 0;
+            color: var(--text-light);
+            font-size: 14px;
+        }
+
+        .funnel-dropoff {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        /* Issues Grid */
+        .issues-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .issue-card {
+            background: var(--light);
+            border-radius: 16px;
+            padding: 24px;
+            border-left: 4px solid;
+        }
+
+        .issue-card.critical { border-left-color: #DC2626; }
+        .issue-card.high { border-left-color: #D97706; }
+        .issue-card.medium { border-left-color: #2563EB; }
+        .issue-card.low { border-left-color: #059669; }
+
+        .issue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+
+        .issue-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .issue-badge {
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .issue-badge.critical { background: #FEE2E2; color: #DC2626; }
+        .issue-badge.high { background: #FEF3C7; color: #D97706; }
+        .issue-badge.medium { background: #DBEAFE; color: #2563EB; }
+        .issue-badge.confirmed { background: #D1FAE5; color: #059669; }
+
+        .issue-description {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .issue-impact {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--danger);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Heuristics */
+        .heuristics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .heuristic-item {
+            background: var(--light);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .heuristic-name {
+            font-size: 14px;
+            color: var(--dark);
+            font-weight: 500;
+        }
+
+        .heuristic-score {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .heuristic-score.good { color: var(--success); }
+        .heuristic-score.ok { color: var(--warning); }
+        .heuristic-score.bad { color: var(--danger); }
+
+        .heuristics-total {
+            background: linear-gradient(135deg, var(--dark), var(--dark-secondary));
+            color: white;
+            border-radius: 16px;
+            padding: 28px;
+            text-align: center;
+            margin-top: 24px;
+        }
+
+        .heuristics-total-value {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .heuristics-total-label {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+
+        /* Recommendations */
+        .recommendation {
+            margin-bottom: 32px;
+            padding-bottom: 32px;
+            border-bottom: 1px solid #E2E8F0;
+        }
+
+        .recommendation:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .recommendation-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .recommendation-number {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .recommendation-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .recommendation-meta {
+            display: flex;
+            gap: 24px;
+            margin: 16px 0;
+        }
+
+        .recommendation-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .recommendation-meta-item.confidence {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .recommendation-content {
+            background: var(--light);
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 16px;
+        }
+
+        .recommendation-content h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .recommendation-content p {
+            font-size: 15px;
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .recommendation-impact {
+            background: linear-gradient(135deg, #D1FAE5, #A7F3D0);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 16px;
+        }
+
+        .recommendation-impact h4 {
+            color: #065F46;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .recommendation-impact p {
+            color: #047857;
+            font-size: 15px;
+        }
+
+        /* ROI Section */
+        .roi-section {
+            background: linear-gradient(135deg, var(--dark), var(--dark-secondary));
+            color: white;
+            border-radius: 24px;
+            padding: 48px;
+            margin-bottom: 32px;
+        }
+
+        .roi-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .roi-header h2 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .roi-header p {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+
+        .roi-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+
+        .roi-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 32px;
+        }
+
+        .roi-card-header {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.7;
+            margin-bottom: 20px;
+        }
+
+        .roi-stat {
+            margin-bottom: 20px;
+        }
+
+        .roi-stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .roi-stat-label {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
+        /* Roadmap */
+        .roadmap-phases {
+            display: grid;
+            gap: 24px;
+        }
+
+        .roadmap-phase {
+            background: var(--light);
+            border-radius: 16px;
+            padding: 28px;
+        }
+
+        .roadmap-phase-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .roadmap-phase-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .roadmap-phase-badge {
+            background: var(--primary);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .roadmap-tasks {
+            display: grid;
+            gap: 12px;
+        }
+
+        .roadmap-task {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .roadmap-checkbox {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #CBD5E1;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* KPIs */
+        .kpis-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .kpis-table th {
+            text-align: left;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--dark), var(--dark-secondary));
+            color: white;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpis-table th:first-child {
+            border-radius: 12px 0 0 0;
+        }
+
+        .kpis-table th:last-child {
+            border-radius: 0 12px 0 0;
+        }
+
+        .kpis-table td {
+            padding: 18px 16px;
+            border-bottom: 1px solid #E2E8F0;
+            font-size: 15px;
+        }
+
+        .kpis-table tr:last-child td:first-child {
+            border-radius: 0 0 0 12px;
+        }
+
+        .kpis-table tr:last-child td:last-child {
+            border-radius: 0 0 12px 0;
+        }
+
+        .kpi-current {
+            font-weight: 700;
+            color: var(--danger);
+        }
+
+        .kpi-target {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        /* Footer */
+        .footer {
+            background: linear-gradient(135deg, var(--dark), var(--dark-secondary));
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        .footer-logo {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .footer-tagline {
+            font-size: 16px;
+            opacity: 0.8;
+            margin-bottom: 24px;
+        }
+
+        .footer-contact {
+            font-size: 14px;
+            opacity: 0.6;
+        }
+
+        /* Before/After Mockups */
+        .mockup-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 48px;
+            margin: 32px 0;
+        }
+
+        .mockup-side {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .mockup-label {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mockup-label.before {
+            color: var(--danger);
+        }
+
+        .mockup-label.after {
+            color: var(--success);
+        }
+
+        .phone-frame {
+            width: 280px;
+            height: 580px;
+            background: #000;
+            border-radius: 40px;
+            padding: 10px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 32px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .phone-notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 28px;
+            background: #000;
+            border-radius: 0 0 16px 16px;
+            z-index: 10;
+        }
+
+        .phone-content {
+            height: 100%;
+            padding-top: 40px;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+        }
+
+        .app-header {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--dark);
+            background: #fff;
+            position: relative;
+        }
+
+        .app-back-btn {
+            position: absolute;
+            left: 16px;
+            font-size: 18px;
+            color: var(--dark);
+        }
+
+        .app-progress {
+            display: flex;
+            gap: 4px;
+            padding: 10px 16px;
+            background: #F3F8FF;
+        }
+
+        .app-progress-dot {
+            flex: 1;
+            height: 4px;
+            background: #D8E8FF;
+            border-radius: 2px;
+        }
+
+        .app-progress-dot.active {
+            background: var(--success);
+        }
+
+        .app-body {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .app-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+
+        .app-subtitle {
+            font-size: 11px;
+            color: var(--text-light);
+            margin-bottom: 16px;
+        }
+
+        .app-input {
+            width: 100%;
+            padding: 12px 14px;
+            background: #F3F8FF;
+            border: 1px solid #D8E8FF;
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--text);
+            margin-bottom: 12px;
+        }
+
+        .app-input-label {
+            font-size: 10px;
+            color: var(--dark);
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .app-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--success);
+            border: none;
+            border-radius: 0 12px 0 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            margin-top: auto;
+        }
+
+        .privacy-hint {
+            font-size: 9px;
+            color: var(--text-light);
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .privacy-hint.new {
+            color: var(--success);
+            background: rgba(16, 185, 129, 0.1);
+            padding: 6px 8px;
+            border-radius: 6px;
+        }
+
+        .earnings-preview {
+            background: #F3F8FF;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            margin-bottom: 16px;
+            border: 2px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .earnings-amount {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        .earnings-label {
+            font-size: 10px;
+            color: var(--text-light);
+        }
+
+        .step-indicator {
+            text-align: center;
+            font-size: 10px;
+            color: var(--text-light);
+            padding: 8px 0;
+        }
+
+        .step-indicator.encouraging {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .photo-motivation {
+            font-size: 9px;
+            color: var(--success);
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        .change-highlight {
+            position: relative;
+        }
+
+        .change-highlight::before {
+            content: 'NEW';
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: var(--success);
+            color: white;
+            font-size: 8px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .mockup-changes {
+            margin-top: 24px;
+            padding: 20px;
+            background: linear-gradient(135deg, #D1FAE5, #A7F3D0);
+            border-radius: 12px;
+        }
+
+        .mockup-changes h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #065F46;
+            margin-bottom: 12px;
+        }
+
+        .mockup-changes ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .mockup-changes li {
+            font-size: 13px;
+            color: #047857;
+            padding: 6px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .mockup-changes li::before {
+            content: '\2713';
+            color: var(--success);
+            font-weight: 700;
+        }
+
+        .mockup-card {
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            margin-bottom: 32px;
+            border: 1px solid #E2E8F0;
+        }
+
+        .mockup-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .mockup-card-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .mockup-card-impact {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Print styles */
+        @media print {
+            .cover { min-height: auto; page-break-after: always; }
+            .section { page-break-inside: avoid; }
+            .mockup-comparison { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Cover -->
+    <div class="cover">
+        <div class="cover-content">
+            <span class="cover-badge">Comprehensive Audit Report</span>
+            <h1><span>JuiceNet</span><br>UX & Business Audit</h1>
+            <p class="subtitle">
+                We analyzed your entire user journey and found 5 issues affecting your conversion rates.
+                <strong>3 critical issues</strong> require immediate attention.
+                Here's the complete breakdown and exactly how to fix them.
+            </p>
+            <div class="cover-stats">
+                <div class="cover-stat">
+                    <div class="cover-stat-value danger">3</div>
+                    <div class="cover-stat-label">Critical Issues</div>
+                </div>
+                <div class="cover-stat">
+                    <div class="cover-stat-value warning">2</div>
+                    <div class="cover-stat-label">High Priority</div>
+                </div>
+                <div class="cover-stat">
+                    <div class="cover-stat-value info">0.9%</div>
+                    <div class="cover-stat-label">Conversion Rate</div>
+                </div>
+                <div class="cover-stat">
+                    <div class="cover-stat-value success">6.5/10</div>
+                    <div class="cover-stat-label">UX Score</div>
+                </div>
+            </div>
+        </div>
+        <div class="cover-meta">
+            <div>Report Generated: January 15, 2026</div>
+            <div>By Weaver Pro</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Data Confidence Score -->
+        
+    <div style="background: white; border-radius: 24px; padding: 48px; margin-bottom: 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.04);">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+            <div style="width: 52px; height: 52px; background: linear-gradient(135deg, #F97316, #F97316CC); border-radius: 16px; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px;">
+                &#128202;
+            </div>
+            <h2 style="font-size: 28px; font-weight: 700; color: #0F172A;">Data Confidence Score</h2>
+        </div>
+
+        <p style="font-size: 17px; color: #64748B; margin-bottom: 32px; line-height: 1.7;">
+            This score reflects the completeness and quality of the data used in this audit.
+            Higher scores mean more reliable recommendations.
+        </p>
+
+        
+
+        <!-- Score Display -->
+        <div style="display: grid; grid-template-columns: 200px 1fr; gap: 40px; margin-bottom: 32px;">
+            <div style="text-align: center; background: #FFEDD5; border-radius: 20px; padding: 32px;">
+                <div style="font-size: 64px; font-weight: 800; color: #F97316;">46</div>
+                <div style="font-size: 14px; color: #F97316; font-weight: 600;">OUT OF 100</div>
+                <div style="margin-top: 12px; padding: 8px 16px; background: #F97316; color: white; border-radius: 20px; font-size: 13px; font-weight: 600;">
+                    Low Confidence
+                </div>
+            </div>
+            <div>
+                <div style="font-size: 15px; color: #64748B; margin-bottom: 20px;">
+                    Recommendations are based on limited data. Consider them directional guidance rather than definitive.
+                </div>
+                
+        <div style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                <span>Funnel</span>
+                <span style="font-weight: 600; color: #10B981;">74%</span>
+            </div>
+            <div style="height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
+                <div style="width: 74%; height: 100%; background: #10B981; border-radius: 4px;"></div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                <span>Retention</span>
+                <span style="font-weight: 600; color: #EF4444;">0%</span>
+            </div>
+            <div style="height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
+                <div style="width: 0%; height: 100%; background: #EF4444; border-radius: 4px;"></div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                <span>Revenue</span>
+                <span style="font-weight: 600; color: #EF4444;">42%</span>
+            </div>
+            <div style="height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
+                <div style="width: 42%; height: 100%; background: #EF4444; border-radius: 4px;"></div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                <span>Ux Testing</span>
+                <span style="font-weight: 600; color: #EF4444;">48%</span>
+            </div>
+            <div style="height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
+                <div style="width: 48%; height: 100%; background: #EF4444; border-radius: 4px;"></div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                <span>Technical</span>
+                <span style="font-weight: 600; color: #EF4444;">26%</span>
+            </div>
+            <div style="height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
+                <div style="width: 26%; height: 100%; background: #EF4444; border-radius: 4px;"></div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                <span>Marketing</span>
+                <span style="font-weight: 600; color: #EF4444;">0%</span>
+            </div>
+            <div style="height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
+                <div style="width: 0%; height: 100%; background: #EF4444; border-radius: 4px;"></div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                <span>Competitive</span>
+                <span style="font-weight: 600; color: #EF4444;">0%</span>
+            </div>
+            <div style="height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
+                <div style="width: 0%; height: 100%; background: #EF4444; border-radius: 4px;"></div>
+            </div>
+        </div>
+        
+            </div>
+        </div>
+
+        <!-- How to Improve -->
+        <div style="border-top: 1px solid #E2E8F0; padding-top: 32px;">
+            <h3 style="font-size: 20px; font-weight: 700; color: #0F172A; margin-bottom: 16px;">
+                &#128200; How to Improve Confidence
+            </h3>
+            <p style="font-size: 14px; color: #64748B; margin-bottom: 20px;">
+                Provide these data points to increase the accuracy of our recommendations:
+            </p>
+            
+        <div style="background: #F8FAFC; border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                    <div style="font-weight: 600; color: #0F172A; margin-bottom: 4px;">
+                        1. Day 30 Retention
+                    </div>
+                    <div style="font-size: 13px; color: #64748B; margin-bottom: 8px;">% of users who return after 30 days</div>
+                    <div style="font-size: 12px; color: #94A3B8;">
+                        <strong>How to get:</strong> Analytics cohort report
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <span style="background: #DC262620; color: #DC2626; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">HIGH IMPACT</span>
+                    <div style="font-size: 12px; color: #10B981; margin-top: 4px; font-weight: 600;">+18%</div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: #F8FAFC; border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                    <div style="font-weight: 600; color: #0F172A; margin-bottom: 4px;">
+                        2. Day 1 Retention
+                    </div>
+                    <div style="font-size: 13px; color: #64748B; margin-bottom: 8px;">% of users who return after 1 day</div>
+                    <div style="font-size: 12px; color: #94A3B8;">
+                        <strong>How to get:</strong> Analytics cohort report or custom query
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <span style="background: #DC262620; color: #DC2626; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">HIGH IMPACT</span>
+                    <div style="font-size: 12px; color: #10B981; margin-top: 4px; font-weight: 600;">+16%</div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: #F8FAFC; border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                    <div style="font-weight: 600; color: #0F172A; margin-bottom: 4px;">
+                        3. Day 7 Retention
+                    </div>
+                    <div style="font-size: 13px; color: #64748B; margin-bottom: 8px;">% of users who return after 7 days</div>
+                    <div style="font-size: 12px; color: #94A3B8;">
+                        <strong>How to get:</strong> Analytics cohort report
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <span style="background: #DC262620; color: #DC2626; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">HIGH IMPACT</span>
+                    <div style="font-size: 12px; color: #10B981; margin-top: 4px; font-weight: 600;">+16%</div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: #F8FAFC; border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                    <div style="font-weight: 600; color: #0F172A; margin-bottom: 4px;">
+                        4. Monthly Revenue
+                    </div>
+                    <div style="font-size: 13px; color: #64748B; margin-bottom: 8px;">Total revenue in the last 30 days</div>
+                    <div style="font-size: 12px; color: #94A3B8;">
+                        <strong>How to get:</strong> Payment processor dashboard or database query
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <span style="background: #DC262620; color: #DC2626; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">HIGH IMPACT</span>
+                    <div style="font-size: 12px; color: #10B981; margin-top: 4px; font-weight: 600;">+16%</div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: #F8FAFC; border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                    <div style="font-weight: 600; color: #0F172A; margin-bottom: 4px;">
+                        5. Page View Data
+                    </div>
+                    <div style="font-size: 13px; color: #64748B; margin-bottom: 8px;">Views per page/screen with unique users</div>
+                    <div style="font-size: 12px; color: #94A3B8;">
+                        <strong>How to get:</strong> Google Analytics > Behavior > Site Content
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <span style="background: #D9770620; color: #D97706; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">MEDIUM IMPACT</span>
+                    <div style="font-size: 12px; color: #10B981; margin-top: 4px; font-weight: 600;">+14%</div>
+                </div>
+            </div>
+        </div>
+        
+        </div>
+    </div>
+    
+
+        <!-- Executive Summary -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon danger">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+                </div>
+                <h2>Executive Summary</h2>
+            </div>
+            <p class="section-intro">
+                <strong>JuiceNet</strong> - EV charging marketplace ("Airbnb for EV chargers") - Connect EV drivers (Guests) with home charger owners (Hosts). Revenue from platform fees on bookings.
+                <br>Target Market: Corona, CA and surrounding areas
+            </p>
+
+            <table class="metrics-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                        <th>Assessment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Total Guest Signups</strong></td>
+                        <td>2,012 (100.0%)</td>
+                        <td><span class="assessment-good">Baseline</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Email Verified</strong></td>
+                        <td>1,543 (76.7%)</td>
+                        <td><span class="assessment-warning">23.3% lost</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Profile Complete</strong></td>
+                        <td>1,035 (51.4%)</td>
+                        <td><span class="assessment-warning">32.9% lost</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Made Reservation</strong></td>
+                        <td>19 (0.9%)</td>
+                        <td><span class="assessment-critical">CRITICAL: 98.2% drop-off</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="bottom-line">
+                <h4>&#9888; Bottom Line</h4>
+                <p>
+                    <strong>Your funnel is leaking at multiple points.</strong> Only 0.9% of users complete the journey. With 3 critical issues, you're losing significant revenue every day. The good news: these are fixable.
+                </p>
+            </div>
+        </div>
+
+        <!-- Visual Funnel -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon warning">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></svg>
+                </div>
+                <h2>Conversion Funnel</h2>
+            </div>
+            <p class="section-intro">
+                Where users are dropping off in your journey. The wider the bar, the more users at that stage.
+            </p>
+
+<div class="funnel-visual">
+
+            <div class="funnel-stage">
+                <div class="funnel-bar-container">
+                    <div class="funnel-bar" style="width: 100.0%; background: #10B981;">
+                        Total Guest Signups
+                    </div>
+                </div>
+                <div class="funnel-count">
+                    2,012
+                    <div class="funnel-rate">100.0%</div>
+                </div>
+            </div>
+
+            <div class="funnel-arrow">
+                &#8595; <span class="funnel-dropoff">23.3% drop-off (469 users lost)</span>
+            </div>
+
+            <div class="funnel-stage">
+                <div class="funnel-bar-container">
+                    <div class="funnel-bar" style="width: 76.7%; background: #3B82F6;">
+                        Email Verified
+                    </div>
+                </div>
+                <div class="funnel-count">
+                    1,543
+                    <div class="funnel-rate">76.7%</div>
+                </div>
+            </div>
+
+            <div class="funnel-arrow">
+                &#8595; <span class="funnel-dropoff">32.9% drop-off (508 users lost)</span>
+            </div>
+
+            <div class="funnel-stage">
+                <div class="funnel-bar-container">
+                    <div class="funnel-bar" style="width: 51.4%; background: #F59E0B;">
+                        Profile Complete
+                    </div>
+                </div>
+                <div class="funnel-count">
+                    1,035
+                    <div class="funnel-rate">51.4%</div>
+                </div>
+            </div>
+
+            <div class="funnel-arrow">
+                &#8595; <span class="funnel-dropoff">98.2% drop-off (1,016 users lost)</span>
+            </div>
+
+            <div class="funnel-stage">
+                <div class="funnel-bar-container">
+                    <div class="funnel-bar" style="width: 20%; background: #EF4444;">
+                        Made Reservation
+                    </div>
+                </div>
+                <div class="funnel-count">
+                    19
+                    <div class="funnel-rate">0.9%</div>
+                </div>
+            </div>
+</div>
+        </div>
+
+        <!-- UX Issues -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon danger">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                </div>
+                <h2>Issues Found</h2>
+            </div>
+            <p class="section-intro">
+                5 issues identified, prioritized by severity and business impact.
+            </p>
+
+            <div class="issues-grid">
+
+                <div class="issue-card critical">
+                    <div class="issue-header">
+                        <div class="issue-title">Email verification forces app exit</div>
+                        <div>
+                            <span class="issue-badge critical">CRITICAL</span>
+                            <span class="issue-badge confirmed">CONFIRMED</span>
+                        </div>
+                    </div>
+                    <div class="issue-description">Users leave app to verify email and never return</div>
+                    <div class="issue-impact">
+                        <strong>Impact:</strong> 23% drop-off
+                    </div>
+                </div>
+
+                <div class="issue-card critical">
+                    <div class="issue-header">
+                        <div class="issue-title">No auto-login after verification</div>
+                        <div>
+                            <span class="issue-badge critical">CRITICAL</span>
+                            <span class="issue-badge confirmed">CONFIRMED</span>
+                        </div>
+                    </div>
+                    <div class="issue-description">Users must manually log back in after clicking email link</div>
+                    <div class="issue-impact">
+                        <strong>Impact:</strong> 33% additional drop-off
+                    </div>
+                </div>
+
+                <div class="issue-card critical">
+                    <div class="issue-header">
+                        <div class="issue-title">Verification page has no app redirect</div>
+                        <div>
+                            <span class="issue-badge critical">CRITICAL</span>
+                            <span class="issue-badge confirmed">CONFIRMED</span>
+                        </div>
+                    </div>
+                    <div class="issue-description">Azure static page shows 'Account Activated' with no way back to app</div>
+                    <div class="issue-impact">
+                        <strong>Impact:</strong> Users lost after verify
+                    </div>
+                </div>
+
+                <div class="issue-card high">
+                    <div class="issue-header">
+                        <div class="issue-title">Role selection after signup</div>
+                        <div>
+                            <span class="issue-badge high">HIGH</span>
+                            
+                        </div>
+                    </div>
+                    <div class="issue-description">Users don't know if they're signing up as Host or Guest</div>
+                    <div class="issue-impact">
+                        <strong>Impact:</strong> Missed personalization opportunity
+                    </div>
+                </div>
+
+                <div class="issue-card high">
+                    <div class="issue-header">
+                        <div class="issue-title">Too many host onboarding steps</div>
+                        <div>
+                            <span class="issue-badge high">HIGH</span>
+                            
+                        </div>
+                    </div>
+                    <div class="issue-description">9+ screens required to complete host setup</div>
+                    <div class="issue-impact">
+                        <strong>Impact:</strong> 60% host drop-off
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Heuristics -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon purple">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                </div>
+                <h2>Nielsen's Heuristics Evaluation</h2>
+            </div>
+            <p class="section-intro">
+                Industry-standard UX evaluation across 10 key principles.
+            </p>
+
+            <div class="heuristics-grid">
+
+                <div class="heuristic-item">
+                    <div class="heuristic-name">Visibility of System Status</div>
+                    <div class="heuristic-score good">7/10</div>
+                </div>
+
+                <div class="heuristic-item">
+                    <div class="heuristic-name">Match with Real World</div>
+                    <div class="heuristic-score good">8/10</div>
+                </div>
+
+                <div class="heuristic-item">
+                    <div class="heuristic-name">User Control & Freedom</div>
+                    <div class="heuristic-score ok">5/10</div>
+                </div>
+
+                <div class="heuristic-item">
+                    <div class="heuristic-name">Consistency & Standards</div>
+                    <div class="heuristic-score good">8/10</div>
+                </div>
+
+                <div class="heuristic-item">
+                    <div class="heuristic-name">Error Prevention</div>
+                    <div class="heuristic-score good">7/10</div>
+                </div>
+
+                <div class="heuristic-item">
+                    <div class="heuristic-name">Recognition over Recall</div>
+                    <div class="heuristic-score good">7/10</div>
+                </div>
+
+                <div class="heuristic-item">
+                    <div class="heuristic-name">Flexibility & Efficiency</div>
+                    <div class="heuristic-score ok">5/10</div>
+                </div>
+
+                <div class="heuristic-item">
+                    <div class="heuristic-name">Aesthetic & Minimal Design</div>
+                    <div class="heuristic-score good">8/10</div>
+                </div>
+
+                <div class="heuristic-item">
+                    <div class="heuristic-name">Help Users with Errors</div>
+                    <div class="heuristic-score ok">6/10</div>
+                </div>
+
+                <div class="heuristic-item">
+                    <div class="heuristic-name">Help & Documentation</div>
+                    <div class="heuristic-score bad">4/10</div>
+                </div>
+            </div>
+
+            <div class="heuristics-total">
+                <div class="heuristics-total-value">6.5/10</div>
+                <div class="heuristics-total-label">Overall UX Score</div>
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon success">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                </div>
+                <h2>Recommended Fixes</h2>
+            </div>
+            <p class="section-intro">
+                Prioritized by impact and effort. Start with #1 for the biggest quick win.
+            </p>
+
+
+            <div class="recommendation">
+                <div class="recommendation-header">
+                    <div class="recommendation-number">1</div>
+                    <div class="recommendation-title">Fix Email Verification Flow</div>
+                </div>
+
+                <div class="recommendation-meta">
+                    <div class="recommendation-meta-item">
+                        <strong>Problem:</strong> 23.3% of users never verify email, 33% who verify still abandon
+                    </div>
+                </div>
+                <div class="recommendation-meta">
+                    <div class="recommendation-meta-item confidence">
+                        &#10003; 95% Confidence
+                    </div>
+                    <div class="recommendation-meta-item">
+                        <strong>Data:</strong> 470 + 508 = 977 users lost (48.6% of all signups)
+                    </div>
+                </div>
+
+                <div class="recommendation-content">
+                    <h4>Implementation</h4>
+                    <p><br>1. Allow browsing while unverified<br>2. Add verification status polling in the app<br>3. Auto-login after email confirmation (return JWT tokens)<br>4. Redirect confirmation page TO the app with auth tokens<br>5. Add "Open JuiceNet App" button on confirmation page<br></p>
+                </div>
+
+                <div class="recommendation-impact">
+                    <h4>Expected Impact</h4>
+                    <p>Recover 50-70% of drop-off (+490-685 users completing signup). If 10% book: +49-69 additional reservations</p>
+                </div>
+            </div>
+
+            <div class="recommendation">
+                <div class="recommendation-header">
+                    <div class="recommendation-number">2</div>
+                    <div class="recommendation-title">Add Role Selection Before Signup</div>
+                </div>
+
+                <div class="recommendation-meta">
+                    <div class="recommendation-meta-item">
+                        <strong>Problem:</strong> Users don't know if they're signing up as Host or Guest
+                    </div>
+                </div>
+                <div class="recommendation-meta">
+                    <div class="recommendation-meta-item confidence">
+                        &#10003; 85% Confidence
+                    </div>
+                    <div class="recommendation-meta-item">
+                        <strong>Data:</strong> 59% drop between signup and role selection page
+                    </div>
+                </div>
+
+                <div class="recommendation-content">
+                    <h4>Implementation</h4>
+                    <p><br>Move role selection to BEFORE signup:<br>1. Landing Page shows two cards: "I'M A GUEST" / "I'M A HOST"<br>2. Store intended role, pass to signup<br>3. Personalize signup messaging based on role<br>4. Skip role selection page post-login<br></p>
+                </div>
+
+                <div class="recommendation-impact">
+                    <h4>Expected Impact</h4>
+                    <p>Personalized experience from start, higher completion rates for hosts, better segmentation</p>
+                </div>
+            </div>
+
+            <div class="recommendation">
+                <div class="recommendation-header">
+                    <div class="recommendation-number">3</div>
+                    <div class="recommendation-title">Streamline Host Onboarding</div>
+                </div>
+
+                <div class="recommendation-meta">
+                    <div class="recommendation-meta-item">
+                        <strong>Problem:</strong> 60% of hosts never list a charger (9+ steps is too many)
+                    </div>
+                </div>
+                <div class="recommendation-meta">
+                    <div class="recommendation-meta-item confidence">
+                        &#10003; 80% Confidence
+                    </div>
+                    <div class="recommendation-meta-item">
+                        <strong>Data:</strong> 199 out of 330 hosts have no chargers listed
+                    </div>
+                </div>
+
+                <div class="recommendation-content">
+                    <h4>Implementation</h4>
+                    <p><br>Reduce from 9 steps to 4:<br>1. Basic Info (name + address + charger type + one photo)<br>2. Pricing (smart defaults based on local rates)<br>3. Availability (preset templates: "Weekday evenings", "Weekends", "24/7")<br>4. Payment (Stripe Connect)<br><br>Move profile picture, amenities, bio to "Optional - Complete Later"<br></p>
+                </div>
+
+                <div class="recommendation-impact">
+                    <h4>Expected Impact</h4>
+                    <p>Increase host completion from 40% to 70%+, add 60-100 more charger listings</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive UX Prototype -->
+
+        <!-- Interactive Prototype Section -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon success">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+                </div>
+                <h2>Interactive UX Prototype</h2>
+            </div>
+            <p class="section-intro">
+                Click through the interactive prototype below to experience the proposed user flows.
+                Use the tabs to switch between different sections and the navigation buttons to step through each flow.
+            </p>
+        </div>
+
+        <style>
+            /* JuiceNet Interactive Prototype Styles */
+            .prototype-container {
+                background: #e8e8e8;
+                padding: 30px 20px;
+                border-radius: 16px;
+                margin: 20px 0 40px;
+            }
+
+            .prototype-header {
+                text-align: center;
+                margin-bottom: 20px;
+            }
+
+            .prototype-header h3 {
+                font-size: 1.4rem;
+                font-weight: 600;
+                color: #102441;
+                margin-bottom: 8px;
+            }
+
+            .prototype-header p {
+                color: #5c6c82;
+                font-size: 13px;
+            }
+
+            .proto-tabs {
+                display: flex;
+                justify-content: center;
+                gap: 8px;
+                margin-bottom: 25px;
+                flex-wrap: wrap;
+            }
+
+            .proto-tab {
+                padding: 10px 16px;
+                background: #fff;
+                border: 1px solid #d8e8ff;
+                border-radius: 0px 12px;
+                color: #102441;
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 500;
+                transition: all 0.2s;
+                font-family: 'Inter', sans-serif;
+            }
+
+            .proto-tab:hover {
+                background: #f3f8ff;
+            }
+
+            .proto-tab.active {
+                background: #26a45a;
+                color: #fff;
+                border-color: #26a45a;
+            }
+
+            /* Phone Frame */
+            .proto-phone {
+                width: 320px;
+                height: 680px;
+                background: #000;
+                border-radius: 42px;
+                padding: 10px;
+                position: relative;
+                box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+                margin: 0 auto;
+            }
+
+            .proto-phone-screen {
+                width: 100%;
+                height: 100%;
+                background: #fff;
+                border-radius: 34px;
+                overflow: hidden;
+                position: relative;
+            }
+
+            .proto-notch {
+                position: absolute;
+                top: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 120px;
+                height: 28px;
+                background: #000;
+                border-radius: 0 0 16px 16px;
+                z-index: 10;
+            }
+
+            .proto-app-content {
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                background: #fff;
+                color: #102441;
+                padding-top: 40px;
+                font-family: 'Inter', sans-serif;
+            }
+
+            .proto-app-header {
+                padding: 10px 14px;
+                display: flex;
+                align-items: center;
+                position: relative;
+            }
+
+            .proto-back-btn {
+                width: 20px;
+                height: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                color: #102441;
+                position: absolute;
+                left: 14px;
+                font-size: 18px;
+            }
+
+            .proto-header-title {
+                flex: 1;
+                text-align: center;
+                font-size: 15px;
+                font-weight: 500;
+                color: #102441;
+            }
+
+            .proto-progress-bar {
+                display: flex;
+                gap: 4px;
+                padding: 10px 14px;
+                background: #f3f8ff;
+            }
+
+            .proto-progress-dot {
+                flex: 1;
+                height: 3px;
+                background: #d8e8ff;
+                border-radius: 2px;
+            }
+
+            .proto-progress-dot.active {
+                background: #26a45a;
+            }
+
+            .proto-step-indicator {
+                text-align: center;
+                font-size: 11px;
+                color: #5c6c82;
+                margin: 0;
+                padding: 6px 14px 0;
+            }
+
+            .proto-app-body {
+                flex: 1;
+                padding: 14px;
+                overflow-y: auto;
+            }
+
+            .proto-h3 {
+                font-weight: 600;
+                font-size: 20px;
+                line-height: 26px;
+                color: #102441;
+                margin-bottom: 6px;
+            }
+
+            .proto-subtitle {
+                font-size: 12px;
+                color: #5c6c82;
+                margin-bottom: 16px;
+                line-height: 16px;
+            }
+
+            .proto-input-container {
+                margin-bottom: 12px;
+            }
+
+            .proto-input-container label {
+                color: #102441;
+                font-size: 11px;
+                display: block;
+                margin-bottom: 4px;
+            }
+
+            .proto-input {
+                width: 100%;
+                padding: 10px 12px;
+                background: #f3f8ff;
+                border: 1px solid #f3f8ff;
+                border-radius: 6px;
+                color: #102441;
+                font-size: 12px;
+            }
+
+            .proto-input-message {
+                color: #5c6c82;
+                font-size: 10px;
+                margin-top: 3px;
+            }
+
+            .proto-input-message.success {
+                color: #26a45a;
+            }
+
+            .proto-btn-primary {
+                width: 100%;
+                padding: 12px;
+                background: #26a45a;
+                border: 1px solid #26a45a;
+                border-radius: 0px 10px;
+                color: #fff;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                margin-top: 12px;
+            }
+
+            .proto-btn-secondary {
+                width: 100%;
+                padding: 10px;
+                background: #fff;
+                border: 1px solid #5c6c82;
+                border-radius: 0px 10px;
+                color: #102441;
+                font-size: 12px;
+                font-weight: 500;
+                cursor: pointer;
+                margin-top: 8px;
+            }
+
+            .proto-checkbox-container {
+                color: #5c6c82;
+                display: flex;
+                gap: 10px;
+                align-items: flex-start;
+                margin-bottom: 10px;
+                font-size: 12px;
+            }
+
+            .proto-checkbox {
+                width: 16px;
+                height: 16px;
+                min-width: 16px;
+                background: #102441;
+                border-radius: 3px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 10px;
+                margin-top: 2px;
+            }
+
+            .proto-link {
+                color: #26a45a;
+                font-weight: 500;
+                cursor: pointer;
+            }
+
+            .proto-role-cards {
+                display: flex;
+                gap: 10px;
+                margin: 16px 0;
+            }
+
+            .proto-role-card {
+                flex: 1;
+                padding: 16px 10px;
+                background: #f3f8ff;
+                border: 2px solid #d8e8ff;
+                border-radius: 10px;
+                text-align: center;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .proto-role-card:hover, .proto-role-card.selected {
+                border-color: #26a45a;
+                background: rgba(38, 164, 90, 0.08);
+            }
+
+            .proto-role-icon {
+                font-size: 28px;
+                margin-bottom: 8px;
+            }
+
+            .proto-role-title {
+                font-size: 12px;
+                font-weight: 600;
+                margin-bottom: 3px;
+                color: #102441;
+            }
+
+            .proto-role-desc {
+                font-size: 10px;
+                color: #5c6c82;
+            }
+
+            .proto-info-card {
+                background: rgba(38, 164, 90, 0.08);
+                border: 1px solid rgba(38, 164, 90, 0.3);
+                border-radius: 6px;
+                padding: 10px;
+                margin-bottom: 12px;
+            }
+
+            .proto-info-card p {
+                font-size: 11px;
+                color: #5c6c82;
+                margin: 0;
+            }
+
+            .proto-map-preview {
+                width: 100%;
+                height: 100px;
+                background: linear-gradient(135deg, #e8f4e8 0%, #d4e8d4 100%);
+                border-radius: 10px;
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                border: 1px solid #d8e8ff;
+            }
+
+            .proto-map-pin {
+                width: 20px;
+                height: 20px;
+                background: #102441;
+                border-radius: 50%;
+                position: absolute;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+            }
+
+            .proto-map-label {
+                position: absolute;
+                bottom: 8px;
+                left: 8px;
+                background: #fff;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 10px;
+                color: #102441;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            }
+
+            .proto-stats-row {
+                display: flex;
+                justify-content: space-around;
+                text-align: center;
+                padding: 10px;
+                background: #f3f8ff;
+                border-radius: 6px;
+                margin-bottom: 12px;
+            }
+
+            .proto-stat-value {
+                font-size: 16px;
+                font-weight: 700;
+                color: #102441;
+            }
+
+            .proto-stat-label {
+                font-size: 10px;
+                color: #5c6c82;
+            }
+
+            .proto-social-login {
+                display: flex;
+                gap: 8px;
+                margin-top: 12px;
+            }
+
+            .proto-social-btn {
+                flex: 1;
+                padding: 8px;
+                background: #f3f8ff;
+                border: 1px solid #d8e8ff;
+                border-radius: 6px;
+                text-align: center;
+                font-size: 11px;
+                color: #102441;
+            }
+
+            .proto-divider {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin: 14px 0;
+            }
+
+            .proto-divider-line {
+                flex: 1;
+                height: 1px;
+                background: #d8e8ff;
+            }
+
+            .proto-divider-text {
+                color: #9fa8b6;
+                font-size: 10px;
+            }
+
+            .proto-pricing-card {
+                background: #f3f8ff;
+                border: 1px solid #d8e8ff;
+                border-radius: 6px;
+                padding: 10px;
+                margin-bottom: 12px;
+            }
+
+            .proto-pricing-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px 0;
+                border-bottom: 1px solid #d8e8ff;
+            }
+
+            .proto-pricing-row:last-child {
+                border-bottom: none;
+            }
+
+            .proto-pricing-label {
+                font-size: 12px;
+                color: #102441;
+            }
+
+            .proto-pricing-time {
+                font-size: 10px;
+                color: #5c6c82;
+            }
+
+            .proto-pricing-input {
+                width: 70px;
+                padding: 6px 8px;
+                background: #fff;
+                border: 1px solid #d8e8ff;
+                border-radius: 4px;
+                color: #102441;
+                font-size: 12px;
+                text-align: right;
+            }
+
+            .proto-availability-option {
+                display: flex;
+                align-items: center;
+                padding: 8px;
+                background: rgba(38, 164, 90, 0.08);
+                border: 1px solid #26a45a;
+                border-radius: 6px;
+                margin-bottom: 6px;
+            }
+
+            .proto-availability-check {
+                width: 16px;
+                height: 16px;
+                background: #26a45a;
+                border-radius: 3px;
+                margin-right: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 10px;
+            }
+
+            .proto-availability-title {
+                font-size: 12px;
+                font-weight: 500;
+                color: #102441;
+            }
+
+            .proto-availability-desc {
+                font-size: 10px;
+                color: #5c6c82;
+            }
+
+            .proto-success-image {
+                width: 140px;
+                height: 100px;
+                margin: 0 auto 12px;
+            }
+
+            .proto-success-title {
+                font-size: 18px;
+                font-weight: 600;
+                text-align: center;
+                margin-bottom: 6px;
+                color: #102441;
+            }
+
+            .proto-success-desc {
+                text-align: center;
+                color: #5c6c82;
+                font-size: 12px;
+                margin-bottom: 16px;
+            }
+
+            .proto-share-buttons {
+                display: flex;
+                gap: 8px;
+                margin-top: 10px;
+            }
+
+            .proto-share-btn {
+                flex: 1;
+                padding: 8px;
+                background: #f3f8ff;
+                border: 1px solid #d8e8ff;
+                border-radius: 6px;
+                text-align: center;
+                font-size: 11px;
+                color: #102441;
+                cursor: pointer;
+            }
+
+            .proto-screen-nav {
+                display: flex;
+                justify-content: center;
+                gap: 5px;
+                margin-top: 12px;
+                flex-wrap: wrap;
+            }
+
+            .proto-screen-nav button {
+                padding: 6px 10px;
+                background: #fff;
+                border: 1px solid #d8e8ff;
+                border-radius: 0px 8px;
+                color: #102441;
+                cursor: pointer;
+                font-size: 11px;
+                font-weight: 400;
+            }
+
+            .proto-screen-nav button:hover {
+                background: #f3f8ff;
+            }
+
+            .proto-screen-nav button.active {
+                background: #26a45a;
+                color: #fff;
+                border-color: #26a45a;
+            }
+
+            .proto-screen-counter {
+                text-align: center;
+                margin-top: 8px;
+                color: #5c6c82;
+                font-size: 11px;
+                max-width: 320px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            /* Hide/Show Screens */
+            .proto-screen {
+                display: none;
+            }
+
+            .proto-screen.active {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .proto-section-content {
+                display: none;
+            }
+
+            .proto-section-content.active {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .proto-footer-link {
+                text-align: center;
+                margin-top: 12px;
+                font-size: 13px;
+                color: #102441;
+            }
+
+            .proto-listing-preview {
+                background: #f3f8ff;
+                border-radius: 10px;
+                padding: 10px;
+                margin: 12px 0;
+                width: 100%;
+            }
+
+            .proto-listing-image {
+                width: 100%;
+                height: 60px;
+                background: linear-gradient(135deg, #e8f4e8 0%, #d4e8d4 100%);
+                border-radius: 6px;
+                margin-bottom: 8px;
+            }
+
+            .proto-listing-name {
+                font-weight: 600;
+                font-size: 12px;
+                color: #102441;
+            }
+
+            .proto-listing-address {
+                font-size: 10px;
+                color: #5c6c82;
+                margin-bottom: 6px;
+            }
+
+            .proto-listing-meta {
+                display: flex;
+                gap: 10px;
+                font-size: 10px;
+            }
+
+            .proto-listing-meta span {
+                color: #26a45a;
+            }
+
+            .proto-photo-upload {
+                width: 100%;
+                height: 60px;
+                background: #f3f8ff;
+                border: 2px dashed #d8e8ff;
+                border-radius: 6px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 4px;
+                cursor: pointer;
+                margin-top: 6px;
+            }
+
+            .proto-photo-upload-icon {
+                font-size: 20px;
+                color: #9fa8b6;
+            }
+
+            .proto-photo-upload-text {
+                font-size: 10px;
+                color: #5c6c82;
+            }
+
+            .proto-form-row {
+                display: flex;
+                gap: 10px;
+            }
+
+            .proto-form-row .proto-input-container {
+                flex: 1;
+            }
+
+            .proto-amenity-chips {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                margin-top: 4px;
+            }
+
+            .proto-amenity-chip {
+                padding: 4px 8px;
+                font-size: 10px;
+                color: #5c6c82;
+                background: #f3f8ff;
+                border: 1px solid #d8e8ff;
+                border-radius: 12px;
+            }
+
+            .proto-amenity-chip.selected {
+                color: #26a45a;
+                background: rgba(38, 164, 90, 0.1);
+                border-color: #26a45a;
+            }
+
+            /* JuiceNet Logo */
+            .proto-logo {
+                display: flex;
+                justify-content: center;
+                margin-bottom: 6px;
+            }
+
+            .proto-logo-text {
+                font-size: 18px;
+                font-weight: 600;
+                color: #26a45a;
+            }
+        </style>
+
+        <div class="prototype-container">
+            <div class="prototype-header">
+                <h3>JuiceNet UX Flow Prototype</h3>
+                <p>Proposed new user flows - click tabs to navigate</p>
+            </div>
+
+            <div class="proto-tabs">
+                <button class="proto-tab active" onclick="showProtoSection('proto-landing')">Landing</button>
+                <button class="proto-tab" onclick="showProtoSection('proto-guest-signup')">Guest Signup</button>
+                <button class="proto-tab" onclick="showProtoSection('proto-guest-onboard')">Guest Onboard</button>
+                <button class="proto-tab" onclick="showProtoSection('proto-host-signup')">Host Signup</button>
+                <button class="proto-tab" onclick="showProtoSection('proto-host-onboard')">Host Onboard</button>
+            </div>
+
+            <!-- LANDING -->
+            <div id="proto-landing" class="proto-section-content active">
+                <div class="proto-phone">
+                    <div class="proto-phone-screen">
+                        <div class="proto-notch"></div>
+                        <div class="proto-app-content" style="position: relative;">
+                            <!-- Full-screen map background -->
+                            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, #e8f4e8 0%, #d4e8d4 50%, #c5ddc5 100%); z-index: 0;">
+                                <div class="proto-map-pin" style="top: 15%; left: 20%;">&#9889;</div>
+                                <div class="proto-map-pin" style="top: 25%; left: 55%;">&#9889;</div>
+                                <div class="proto-map-pin" style="top: 35%; left: 75%;">&#9889;</div>
+                                <div class="proto-map-pin" style="top: 22%; left: 35%;">&#9889;</div>
+                                <div class="proto-map-pin" style="top: 40%; left: 15%;">&#9889;</div>
+                            </div>
+                            <!-- Content overlay -->
+                            <div class="proto-app-body" style="position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; text-align: center; padding: 20px; padding-bottom: 30px;">
+                                <!-- Semi-transparent card for content -->
+                                <div style="background: rgba(255,255,255,0.95); border-radius: 14px; padding: 20px; width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                                    <div class="proto-logo">
+                                        <span class="proto-logo-text">JuiceNet</span>
+                                    </div>
+                                    <p style="font-size: 11px; color: #5c6c82; margin-bottom: 16px;">Power sharing, switched on</p>
+
+                                    <p style="font-size: 13px; color: #102441; margin-bottom: 10px;">What brings you here?</p>
+
+                                    <div class="proto-role-cards">
+                                        <div class="proto-role-card" onclick="showProtoSection('proto-guest-signup')">
+                                            <div class="proto-role-icon">&#128663;</div>
+                                            <div class="proto-role-title">CHARGE</div>
+                                            <div class="proto-role-desc">Find a charger near you</div>
+                                        </div>
+                                        <div class="proto-role-card selected" onclick="showProtoSection('proto-host-signup')">
+                                            <div class="proto-role-icon">&#127968;</div>
+                                            <div class="proto-role-title">EARN</div>
+                                            <div class="proto-role-desc">Share your charger</div>
+                                        </div>
+                                    </div>
+
+                                    <p class="proto-footer-link">Already a member? <span class="proto-link">Log in</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GUEST SIGNUP -->
+            <div id="proto-guest-signup" class="proto-section-content">
+                <div class="proto-phone">
+                    <div class="proto-phone-screen">
+                        <div class="proto-notch"></div>
+                        <div class="proto-app-content">
+                            <div class="proto-app-header">
+                                <div class="proto-back-btn" onclick="showProtoSection('proto-landing')">&larr;</div>
+                                <span class="proto-header-title">Sign up</span>
+                            </div>
+                            <div class="proto-app-body">
+                                <div class="proto-h3">Find chargers near you</div>
+                                <p class="proto-subtitle">Book EV charging at homes and businesses</p>
+
+                                <div class="proto-input-container">
+                                    <label>Email</label>
+                                    <input type="text" class="proto-input" placeholder="Email">
+                                </div>
+
+                                <div class="proto-input-container">
+                                    <label>Password</label>
+                                    <input type="password" class="proto-input" placeholder="Password">
+                                    <p class="proto-input-message">8+ characters, 1 capital letter, 1 special character</p>
+                                </div>
+
+                                <div class="proto-checkbox-container">
+                                    <div class="proto-checkbox">&#10003;</div>
+                                    <span>I agree to the <span class="proto-link">Terms</span> and <span class="proto-link">Privacy Policy</span></span>
+                                </div>
+
+                                <button class="proto-btn-primary" onclick="showProtoSection('proto-guest-onboard')">Continue</button>
+
+                                <div class="proto-divider">
+                                    <div class="proto-divider-line"></div>
+                                    <span class="proto-divider-text">or sign up with</span>
+                                    <div class="proto-divider-line"></div>
+                                </div>
+
+                                <div class="proto-social-login">
+                                    <div class="proto-social-btn">&#63743; Apple</div>
+                                    <div class="proto-social-btn">G Google</div>
+                                </div>
+
+                                <p class="proto-footer-link">Already a member? <span class="proto-link">Log in</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GUEST ONBOARDING -->
+            <div id="proto-guest-onboard" class="proto-section-content">
+                <div class="proto-phone" id="proto-guest-onboard-phone">
+                    <div class="proto-phone-screen">
+                        <div class="proto-notch"></div>
+
+                        <!-- Guest Step 1: Verify Email -->
+                        <div class="proto-app-content proto-screen active" id="proto-guest-step-1">
+                            <div class="proto-app-body" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px;">
+                                <div style="font-size: 48px; margin-bottom: 16px;">&#9993;</div>
+                                <div class="proto-success-title">Check your email!</div>
+                                <p class="proto-success-desc">We sent a verification link to<br><strong>you@email.com</strong></p>
+
+                                <button class="proto-btn-primary" onclick="showProtoGuestStep(2)">Explore Chargers While You Wait</button>
+
+                                <p style="margin-top: 10px; color: #5c6c82; font-size: 12px;">Didn't get it? <span class="proto-link">Resend link</span></p>
+
+                                <div class="proto-info-card" style="width: 100%; margin-top: 16px;">
+                                    <p>&#128161; You can browse chargers now. Book after verifying your email.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Guest Step 2: Profile Info -->
+                        <div class="proto-app-content proto-screen" id="proto-guest-step-2">
+                            <div class="proto-app-header">
+                                <div class="proto-back-btn" onclick="showProtoGuestStep(1)">&larr;</div>
+                                <span class="proto-header-title">Complete Profile</span>
+                            </div>
+                            <div class="proto-progress-bar">
+                                <div class="proto-progress-dot active"></div>
+                                <div class="proto-progress-dot"></div>
+                            </div>
+                            <div class="proto-app-body">
+                                <div class="proto-h3">Tell us about you</div>
+                                <p class="proto-subtitle">This helps hosts know who's booking</p>
+
+                                <div style="text-align: center; margin-bottom: 12px;">
+                                    <div style="width: 60px; height: 60px; background: #f3f8ff; border: 2px dashed #d8e8ff; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #9fa8b6;">&#128247;</div>
+                                    <p style="font-size: 10px; color: #5c6c82;">Add profile photo (optional)</p>
+                                </div>
+
+                                <div class="proto-form-row">
+                                    <div class="proto-input-container">
+                                        <label>First Name</label>
+                                        <input type="text" class="proto-input" placeholder="John">
+                                    </div>
+                                    <div class="proto-input-container">
+                                        <label>Last Name</label>
+                                        <input type="text" class="proto-input" placeholder="Smith">
+                                    </div>
+                                </div>
+
+                                <div class="proto-input-container">
+                                    <label>Phone Number</label>
+                                    <input type="text" class="proto-input" placeholder="(555) 123-4567">
+                                    <p class="proto-input-message">For booking confirmations</p>
+                                </div>
+
+                                <button class="proto-btn-primary" onclick="showProtoGuestStep(3)">Continue</button>
+                                <button class="proto-btn-secondary">Skip for now</button>
+                            </div>
+                        </div>
+
+                        <!-- Guest Step 3: Vehicle Info -->
+                        <div class="proto-app-content proto-screen" id="proto-guest-step-3">
+                            <div class="proto-app-header">
+                                <div class="proto-back-btn" onclick="showProtoGuestStep(2)">&larr;</div>
+                                <span class="proto-header-title">Your Vehicle</span>
+                            </div>
+                            <div class="proto-progress-bar">
+                                <div class="proto-progress-dot active"></div>
+                                <div class="proto-progress-dot active"></div>
+                            </div>
+                            <div class="proto-app-body">
+                                <div class="proto-h3">What do you drive?</div>
+                                <p class="proto-subtitle">We'll show compatible chargers</p>
+
+                                <div class="proto-input-container">
+                                    <label>Vehicle Make</label>
+                                    <select class="proto-input">
+                                        <option>Tesla</option>
+                                        <option>Chevrolet</option>
+                                        <option>Ford</option>
+                                        <option>Rivian</option>
+                                    </select>
+                                </div>
+
+                                <div class="proto-input-container">
+                                    <label>Vehicle Model</label>
+                                    <select class="proto-input">
+                                        <option>Model 3</option>
+                                        <option>Model Y</option>
+                                        <option>Model S</option>
+                                    </select>
+                                </div>
+
+                                <div class="proto-input-container">
+                                    <label>Connector Type</label>
+                                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 4px;">
+                                        <div style="padding: 8px; background: rgba(38, 164, 90, 0.08); border: 1px solid #26a45a; border-radius: 6px; text-align: center; font-size: 11px;">J1772</div>
+                                        <div style="padding: 8px; background: #f3f8ff; border: 1px solid #d8e8ff; border-radius: 6px; text-align: center; font-size: 11px;">Tesla</div>
+                                        <div style="padding: 8px; background: #f3f8ff; border: 1px solid #d8e8ff; border-radius: 6px; text-align: center; font-size: 11px;">CCS</div>
+                                        <div style="padding: 8px; background: #f3f8ff; border: 1px solid #d8e8ff; border-radius: 6px; text-align: center; font-size: 11px;">CHAdeMO</div>
+                                    </div>
+                                </div>
+
+                                <button class="proto-btn-primary" onclick="showProtoGuestStep(4)">Start Finding Chargers</button>
+                            </div>
+                        </div>
+
+                        <!-- Guest Success -->
+                        <div class="proto-app-content proto-screen" id="proto-guest-step-4">
+                            <div class="proto-app-body" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px;">
+                                <div style="font-size: 48px; margin-bottom: 12px;">&#127881;</div>
+                                <div class="proto-success-title">You're all set!</div>
+                                <p class="proto-success-desc">Find chargers near you and book instantly</p>
+
+                                <div class="proto-map-preview" style="width: 100%; height: 120px;">
+                                    <div class="proto-map-pin" style="top: 30%; left: 20%;">&#9889;</div>
+                                    <div class="proto-map-pin" style="top: 50%; left: 40%;">&#9889;</div>
+                                    <div class="proto-map-pin" style="top: 35%; left: 65%;">&#9889;</div>
+                                    <div class="proto-map-label">12 chargers nearby</div>
+                                </div>
+
+                                <button class="proto-btn-primary" style="width: 100%;">View Map</button>
+
+                                <div class="proto-info-card" style="width: 100%; margin-top: 10px;">
+                                    <p style="color: #26a45a;">&#10003; Email verified! You can now make bookings</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="proto-screen-nav">
+                    <button onclick="showProtoGuestStep(1)" class="active">Email Sent</button>
+                    <button onclick="showProtoGuestStep(2)">Profile</button>
+                    <button onclick="showProtoGuestStep(3)">Vehicle</button>
+                    <button onclick="showProtoGuestStep(4)">Success</button>
+                </div>
+            </div>
+
+            <!-- HOST SIGNUP -->
+            <div id="proto-host-signup" class="proto-section-content">
+                <div class="proto-phone">
+                    <div class="proto-phone-screen">
+                        <div class="proto-notch"></div>
+                        <div class="proto-app-content">
+                            <div class="proto-app-header">
+                                <div class="proto-back-btn" onclick="showProtoSection('proto-landing')">&larr;</div>
+                                <span class="proto-header-title">Start Earning</span>
+                            </div>
+                            <div class="proto-app-body">
+                                <div class="proto-h3">Earn with your charger</div>
+                                <p class="proto-subtitle">Share your home charger and make money</p>
+
+                                <div class="proto-stats-row">
+                                    <div>
+                                        <div class="proto-stat-value">$217</div>
+                                        <div class="proto-stat-label">avg/month</div>
+                                    </div>
+                                    <div>
+                                        <div class="proto-stat-value">12</div>
+                                        <div class="proto-stat-label">sessions</div>
+                                    </div>
+                                    <div>
+                                        <div class="proto-stat-value">4.8</div>
+                                        <div class="proto-stat-label">avg rating</div>
+                                    </div>
+                                </div>
+
+                                <div class="proto-input-container">
+                                    <label>Email</label>
+                                    <input type="text" class="proto-input" placeholder="you@email.com">
+                                </div>
+
+                                <div class="proto-input-container">
+                                    <label>Password</label>
+                                    <input type="password" class="proto-input" placeholder="Enter password">
+                                    <p class="proto-input-message">8+ characters, 1 capital letter, 1 special character</p>
+                                </div>
+
+                                <div class="proto-checkbox-container">
+                                    <div class="proto-checkbox">&#10003;</div>
+                                    <span>I agree to the <span class="proto-link">Terms</span> and <span class="proto-link">Privacy Policy</span></span>
+                                </div>
+
+                                <button class="proto-btn-primary" onclick="showProtoSection('proto-host-onboard')">Start Earning</button>
+
+                                <div class="proto-divider">
+                                    <div class="proto-divider-line"></div>
+                                    <span class="proto-divider-text">or sign up with</span>
+                                    <div class="proto-divider-line"></div>
+                                </div>
+
+                                <div class="proto-social-login">
+                                    <div class="proto-social-btn">&#63743; Apple</div>
+                                    <div class="proto-social-btn">G Google</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HOST ONBOARDING -->
+            <div id="proto-host-onboard" class="proto-section-content">
+                <div class="proto-phone" id="proto-host-onboard-phone">
+                    <div class="proto-phone-screen">
+                        <div class="proto-notch"></div>
+
+                        <!-- Host Step 1: Profile Info -->
+                        <div class="proto-app-content proto-screen active" id="proto-host-step-1">
+                            <div class="proto-app-header">
+                                <div class="proto-back-btn" onclick="showProtoSection('proto-host-signup')">&larr;</div>
+                                <span class="proto-header-title">Your Profile</span>
+                            </div>
+                            <div class="proto-progress-bar">
+                                <div class="proto-progress-dot active"></div>
+                                <div class="proto-progress-dot"></div>
+                                <div class="proto-progress-dot"></div>
+                                <div class="proto-progress-dot"></div>
+                            </div>
+                            <p class="proto-step-indicator">Step 1 of 4</p>
+                            <div class="proto-app-body">
+                                <div class="proto-h3">Tell us about you</div>
+                                <p class="proto-subtitle">Required for identity verification and payouts</p>
+
+                                <div class="proto-form-row">
+                                    <div class="proto-input-container">
+                                        <label>First Name</label>
+                                        <input type="text" class="proto-input" placeholder="John">
+                                    </div>
+                                    <div class="proto-input-container">
+                                        <label>Last Name</label>
+                                        <input type="text" class="proto-input" placeholder="Smith">
+                                    </div>
+                                </div>
+
+                                <div class="proto-input-container">
+                                    <label>Phone Number</label>
+                                    <input type="text" class="proto-input" placeholder="(555) 123-4567">
+                                </div>
+
+                                <div class="proto-input-container">
+                                    <label>Date of Birth</label>
+                                    <input type="date" class="proto-input">
+                                    <p class="proto-input-message success">&#128274; Required by Stripe for secure payouts - never shared</p>
+                                </div>
+
+                                <div class="proto-input-container">
+                                    <label>Address</label>
+                                    <input type="text" class="proto-input" placeholder="123 Main St, City, State ZIP">
+                                    <p class="proto-input-message success">&#128274; Your exact address is never shown publicly</p>
+                                </div>
+
+                                <button class="proto-btn-primary" onclick="showProtoHostStep(2)">Continue</button>
+                                <p style="text-align: center; font-size: 10px; color: #5c6c82; margin-top: 6px;">Step 1 of 4 - About You</p>
+                            </div>
+                        </div>
+
+                        <!-- Host Step 2: Charger Setup -->
+                        <div class="proto-app-content proto-screen" id="proto-host-step-2">
+                            <div class="proto-app-header">
+                                <div class="proto-back-btn" onclick="showProtoHostStep(1)">&larr;</div>
+                                <span class="proto-header-title">Your Charger</span>
+                            </div>
+                            <div class="proto-progress-bar">
+                                <div class="proto-progress-dot active"></div>
+                                <div class="proto-progress-dot active"></div>
+                                <div class="proto-progress-dot"></div>
+                                <div class="proto-progress-dot"></div>
+                            </div>
+                            <p class="proto-step-indicator">Step 2 of 4</p>
+                            <div class="proto-app-body">
+                                <div class="proto-h3">Charger Details</div>
+                                <p class="proto-subtitle">Where is your charger located?</p>
+
+                                <div class="proto-input-container">
+                                    <label>Charger Address</label>
+                                    <input type="text" class="proto-input" placeholder="123 Main St, City, State ZIP">
+                                </div>
+
+                                <div class="proto-map-preview" style="height: 70px; cursor: crosshair;">
+                                    <div class="proto-map-pin" style="top: 50%; left: 50%; transform: translate(-50%, -50%);">&#9889;</div>
+                                    <div class="proto-map-label">Adjust pin if needed</div>
+                                </div>
+
+                                <div class="proto-form-row">
+                                    <div class="proto-input-container">
+                                        <label>Charger Type</label>
+                                        <select class="proto-input">
+                                            <option>Level 2 (240V)</option>
+                                            <option>Level 1 (120V)</option>
+                                        </select>
+                                    </div>
+                                    <div class="proto-input-container">
+                                        <label>Connector</label>
+                                        <select class="proto-input">
+                                            <option>J1772</option>
+                                            <option>Tesla</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="proto-photo-upload">
+                                    <div class="proto-photo-upload-icon">&#128247;</div>
+                                    <div class="proto-photo-upload-text">Add charger photo</div>
+                                </div>
+                                <p style="text-align: center; font-size: 10px; color: #26a45a; margin-top: 4px; margin-bottom: 8px;">&#128248; Listings with photos get 3x more bookings</p>
+
+                                <div class="proto-input-container">
+                                    <label>Amenities <span style="color: #9fa8b6;">(optional)</span></label>
+                                    <div class="proto-amenity-chips">
+                                        <span class="proto-amenity-chip selected">&#128246; WiFi</span>
+                                        <span class="proto-amenity-chip">&#128701; Restroom</span>
+                                        <span class="proto-amenity-chip selected">&#127783;&#65039; Covered</span>
+                                        <span class="proto-amenity-chip">&#128161; Lighting</span>
+                                    </div>
+                                </div>
+
+                                <button class="proto-btn-primary" onclick="showProtoHostStep(3)">Continue</button>
+                                <p style="text-align: center; font-size: 10px; color: #5c6c82; margin-top: 6px;">Almost there! Just 2 more steps</p>
+                            </div>
+                        </div>
+
+                        <!-- Host Step 3: Pricing & Availability -->
+                        <div class="proto-app-content proto-screen" id="proto-host-step-3">
+                            <div class="proto-app-header">
+                                <div class="proto-back-btn" onclick="showProtoHostStep(2)">&larr;</div>
+                                <span class="proto-header-title">Pricing & Hours</span>
+                            </div>
+                            <div class="proto-progress-bar">
+                                <div class="proto-progress-dot active"></div>
+                                <div class="proto-progress-dot active"></div>
+                                <div class="proto-progress-dot active"></div>
+                                <div class="proto-progress-dot"></div>
+                            </div>
+                            <p class="proto-step-indicator">Step 3 of 4</p>
+                            <div class="proto-app-body">
+                                <div class="proto-h3">Set your rates</div>
+
+                                <div class="proto-pricing-card">
+                                    <div class="proto-pricing-row">
+                                        <div>
+                                            <div class="proto-pricing-label">Peak Rate</div>
+                                            <div class="proto-pricing-time">4pm - 9pm weekdays</div>
+                                        </div>
+                                        <input type="text" class="proto-pricing-input" value="$0.55/kWh">
+                                    </div>
+                                    <div class="proto-pricing-row">
+                                        <div>
+                                            <div class="proto-pricing-label">Off-Peak Rate</div>
+                                            <div class="proto-pricing-time">All other times</div>
+                                        </div>
+                                        <input type="text" class="proto-pricing-input" value="$0.35/kWh">
+                                    </div>
+                                </div>
+
+                                <p style="font-size: 13px; font-weight: 600; margin: 12px 0 8px; color: #102441;">When are you available?</p>
+
+                                <div class="proto-availability-option">
+                                    <div class="proto-availability-check">&#10003;</div>
+                                    <div>
+                                        <div class="proto-availability-title">Weekday Mornings & Evenings</div>
+                                        <div class="proto-availability-desc">Mon-Fri, 6am-9am & 5pm-10pm</div>
+                                    </div>
+                                </div>
+
+                                <div class="proto-availability-option">
+                                    <div class="proto-availability-check">&#10003;</div>
+                                    <div>
+                                        <div class="proto-availability-title">Weekends</div>
+                                        <div class="proto-availability-desc">Sat-Sun, 8am - 8pm</div>
+                                    </div>
+                                </div>
+
+                                <p style="font-size: 10px; color: #26a45a; margin-top: 6px; cursor: pointer;">+ Add custom time window</p>
+
+                                <div style="background: #f3f8ff; border-radius: 6px; padding: 8px; margin-top: 10px;">
+                                    <p style="font-size: 11px; color: #5c6c82;">Est. earnings: <strong style="color: #26a45a;">$180-$320/mo</strong></p>
+                                </div>
+
+                                <button class="proto-btn-primary" onclick="showProtoHostStep(4)">Continue</button>
+                            </div>
+                        </div>
+
+                        <!-- Host Step 4: Payment -->
+                        <div class="proto-app-content proto-screen" id="proto-host-step-4">
+                            <div class="proto-app-header">
+                                <div class="proto-back-btn" onclick="showProtoHostStep(3)">&larr;</div>
+                                <span class="proto-header-title">Get Paid</span>
+                            </div>
+                            <div class="proto-progress-bar">
+                                <div class="proto-progress-dot active"></div>
+                                <div class="proto-progress-dot active"></div>
+                                <div class="proto-progress-dot active"></div>
+                                <div class="proto-progress-dot active"></div>
+                            </div>
+                            <p class="proto-step-indicator">Step 4 of 4</p>
+                            <div class="proto-app-body">
+                                <div class="proto-h3">Connect Your Bank</div>
+                                <p class="proto-subtitle">Receive earnings directly to your account</p>
+
+                                <div style="background: #f3f8ff; border-radius: 10px; padding: 20px; text-align: center; margin: 12px 0;">
+                                    <div style="font-size: 28px; margin-bottom: 6px;">&#128179;</div>
+                                    <p style="font-size: 14px; font-weight: 500; color: #102441;">Stripe Connect</p>
+                                    <p style="font-size: 10px; color: #5c6c82;">Secure payments. We never see your bank details.</p>
+                                </div>
+
+                                <div style="background: #f3f8ff; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+                                    <p style="font-size: 12px; color: #102441; font-weight: 500; margin-bottom: 4px;">How payouts work</p>
+                                    <ul style="font-size: 10px; color: #5c6c82; margin-left: 14px; line-height: 1.4;">
+                                        <li>Guests pay when booking</li>
+                                        <li>You get paid within 2-3 days</li>
+                                        <li>Track earnings in the app</li>
+                                    </ul>
+                                </div>
+
+                                <button class="proto-btn-primary" onclick="showProtoHostStep(5)">Connect Bank Account</button>
+                                <button class="proto-btn-secondary">I'll do this later</button>
+                            </div>
+                        </div>
+
+                        <!-- Host Success -->
+                        <div class="proto-app-content proto-screen" id="proto-host-step-5">
+                            <div class="proto-app-body" style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 16px;">
+                                <div style="font-size: 48px; margin-bottom: 10px;">&#127881;</div>
+                                <div class="proto-success-title">Your charger is live!</div>
+                                <p class="proto-success-desc">Guests can now find and book your charger</p>
+
+                                <div class="proto-listing-preview">
+                                    <div class="proto-listing-image"></div>
+                                    <div class="proto-listing-name">Your Level 2 Charger</div>
+                                    <div class="proto-listing-address">123 Main Street, Anytown</div>
+                                    <div class="proto-listing-meta">
+                                        <span>$0.35-0.55/kWh</span>
+                                        <span style="color: #5c6c82;">New</span>
+                                    </div>
+                                </div>
+
+                                <button class="proto-btn-primary" style="width: 100%;">View My Listing</button>
+
+                                <div class="proto-share-buttons" style="width: 100%; margin-top: 10px;">
+                                    <div class="proto-share-btn">Copy Link</div>
+                                    <div class="proto-share-btn">Message</div>
+                                    <div class="proto-share-btn">Share</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="proto-screen-nav">
+                    <button onclick="showProtoHostStep(1)" class="active">Profile</button>
+                    <button onclick="showProtoHostStep(2)">Charger</button>
+                    <button onclick="showProtoHostStep(3)">Pricing</button>
+                    <button onclick="showProtoHostStep(4)">Payment</button>
+                    <button onclick="showProtoHostStep(5)">Success</button>
+                </div>
+                <div class="proto-screen-counter">
+                    4 steps: Profile &rarr; Charger Setup &rarr; Pricing & Hours &rarr; Payment
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function showProtoSection(sectionId) {
+                document.querySelectorAll('.proto-section-content').forEach(section => {
+                    section.classList.remove('active');
+                });
+                document.getElementById(sectionId).classList.add('active');
+
+                document.querySelectorAll('.proto-tabs .proto-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                if (event && event.target) {
+                    event.target.classList.add('active');
+                }
+            }
+
+            function showProtoGuestStep(step) {
+                document.querySelectorAll('#proto-guest-onboard-phone .proto-screen').forEach(screen => {
+                    screen.classList.remove('active');
+                });
+                document.getElementById('proto-guest-step-' + step).classList.add('active');
+
+                document.querySelectorAll('#proto-guest-onboard .proto-screen-nav button').forEach((btn, i) => {
+                    btn.classList.remove('active');
+                    if (i === step - 1) btn.classList.add('active');
+                });
+            }
+
+            function showProtoHostStep(step) {
+                document.querySelectorAll('#proto-host-onboard-phone .proto-screen').forEach(screen => {
+                    screen.classList.remove('active');
+                });
+                document.getElementById('proto-host-step-' + step).classList.add('active');
+
+                document.querySelectorAll('#proto-host-onboard .proto-screen-nav button').forEach((btn, i) => {
+                    btn.classList.remove('active');
+                    if (i === step - 1) btn.classList.add('active');
+                });
+            }
+        </script>
+        
+
+        <!-- ROI Section -->
+        <div class="roi-section">
+            <div class="roi-header">
+                <h2>Expected Return on Investment</h2>
+                <p>What fixing these issues could mean for your business</p>
+            </div>
+
+            <div class="roi-cards">
+
+                <div class="roi-card">
+                    <div class="roi-card-header">Conservative Estimate (50% recovery)</div>
+                    <div class="roi-stat">
+                        <div class="roi-stat-value">+498</div>
+                        <div class="roi-stat-label">Users Recovered</div>
+                    </div>
+                    <div class="roi-stat">
+                        <div class="roi-stat-value">+24</div>
+                        <div class="roi-stat-label">Bookings/Month</div>
+                    </div>
+                    <div class="roi-stat">
+                        <div class="roi-stat-value">+$54</div>
+                        <div class="roi-stat-label">Monthly Revenue</div>
+                    </div>
+                </div>
+
+                <div class="roi-card">
+                    <div class="roi-card-header">Optimistic Estimate (70% recovery)</div>
+                    <div class="roi-stat">
+                        <div class="roi-stat-value">+697</div>
+                        <div class="roi-stat-label">Users Recovered</div>
+                    </div>
+                    <div class="roi-stat">
+                        <div class="roi-stat-value">+69</div>
+                        <div class="roi-stat-label">Bookings/Month</div>
+                    </div>
+                    <div class="roi-stat">
+                        <div class="roi-stat-value">+$155</div>
+                        <div class="roi-stat-label">Monthly Revenue</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Roadmap -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon info">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                </div>
+                <h2>Implementation Roadmap</h2>
+            </div>
+            <p class="section-intro">
+                Step-by-step plan to fix the issues, organized by priority.
+            </p>
+
+            <div class="roadmap-phases">
+
+                <div class="roadmap-phase">
+                    <div class="roadmap-phase-header">
+                        <div class="roadmap-phase-title">Critical Fixes</div>
+                        <div class="roadmap-phase-badge">Week 1-2</div>
+                    </div>
+                    <div class="roadmap-tasks">
+                        
+                    <div class="roadmap-task">
+                        <div class="roadmap-checkbox"></div>
+                        Backend: Add IntendedRole to registration
+                    </div>
+                    <div class="roadmap-task">
+                        <div class="roadmap-checkbox"></div>
+                        Backend: Return JWT tokens after email confirmation
+                    </div>
+                    <div class="roadmap-task">
+                        <div class="roadmap-checkbox"></div>
+                        Backend: Add verification status endpoint
+                    </div>
+                    <div class="roadmap-task">
+                        <div class="roadmap-checkbox"></div>
+                        Frontend: Allow browsing while unverified
+                    </div>
+                    <div class="roadmap-task">
+                        <div class="roadmap-checkbox"></div>
+                        Frontend: Add verification polling
+                    </div>
+                    <div class="roadmap-task">
+                        <div class="roadmap-checkbox"></div>
+                        Frontend: Update success screen to "Explore Chargers"
+                    </div>
+                    </div>
+                </div>
+
+                <div class="roadmap-phase">
+                    <div class="roadmap-phase-header">
+                        <div class="roadmap-phase-title">UX Improvements</div>
+                        <div class="roadmap-phase-badge">Week 3-4</div>
+                    </div>
+                    <div class="roadmap-tasks">
+                        
+                    <div class="roadmap-task">
+                        <div class="roadmap-checkbox"></div>
+                        Create role selection landing page
+                    </div>
+                    <div class="roadmap-task">
+                        <div class="roadmap-checkbox"></div>
+                        Personalize signup based on role
+                    </div>
+                    <div class="roadmap-task">
+                        <div class="roadmap-checkbox"></div>
+                        Streamline host onboarding (reduce steps)
+                    </div>
+                    <div class="roadmap-task">
+                        <div class="roadmap-checkbox"></div>
+                        Add progress indicators
+                    </div>
+                    </div>
+                </div>
+
+                <div class="roadmap-phase">
+                    <div class="roadmap-phase-header">
+                        <div class="roadmap-phase-title">Growth Features</div>
+                        <div class="roadmap-phase-badge">Month 2</div>
+                    </div>
+                    <div class="roadmap-tasks">
+                        
+                    <div class="roadmap-task">
+                        <div class="roadmap-checkbox"></div>
+                        Implement QR code scanning
+                    </div>
+                    <div class="roadmap-task">
+                        <div class="roadmap-checkbox"></div>
+                        Add host earnings calculator
+                    </div>
+                    <div class="roadmap-task">
+                        <div class="roadmap-checkbox"></div>
+                        Create Corona, CA targeted landing page
+                    </div>
+                    <div class="roadmap-task">
+                        <div class="roadmap-checkbox"></div>
+                        Build referral program
+                    </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon success">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                </div>
+                <h2>Success Metrics</h2>
+            </div>
+            <p class="section-intro">
+                Track these KPIs to measure the impact of the fixes.
+            </p>
+
+            <table class="kpis-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Current</th>
+                        <th>Target (30 days)</th>
+                        <th>Target (90 days)</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <tr>
+                        <td><strong>Signup -> Verified</strong></td>
+                        <td class="kpi-current">76.7%</td>
+                        <td class="kpi-target">85%</td>
+                        <td class="kpi-target">90%</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>Verified -> Profile Complete</strong></td>
+                        <td class="kpi-current">67.1%</td>
+                        <td class="kpi-target">80%</td>
+                        <td class="kpi-target">85%</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>Profile -> First Booking</strong></td>
+                        <td class="kpi-current">1.8%</td>
+                        <td class="kpi-target">5%</td>
+                        <td class="kpi-target">10%</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>Overall Conversion</strong></td>
+                        <td class="kpi-current">0.9%</td>
+                        <td class="kpi-target">3.4%</td>
+                        <td class="kpi-target">7.5%</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>Day 30 Retention</strong></td>
+                        <td class="kpi-current">~0%</td>
+                        <td class="kpi-target">10%</td>
+                        <td class="kpi-target">20%</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>Monthly Reservations</strong></td>
+                        <td class="kpi-current">19 (all time)</td>
+                        <td class="kpi-target">50</td>
+                        <td class="kpi-target">150</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <div class="footer-logo">Weaver Pro</div>
+        <div class="footer-tagline">AI-Powered UX Analysis</div>
+        <div class="footer-contact">audit@weaverpro.ai</div>
+    </div>
+</body>
+</html>

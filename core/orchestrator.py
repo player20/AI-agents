@@ -72,6 +72,22 @@ except ImportError:
 from core.playwright_runner import PlaywrightRunner
 import asyncio
 
+# Import A/B Test Generator for variant creation
+try:
+    from core.ab_test_generator import ABTestGenerator
+    AB_TEST_AVAILABLE = True
+except ImportError:
+    AB_TEST_AVAILABLE = False
+    print("[WARNING] A/B Test Generator not available")
+
+# Import Anthropic for vision-enabled tasks
+try:
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+    print("[WARNING] Anthropic SDK not available. Install with: pip install anthropic")
+
 
 class WorkflowState:
     """
@@ -93,6 +109,30 @@ class WorkflowState:
         self.test_credentials = kwargs.get('test_credentials', None)
         self.funnel_analysis = None
         self.detected_sdks = {}
+
+        # Business context (for rich proposals like Brew & Co)
+        self.business_name = kwargs.get('business_name', '')
+        self.industry = kwargs.get('industry', 'Not specified')
+        self.target_users = kwargs.get('target_users', '')
+        self.business_stage = kwargs.get('business_stage', 'Just an idea')
+
+        # Brand & Design preferences
+        self.brand_personality = kwargs.get('brand_personality', [])
+        self.existing_colors = kwargs.get('existing_colors', '')
+        self.design_style = kwargs.get('design_style', 'Let AI decide')
+        self.competitor_apps = kwargs.get('competitor_apps', '')
+
+        # Project scope
+        self.budget_range = kwargs.get('budget_range', 'Not specified')
+        self.timeline = kwargs.get('timeline', 'Not specified')
+        self.success_metrics = kwargs.get('success_metrics', [])
+        self.known_competitors = kwargs.get('known_competitors', '')
+
+        # Contact info (for proposal footer)
+        self.company_name = kwargs.get('company_name', '')
+        self.company_tagline = kwargs.get('company_tagline', '')
+        self.contact_email = kwargs.get('contact_email', '')
+        self.contact_phone = kwargs.get('contact_phone', '')
 
         # Workflow outputs
         self.agent_outputs = {}
@@ -146,8 +186,14 @@ class DSPyPromptOptimizer:
                     # DSPy setup for Claude
                     # Note: DSPy may need specific configuration for Anthropic
                     self.dspy_configured = True
+            except ImportError as e:
+                print(f"[WARNING] DSPy import failed - library may be incomplete: {e}")
+            except KeyError as e:
+                print(f"[WARNING] Missing DSPy configuration key: {e}")
+            except AttributeError as e:
+                print(f"[WARNING] DSPy API mismatch - check version compatibility: {e}")
             except Exception as e:
-                print(f"[WARNING] DSPy configuration failed: {e}")
+                print(f"[WARNING] Unexpected DSPy configuration error: {e}")
 
     def optimize_user_input(self, user_input: str, context: Dict[str, Any] = None) -> str:
         """
@@ -193,21 +239,40 @@ while considering platform-specific requirements and best practices.
         return optimized.strip()
 
 
+class ReflectionState(TypedDict):
+    """
+    State for LangGraph reflection loops.
+    Uses TypedDict for proper LangGraph compatibility.
+    """
+    workflow_state: Dict[str, Any]  # Serialized WorkflowState
+    quality_score: float
+    iteration: int
+    max_iterations: int
+    quality_threshold: float
+    should_continue: bool
+    improvement_history: List[float]  # Track scores for convergence detection
+    stuck_iterations: int  # Count iterations with no improvement
+
+
 class LangGraphWorkflowBuilder:
     """
-    Builds LangGraph stateful workflows with reflection loops
+    Builds LangGraph stateful workflows with TRUE reflection loops
+    Uses actual StateGraph with nodes, edges, and checkpointing
     Falls back to sequential execution when LangGraph is not available
     """
 
     def __init__(self):
         self.langgraph_available = LANGGRAPH_AVAILABLE
+        self.checkpointer = None
+        if LANGGRAPH_AVAILABLE:
+            self.checkpointer = MemorySaver()
 
     def create_reflection_loop(self, state: WorkflowState,
                                check_func: Callable,
                                improve_func: Callable) -> WorkflowState:
         """
-        Create a reflection loop that checks quality and iterates until threshold
-        Inspired by Devin's reflection loops
+        Create a TRUE LangGraph reflection loop with StateGraph.
+        Implements Devin-style iterative refinement with convergence detection.
 
         Args:
             state: Current workflow state
@@ -221,17 +286,200 @@ class LangGraphWorkflowBuilder:
             # Fallback: single pass without reflection
             return improve_func(state)
 
-        # LangGraph reflection loop
+        # Build the reflection StateGraph
+        def check_quality_node(graph_state: ReflectionState) -> ReflectionState:
+            """Node: Check current quality score"""
+            # Deserialize workflow state
+            ws = WorkflowState.__new__(WorkflowState)
+            ws.__dict__.update(graph_state['workflow_state'])
+
+            # Check quality
+            score = check_func(ws)
+
+            # Track improvement history for convergence detection
+            history = graph_state.get('improvement_history', [])
+            history.append(score)
+
+            # Detect stagnation (no improvement for 2+ iterations)
+            stuck = graph_state.get('stuck_iterations', 0)
+            if len(history) >= 2 and score <= history[-2]:
+                stuck += 1
+            else:
+                stuck = 0
+
+            return {
+                **graph_state,
+                'quality_score': score,
+                'improvement_history': history,
+                'stuck_iterations': stuck
+            }
+
+        def improve_node(graph_state: ReflectionState) -> ReflectionState:
+            """Node: Apply improvement function"""
+            # Deserialize workflow state
+            ws = WorkflowState.__new__(WorkflowState)
+            ws.__dict__.update(graph_state['workflow_state'])
+
+            # Apply improvement
+            improved_state = improve_func(ws)
+            improved_state.reflection_iterations = graph_state['iteration'] + 1
+
+            return {
+                **graph_state,
+                'workflow_state': improved_state.__dict__.copy(),
+                'iteration': graph_state['iteration'] + 1
+            }
+
+        def should_continue_edge(graph_state: ReflectionState) -> str:
+            """Conditional edge: decide whether to continue or end"""
+            score = graph_state.get('quality_score', 0)
+            iteration = graph_state.get('iteration', 0)
+            max_iter = graph_state.get('max_iterations', 3)
+            threshold = graph_state.get('quality_threshold', 0.8)
+            stuck = graph_state.get('stuck_iterations', 0)
+
+            # Stop conditions:
+            # 1. Quality threshold reached
+            if score >= threshold:
+                return "end"
+            # 2. Max iterations reached
+            if iteration >= max_iter:
+                return "end"
+            # 3. Stuck (no improvement for 2+ iterations)
+            if stuck >= 2:
+                return "end"
+
+            return "continue"
+
+        # Build the StateGraph
+        try:
+            builder = StateGraph(ReflectionState)
+
+            # Add nodes
+            builder.add_node("check_quality", check_quality_node)
+            builder.add_node("improve", improve_node)
+
+            # Set entry point
+            builder.set_entry_point("check_quality")
+
+            # Add edges with conditional routing
+            builder.add_conditional_edges(
+                "check_quality",
+                should_continue_edge,
+                {
+                    "continue": "improve",
+                    "end": END
+                }
+            )
+            builder.add_edge("improve", "check_quality")
+
+            # Compile with checkpointing
+            graph = builder.compile(checkpointer=self.checkpointer)
+
+            # Initialize graph state
+            initial_state: ReflectionState = {
+                'workflow_state': state.__dict__.copy(),
+                'quality_score': 0.0,
+                'iteration': 0,
+                'max_iterations': state.max_reflection_iterations,
+                'quality_threshold': state.quality_threshold,
+                'should_continue': True,
+                'improvement_history': [],
+                'stuck_iterations': 0
+            }
+
+            # Run the graph with unique thread ID for checkpointing
+            config = {"configurable": {"thread_id": f"reflection_{id(state)}"}}
+            result = graph.invoke(initial_state, config)
+
+            # Extract final workflow state
+            final_ws = WorkflowState.__new__(WorkflowState)
+            final_ws.__dict__.update(result['workflow_state'])
+            final_ws.reflection_iterations = result['iteration']
+
+            return final_ws
+
+        except ImportError as e:
+            print(f"[WARNING] LangGraph components unavailable: {e}. Using simple reflection loop.")
+            return self._fallback_reflection(state, check_func, improve_func)
+        except TypeError as e:
+            print(f"[WARNING] StateGraph configuration error: {e}. Check LangGraph version compatibility.")
+            return self._fallback_reflection(state, check_func, improve_func)
+        except (ValueError, RuntimeError) as e:
+            print(f"[WARNING] StateGraph execution failed: {e}. Falling back to sequential reflection.")
+            return self._fallback_reflection(state, check_func, improve_func)
+        except Exception as e:
+            print(f"[ERROR] Unexpected reflection error: {e}. Falling back with degraded quality.")
+            return self._fallback_reflection(state, check_func, improve_func)
+
+    def _fallback_reflection(self, state: 'WorkflowState', check_func, improve_func) -> 'WorkflowState':
+        """Simple fallback reflection loop when StateGraph is unavailable."""
         while state.reflection_iterations < state.max_reflection_iterations:
             quality_score = check_func(state)
-
             if quality_score >= state.quality_threshold:
                 break
-
             state = improve_func(state)
             state.reflection_iterations += 1
-
         return state
+
+    def create_phase_graph(self, phases: List[Dict[str, Any]]) -> Optional[Any]:
+        """
+        Create a StateGraph for multi-phase orchestration.
+        Each phase becomes a node with conditional transitions.
+
+        Args:
+            phases: List of phase definitions with name, func, and conditions
+
+        Returns:
+            Compiled StateGraph or None if LangGraph unavailable
+        """
+        if not self.langgraph_available:
+            return None
+
+        # Phase state type
+        class PhaseState(TypedDict):
+            current_phase: str
+            phase_outputs: Dict[str, Any]
+            should_continue: bool
+            error: Optional[str]
+
+        try:
+            builder = StateGraph(PhaseState)
+
+            # Add phase nodes
+            for phase in phases:
+                def make_node(phase_func):
+                    def node(state: PhaseState) -> PhaseState:
+                        try:
+                            result = phase_func(state['phase_outputs'])
+                            state['phase_outputs'].update(result)
+                            return state
+                        except Exception as e:
+                            state['error'] = str(e)
+                            state['should_continue'] = False
+                            return state
+                    return node
+
+                builder.add_node(phase['name'], make_node(phase['func']))
+
+            # Connect phases sequentially with conditional continue
+            for i, phase in enumerate(phases[:-1]):
+                next_phase = phases[i + 1]['name']
+                builder.add_conditional_edges(
+                    phase['name'],
+                    lambda s: "next" if s.get('should_continue', True) else "end",
+                    {"next": next_phase, "end": END}
+                )
+
+            # Last phase goes to END
+            builder.add_edge(phases[-1]['name'], END)
+            builder.set_entry_point(phases[0]['name'])
+
+            return builder.compile(checkpointer=self.checkpointer)
+
+        except Exception as e:
+            print(f"[WARNING] Phase graph creation failed: {e}")
+            return None
 
 
 class CodeWeaverOrchestrator:
@@ -342,6 +590,110 @@ class CodeWeaverOrchestrator:
             self._log(f"❌ {error_msg}", "error")
             raise RuntimeError(error_msg) from e
 
+    def _execute_vision_task(
+        self,
+        text_prompt: str,
+        images: List[Dict],
+        max_images_per_batch: int = 5
+    ) -> str:
+        """
+        Execute a vision task using Claude's multimodal API.
+
+        Args:
+            text_prompt: The text prompt for analysis
+            images: List of dicts with 'base64' and 'mime_type' keys
+            max_images_per_batch: Max images per API call (to avoid limits)
+
+        Returns:
+            Combined analysis text from all batches
+        """
+        if not ANTHROPIC_AVAILABLE:
+            self._log("⚠️ Anthropic SDK not available, skipping vision analysis", "warning")
+            return "Vision analysis not available - Anthropic SDK not installed."
+
+        if not images:
+            self._log("⚠️ No images provided for vision analysis", "warning")
+            return "No screenshots available for visual analysis."
+
+        api_key = os.getenv('ANTHROPIC_API_KEY')
+        if not api_key:
+            self._log("⚠️ ANTHROPIC_API_KEY not set", "warning")
+            return "Vision analysis not available - API key not configured."
+
+        client = anthropic.Anthropic(api_key=api_key)
+        all_results = []
+
+        # Process images in batches to avoid API limits
+        for batch_start in range(0, len(images), max_images_per_batch):
+            batch_images = images[batch_start:batch_start + max_images_per_batch]
+            batch_num = (batch_start // max_images_per_batch) + 1
+            total_batches = (len(images) + max_images_per_batch - 1) // max_images_per_batch
+
+            self._log(f"👁️ Analyzing batch {batch_num}/{total_batches} ({len(batch_images)} images)...")
+
+            # Build multimodal content
+            content = [{"type": "text", "text": text_prompt}]
+
+            for img in batch_images:
+                content.append({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": img.get("mime_type", "image/png"),
+                        "data": img["base64"]
+                    }
+                })
+
+                # Add image label
+                content.append({
+                    "type": "text",
+                    "text": f"[Image: {img.get('name', 'Screenshot')} - {img.get('url', 'Unknown URL')}]"
+                })
+
+            try:
+                response = client.messages.create(
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=4096,
+                    messages=[{"role": "user", "content": content}]
+                )
+
+                batch_result = response.content[0].text
+                all_results.append(f"=== Batch {batch_num} Analysis ===\n{batch_result}")
+
+            except Exception as e:
+                self._log(f"⚠️ Vision batch {batch_num} failed: {e}", "warning")
+                all_results.append(f"=== Batch {batch_num} ===\nAnalysis failed: {str(e)}")
+
+        # Combine results
+        combined = "\n\n".join(all_results)
+
+        # If multiple batches, summarize
+        if total_batches > 1:
+            self._log("📊 Summarizing visual analysis across all pages...")
+            try:
+                summary_response = client.messages.create(
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=2048,
+                    messages=[{
+                        "role": "user",
+                        "content": f"""Summarize these visual analysis results into a cohesive report:
+
+{combined}
+
+Provide:
+1. Overall Visual Score (0-10)
+2. Top 3 Visual Strengths
+3. Top 3 Visual Issues
+4. Key Recommendations by page/section"""
+                    }]
+                )
+                return summary_response.content[0].text
+            except Exception as e:
+                self._log(f"⚠️ Summary generation failed: {e}", "warning")
+                return combined
+        else:
+            return combined
+
     def run(self, user_input: str, **kwargs) -> Dict[str, Any]:
         """
         Main entry point - Execute complete workflow
@@ -406,8 +758,25 @@ class CodeWeaverOrchestrator:
 
             return self._format_success_result(state)
 
+        except TimeoutError as e:
+            self._log(f"⏱️ Operation timed out: {str(e)}", "error")
+            state.errors.append(f"Timeout: {str(e)}")
+            return self._format_error_result(state, e)
+        except ValueError as e:
+            self._log(f"❌ Invalid input: {str(e)}", "error")
+            state.errors.append(f"Invalid input: {str(e)}")
+            return self._format_error_result(state, e)
+        except (RuntimeError, ImportError) as e:
+            self._log(f"❌ Critical system error: {str(e)}", "error")
+            self._log(traceback.format_exc(), "error")
+            state.errors.append(f"System error: {str(e)}")
+            return self._format_error_result(state, e)
+        except OSError as e:
+            self._log(f"❌ File system error: {str(e)}", "error")
+            state.errors.append(f"File error: {str(e)}")
+            return self._format_error_result(state, e)
         except Exception as e:
-            self._log(f"❌ Error during execution: {str(e)}", "error")
+            self._log(f"❌ Unexpected error: {str(e)}", "error")
             self._log(traceback.format_exc(), "error")
             state.errors.append(str(e))
             return self._format_error_result(state, e)
@@ -420,27 +789,84 @@ class CodeWeaverOrchestrator:
         - Go/No-Go: Decision point
         - Challenger: Poke holes in plan
         """
-        # Step 1: MetaPrompt expansion
+        # Step 1: MetaPrompt expansion (with business context for rich proposals)
         self._log("🔍 Meta Prompt: Expanding your idea...")
         meta_agent = self._get_agent("MetaPrompt")
+
+        # Build business context section if available
+        business_context = ""
+        if state.business_name:
+            business_context += f"\nBusiness/Project Name: {state.business_name}"
+        if state.industry and state.industry != "Not specified":
+            business_context += f"\nIndustry: {state.industry}"
+        if state.target_users:
+            business_context += f"\nTarget Users: {state.target_users}"
+        if state.business_stage:
+            business_context += f"\nBusiness Stage: {state.business_stage}"
+
+        # Build brand preferences section if available
+        brand_context = ""
+        if state.brand_personality:
+            brand_context += f"\nBrand Personality: {', '.join(state.brand_personality)}"
+        if state.existing_colors:
+            brand_context += f"\nBrand Colors: {state.existing_colors}"
+        if state.design_style and state.design_style != "Let AI decide":
+            brand_context += f"\nDesign Style: {state.design_style}"
+        if state.competitor_apps:
+            brand_context += f"\nDesign Inspiration (apps to emulate): {state.competitor_apps}"
+
+        # Build scope context if available
+        scope_context = ""
+        if state.budget_range and state.budget_range != "Not specified":
+            scope_context += f"\nBudget Range: {state.budget_range}"
+        if state.timeline and state.timeline != "Not specified":
+            scope_context += f"\nTimeline: {state.timeline}"
+        if state.success_metrics:
+            scope_context += f"\nSuccess Metrics: {', '.join(state.success_metrics)}"
+        if state.known_competitors:
+            scope_context += f"\nKnown Competitors: {state.known_competitors}"
 
         meta_prompt = f"""
 User's brief description: "{state.user_input}"
 
 Target platforms: {', '.join(state.platforms)}
+{f'''
+=== BUSINESS CONTEXT ===
+{business_context}
+''' if business_context else ''}
+{f'''
+=== BRAND & DESIGN PREFERENCES ===
+{brand_context}
+''' if brand_context else ''}
+{f'''
+=== PROJECT SCOPE ===
+{scope_context}
+''' if scope_context else ''}
 
-Expand this into a comprehensive project specification with:
-1. Project name and tagline
-2. Core features (5-10 bullet points)
-3. User personas (2-3 types)
-4. Technical requirements
-5. Success criteria
+Expand this into a comprehensive project specification suitable for a client proposal with:
+1. Project name and compelling tagline
+2. Executive summary (2-3 sentences for stakeholders)
+3. Core features (6-10 bullet points with priority: HIGH/MEDIUM/LOW)
+4. User personas (2-3 types with specific needs)
+5. User journeys (key flows with screens)
+6. Technical requirements and recommended stack
+7. Design direction (colors, typography, mood)
+8. Implementation timeline (phases with milestones)
+9. Investment estimate (if budget context provided)
+10. Success metrics and KPIs
+11. Next steps (3 actionable items)
 
-Be specific and actionable. Focus on what makes this unique.
+Be specific, actionable, and client-ready. Focus on what makes this unique and valuable.
+If industry or competitors are specified, include industry-specific insights.
 """
 
         meta_result = self._execute_agent_task(meta_agent, meta_prompt)
         state.agent_outputs['meta_prompt'] = meta_result
+
+        # Set project name from business_name if provided
+        if state.business_name:
+            state.project_name = state.business_name
+
         self._update_progress("planning", 0.2)
 
         # Step 2: Market Research (optional)
@@ -448,19 +874,39 @@ Be specific and actionable. Focus on what makes this unique.
             self._log("📊 Conducting market research...")
             research_agent = self._get_agent("Research")
 
+            # Include known competitors if provided
+            competitor_hint = ""
+            if state.known_competitors:
+                competitor_hint = f"\nKnown competitors to analyze: {state.known_competitors}"
+
+            # Include industry context if available
+            industry_hint = ""
+            if state.industry and state.industry != "Not specified":
+                industry_hint = f"\nIndustry: {state.industry}"
+
             research_prompt = f"""
 Based on this project specification:
 {meta_result}
+{industry_hint}
+{competitor_hint}
 
 Conduct market research:
-1. Identify 3-5 competitors
-2. Calculate TAM (Total Addressable Market)
-3. Calculate SAM (Serviceable Addressable Market)
-4. Calculate SOM (Serviceable Obtainable Market)
-5. Recommend: GO or NO-GO with justification
+1. Identify 3-5 competitors (include any known competitors listed above)
+2. Analyze digital adoption trends in this industry
+3. Calculate TAM (Total Addressable Market) with sources
+4. Calculate SAM (Serviceable Addressable Market)
+5. Calculate SOM (Serviceable Obtainable Market)
+6. Key industry trends and success metrics
+7. Recommend: GO or NO-GO with justification
 
 Format your response as:
-COMPETITORS: [list]
+INDUSTRY_INSIGHTS:
+- Market Size: [amount]
+- Digital Adoption: [percentage/trend]
+- Key Success Metric: [e.g., "23% increase in order value with mobile apps"]
+- Key Trend: [e.g., "Contactless ordering increased 300% since 2020"]
+
+COMPETITORS: [list with brief description of each]
 TAM: $[amount] - [reasoning]
 SAM: $[amount] - [reasoning]
 SOM: $[amount] - [reasoning]
@@ -537,6 +983,27 @@ Be critical but constructive.
 
                         # Analyze funnel
                         state.funnel_analysis = analyzer.analyze_sessions(sessions)
+                    except asyncio.TimeoutError:
+                        self._log("⏱️ App crawling timed out. Page may be slow or unreachable.", "warning")
+                        state.funnel_analysis = {
+                            'biggest_drop_off': {'step': 'N/A', 'percentage': 0},
+                            'completion_rate': 0,
+                            'error': 'timeout'
+                        }
+                    except ConnectionError as e:
+                        self._log(f"❌ Cannot reach {state.app_url}. Check URL and network.", "error")
+                        state.funnel_analysis = {
+                            'biggest_drop_off': {'step': 'N/A', 'percentage': 0},
+                            'completion_rate': 0,
+                            'error': f'connection: {str(e)}'
+                        }
+                    except PermissionError as e:
+                        self._log("❌ Authentication or permission error during crawl.", "error")
+                        state.funnel_analysis = {
+                            'biggest_drop_off': {'step': 'N/A', 'percentage': 0},
+                            'completion_rate': 0,
+                            'error': f'auth: {str(e)}'
+                        }
                     except Exception as e:
                         self._log(f"❌ App crawling failed: {str(e)}", "error")
                         state.funnel_analysis = {
@@ -926,6 +1393,27 @@ Be specific and actionable. Focus on the root cause, not symptoms.
                 self._log(f"⚠️ Screenshot capture failed: {str(e)}", "warning")
                 state.screenshots = []
 
+            # Capture all pages with vision-enabled screenshots for visual assessment
+            self._log("👁️ Capturing all pages with vision data for AI assessment...")
+            try:
+                # Discover all pages
+                discovered_urls = asyncio.run(runner.discover_all_pages(
+                    credentials=state.test_credentials
+                ))
+                self._log(f"📍 Discovered {len(discovered_urls)} pages")
+
+                # Capture screenshots with base64 encoding for vision API
+                vision_screenshots = asyncio.run(runner.capture_all_pages_with_vision(
+                    urls=discovered_urls,
+                    credentials=state.test_credentials,
+                    viewports=['mobile', 'desktop']
+                ))
+                state.agent_outputs['vision_screenshots'] = vision_screenshots
+                self._log(f"✅ Captured {len(vision_screenshots)} vision-enabled screenshots")
+            except Exception as e:
+                self._log(f"⚠️ Vision screenshot capture failed: {str(e)}", "warning")
+                state.agent_outputs['vision_screenshots'] = []
+
             # Measure performance
             self._log("⚡ Measuring performance metrics...")
             try:
@@ -940,6 +1428,13 @@ Be specific and actionable. Focus on the root cause, not symptoms.
                 }
             state.agent_outputs['performance'] = performance
             self._log(f"⚡ Page load: {performance['page_load_ms']}ms")
+
+            # Analyze performance and generate recommendations
+            perf_recommendations = self._analyze_performance(performance)
+            if perf_recommendations:
+                state.agent_outputs['performance_recommendations'] = perf_recommendations
+                for rec in perf_recommendations:
+                    self._log(f"💡 Performance: {rec}", "warning")
 
             # Stop server
             runner.stop_server()
@@ -1047,11 +1542,72 @@ Then provide TOP 3 RECOMMENDATIONS for improvement based on the actual results.
         state.scores = self._parse_scores(scorer_result)
         state.recommendations = self._parse_recommendations(scorer_result)
 
+        self._update_progress("done", 0.3)
+
+        # Step 2: Visual Assessment with Claude Vision
+        vision_screenshots = state.agent_outputs.get('vision_screenshots', [])
+        if vision_screenshots and ANTHROPIC_AVAILABLE:
+            self._log("👁️ Visual Scorer: Analyzing screenshots with AI vision...")
+
+            # Build visual assessment prompt
+            pages_list = list(set([s.get('url', 'Unknown') for s in vision_screenshots]))
+            visual_prompt = f"""Analyze these {len(vision_screenshots)} screenshots of the application across different pages and viewports.
+
+PROJECT: {state.project_name}
+PLATFORMS: {', '.join(state.platforms)}
+
+Pages Captured:
+{chr(10).join([f"- {url}" for url in pages_list[:20]])}
+
+For each screenshot, evaluate:
+1. **Visual Design Quality** (layout, typography, spacing, color harmony)
+2. **Mobile Responsiveness** (does it adapt well to the viewport?)
+3. **UI Consistency** (are elements styled consistently across pages?)
+4. **Accessibility Red Flags** (contrast issues, tiny text, missing focus indicators)
+5. **User Flow Clarity** (is navigation intuitive? are CTAs visible?)
+6. **Professional Polish** (does it look production-ready?)
+
+Provide:
+- **Overall Visual Score: X/10**
+- **Top 3 Visual Strengths** (with specific screenshot references)
+- **Top 3 Visual Issues** (with specific screenshot references)
+- **Page-by-Page Recommendations** (for key pages)
+- **Mobile vs Desktop Comparison** (what works well, what doesn't)
+
+Be specific and actionable. Reference actual elements you see in the screenshots."""
+
+            try:
+                visual_assessment = self._execute_vision_task(visual_prompt, vision_screenshots)
+                state.agent_outputs['visual_assessment'] = visual_assessment
+
+                # Parse visual score and add to scores
+                visual_score = self._extract_visual_score(visual_assessment)
+                state.scores['visual'] = visual_score
+
+                self._log(f"✅ Visual assessment complete: {visual_score}/10", "success")
+            except Exception as e:
+                self._log(f"⚠️ Visual assessment failed: {str(e)}", "warning")
+                state.agent_outputs['visual_assessment'] = f"Visual assessment unavailable: {str(e)}"
+        else:
+            if not vision_screenshots:
+                self._log("ℹ️ No vision screenshots available, skipping visual assessment", "info")
+            elif not ANTHROPIC_AVAILABLE:
+                self._log("⚠️ Anthropic SDK not available, skipping visual assessment", "warning")
+            state.agent_outputs['visual_assessment'] = "Visual assessment not performed."
+
         self._update_progress("done", 0.5)
 
-        # Step 2: Synopsis
+        # Step 3: Synopsis (includes visual assessment insights)
         self._log("📝 Synopsis: Generating final summary...")
         synopsis_agent = self._get_agent("Synopsis")
+
+        # Include visual assessment in synopsis if available
+        visual_section = ""
+        if 'visual_assessment' in state.agent_outputs and state.agent_outputs['visual_assessment'] != "Visual assessment not performed.":
+            visual_section = f"""
+VISUAL ASSESSMENT:
+{state.agent_outputs['visual_assessment'][:1500]}...
+"""
 
         synopsis_prompt = f"""
 Create a user-friendly final summary of this project:
@@ -1064,6 +1620,7 @@ WHAT WAS BUILT:
 
 SCORES:
 {scorer_result}
+{visual_section}
 
 Generate a friendly, non-technical summary that includes:
 1. What we built (2-3 sentences)
@@ -1077,6 +1634,38 @@ Make it encouraging and actionable.
 
         synopsis_result = self._execute_agent_task(synopsis_agent, synopsis_prompt)
         state.synopsis = synopsis_result
+
+        self._update_progress("done", 0.7)
+
+        # Step 3: A/B Test Variant Generation (optional)
+        if AB_TEST_AVAILABLE and state.project_path:
+            self._log("🧪 Generating A/B test variants...")
+            try:
+                ab_generator = ABTestGenerator(state.project_path)
+
+                # Generate 3 variants: control + 2 alternatives
+                variants = ab_generator.generate_variants(
+                    variant_count=3,
+                    variant_dimensions=['color', 'copy', 'cta']
+                )
+
+                # Generate experiment configuration
+                experiment_config = ab_generator.generate_experiment_config(variants)
+
+                # Store in agent outputs
+                state.agent_outputs['ab_test_variants'] = variants
+                state.agent_outputs['ab_experiment_config'] = experiment_config
+
+                self._log(f"✅ Generated {len(variants)} A/B test variants", "success")
+
+                # Log variant summary
+                for variant in variants:
+                    self._log(f"  • {variant['name']}: {variant['description'][:50]}...")
+
+            except Exception as e:
+                self._log(f"⚠️ A/B test generation skipped: {str(e)}", "warning")
+        else:
+            self._log("ℹ️ A/B testing skipped (generator not available or no project path)", "info")
 
         self._update_progress("done", 1.0)
         self._log("✓ Evaluation complete", "success")
@@ -1200,19 +1789,34 @@ IMPORTANT: Only flag actual hallucinations or fabricated information. Don't be o
 
         return "generated_project"
 
-    def _write_generated_code(self, code_output: str, project_path: Path):
-        """Parse and write generated code files"""
+    def _write_generated_code(self, code_output: str, project_path: Path) -> int:
+        """
+        Parse and write generated code files with proper error handling.
+
+        Args:
+            code_output: The raw code output containing FILE: markers
+            project_path: The target directory for writing files
+
+        Returns:
+            Number of files successfully written
+        """
         current_file = None
         current_code = []
+        files_written = 0
+        errors = []
 
         lines = code_output.split('\n')
         for line in lines:
             if line.startswith('FILE:'):
                 # Write previous file
                 if current_file and current_code:
-                    file_path = project_path / current_file
-                    file_path.parent.mkdir(parents=True, exist_ok=True)
-                    file_path.write_text('\n'.join(current_code), encoding='utf-8')
+                    write_result = self._safe_write_file(
+                        project_path, current_file, '\n'.join(current_code)
+                    )
+                    if write_result:
+                        files_written += 1
+                    else:
+                        errors.append(current_file)
 
                 # Start new file
                 current_file = line.replace('FILE:', '').strip()
@@ -1226,9 +1830,139 @@ IMPORTANT: Only flag actual hallucinations or fabricated information. Don't be o
 
         # Write final file
         if current_file and current_code:
-            file_path = project_path / current_file
+            write_result = self._safe_write_file(
+                project_path, current_file, '\n'.join(current_code)
+            )
+            if write_result:
+                files_written += 1
+            else:
+                errors.append(current_file)
+
+        # Log results
+        if files_written > 0:
+            self._log(f"✅ Successfully wrote {files_written} files", "success")
+        if errors:
+            self._log(f"⚠️ Failed to write {len(errors)} files: {', '.join(errors)}", "warning")
+
+        return files_written
+
+    def _safe_write_file(self, project_path: Path, relative_path: str, content: str) -> bool:
+        """
+        Safely write a file with path validation and error handling.
+
+        Args:
+            project_path: Base project directory
+            relative_path: Relative path for the file
+            content: File content to write
+
+        Returns:
+            True if file was written successfully, False otherwise
+        """
+        try:
+            # Normalize and validate path to prevent directory traversal
+            clean_path = relative_path.replace('..', '').lstrip('/')
+            file_path = (project_path / clean_path).resolve()
+
+            # Ensure file is within project directory
+            if not str(file_path).startswith(str(project_path.resolve())):
+                self._log(f"⚠️ Security: Blocked path traversal attempt: {relative_path}", "warning")
+                return False
+
+            # Create parent directories
             file_path.parent.mkdir(parents=True, exist_ok=True)
-            file_path.write_text('\n'.join(current_code), encoding='utf-8')
+
+            # Write the file
+            file_path.write_text(content, encoding='utf-8')
+            return True
+
+        except PermissionError as e:
+            self._log(f"❌ Permission denied writing {relative_path}: {e}", "error")
+            return False
+        except OSError as e:
+            self._log(f"❌ OS error writing {relative_path}: {e}", "error")
+            return False
+        except Exception as e:
+            self._log(f"❌ Unexpected error writing {relative_path}: {e}", "error")
+            return False
+
+    def _analyze_performance(self, perf_metrics: Dict[str, Any]) -> List[str]:
+        """
+        Analyze performance metrics and generate optimization recommendations.
+
+        Based on Web Vitals standards:
+        - Good: LCP < 2.5s, FID < 100ms, CLS < 0.1
+        - Needs improvement: LCP < 4s, FID < 300ms, CLS < 0.25
+        - Poor: Above thresholds
+
+        Args:
+            perf_metrics: Performance metrics dictionary
+
+        Returns:
+            List of optimization recommendations
+        """
+        recommendations = []
+
+        page_load = perf_metrics.get('page_load_ms', 0)
+        tti = perf_metrics.get('time_to_interactive_ms', 0)
+        fcp = perf_metrics.get('first_contentful_paint_ms', 0)
+        total_size = perf_metrics.get('total_size_kb', 0)
+
+        # Page load analysis (target: < 3000ms)
+        if page_load > 5000:
+            recommendations.append(
+                f"Critical: Page load time ({page_load}ms) exceeds 5s. "
+                "Consider lazy loading, code splitting, and optimizing critical rendering path."
+            )
+        elif page_load > 3000:
+            recommendations.append(
+                f"Page load time ({page_load}ms) is slow. "
+                "Consider implementing preloading and deferring non-critical scripts."
+            )
+
+        # Time to interactive (target: < 3800ms)
+        if tti > 5000:
+            recommendations.append(
+                f"Critical: Time to interactive ({tti}ms) is too high. "
+                "Reduce JavaScript execution time and consider web workers."
+            )
+        elif tti > 3800:
+            recommendations.append(
+                f"Time to interactive ({tti}ms) needs improvement. "
+                "Minimize main thread work and reduce third-party code."
+            )
+
+        # First contentful paint (target: < 1800ms)
+        if fcp > 3000:
+            recommendations.append(
+                f"Critical: First contentful paint ({fcp}ms) is too slow. "
+                "Optimize server response time and reduce render-blocking resources."
+            )
+        elif fcp > 1800:
+            recommendations.append(
+                f"First contentful paint ({fcp}ms) needs improvement. "
+                "Consider using font-display: swap and preloading key resources."
+            )
+
+        # Bundle size analysis (target: < 500KB)
+        if total_size > 1000:
+            recommendations.append(
+                f"Critical: Bundle size ({total_size}KB) exceeds 1MB. "
+                "Implement tree-shaking, code splitting, and remove unused dependencies."
+            )
+        elif total_size > 500:
+            recommendations.append(
+                f"Bundle size ({total_size}KB) is large. "
+                "Consider compressing assets and using dynamic imports."
+            )
+
+        # If everything is good
+        if not recommendations and page_load > 0:
+            recommendations.append(
+                f"Good performance! Page load: {page_load}ms, "
+                f"TTI: {tti}ms, Bundle: {total_size}KB."
+            )
+
+        return recommendations
 
     def _parse_scores(self, scorer_output: str) -> Dict[str, int]:
         """Parse scores from scorer output"""
@@ -1257,8 +1991,30 @@ IMPORTANT: Only flag actual hallucinations or fabricated information. Don't be o
         try:
             parts = line.split(':')[1].split('/')
             return int(parts[0].strip())
-        except:
+        except (ValueError, IndexError) as e:
+            # Failed to parse score, return default
             return 7  # Default
+
+    def _extract_visual_score(self, visual_assessment: str) -> int:
+        """Extract visual score from visual assessment output"""
+        try:
+            # Look for patterns like "Overall Visual Score: 8/10" or "Visual Score: 7/10"
+            lines = visual_assessment.lower().split('\n')
+            for line in lines:
+                if 'visual score' in line or 'overall score' in line:
+                    # Find the score pattern X/10
+                    import re
+                    match = re.search(r'(\d+)\s*/\s*10', line)
+                    if match:
+                        return int(match.group(1))
+            # Fallback: look for any X/10 pattern in first 500 chars
+            import re
+            match = re.search(r'(\d+)\s*/\s*10', visual_assessment[:500])
+            if match:
+                return int(match.group(1))
+        except (ValueError, AttributeError):
+            pass
+        return 7  # Default if not found
 
     def _parse_recommendations(self, scorer_output: str) -> List[str]:
         """Parse top 3 recommendations from scorer output"""
@@ -1314,6 +2070,11 @@ IMPORTANT: Only flag actual hallucinations or fabricated information. Don't be o
 
         if state.detected_sdks:
             result['detected_sdks'] = state.detected_sdks
+
+        # Add A/B test data if generated
+        if 'ab_test_variants' in state.agent_outputs:
+            result['ab_test_variants'] = state.agent_outputs['ab_test_variants']
+            result['ab_experiment_config'] = state.agent_outputs.get('ab_experiment_config', {})
 
         return result
 

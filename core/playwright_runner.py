@@ -8,11 +8,60 @@ Playwright test runner for automated testing and evaluation
 
 import asyncio
 import subprocess
+import shutil
+import sys
 import time
 import os
+import base64
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Set
+from urllib.parse import urlparse, urljoin
 from playwright.async_api import async_playwright, Browser, Page, Error as PlaywrightError
+
+
+def _get_executable(name: str) -> str:
+    """
+    Safely get the full path to an executable.
+    On Windows, this handles .cmd/.bat wrappers for npm/npx.
+
+    Args:
+        name: Command name (e.g., 'npm', 'python', 'npx')
+
+    Returns:
+        Full path to executable, or original name if not found
+    """
+    # shutil.which handles Windows .cmd/.bat automatically
+    executable = shutil.which(name)
+    if executable:
+        return executable
+    # Fallback to original name (let OS handle it)
+    return name
+
+
+def _safe_popen(args: List[str], cwd: str = None, **kwargs) -> subprocess.Popen:
+    """
+    Safely create a subprocess without shell=True.
+    Resolves executable paths cross-platform.
+
+    Args:
+        args: Command arguments list
+        cwd: Working directory
+        **kwargs: Additional Popen arguments
+
+    Returns:
+        subprocess.Popen instance
+    """
+    # Resolve the executable path
+    resolved_args = [_get_executable(args[0])] + args[1:]
+
+    # Never use shell=True - remove if accidentally passed
+    kwargs.pop('shell', None)
+
+    return subprocess.Popen(
+        resolved_args,
+        cwd=cwd,
+        **kwargs
+    )
 
 
 class PlaywrightRunner:
@@ -91,12 +140,11 @@ class PlaywrightRunner:
 
         # Start dev server
         print("🚀 Starting Node.js development server...")
-        self.server_process = subprocess.Popen(
+        self.server_process = _safe_popen(
             ["npm", "start"],
             cwd=str(self.project_path),
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            shell=True
+            stderr=subprocess.PIPE
         )
 
         # Wait for server to be ready
@@ -108,32 +156,29 @@ class PlaywrightRunner:
         if (self.project_path / "app.py").exists():
             # Flask
             print("🚀 Starting Flask server...")
-            self.server_process = subprocess.Popen(
+            self.server_process = _safe_popen(
                 ["python", "app.py"],
                 cwd=str(self.project_path),
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                shell=True
+                stderr=subprocess.PIPE
             )
         elif (self.project_path / "main.py").exists():
             # FastAPI or general Python
             print("🚀 Starting Python server...")
-            self.server_process = subprocess.Popen(
+            self.server_process = _safe_popen(
                 ["python", "main.py"],
                 cwd=str(self.project_path),
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                shell=True
+                stderr=subprocess.PIPE
             )
         elif (self.project_path / "manage.py").exists():
             # Django
             print("🚀 Starting Django server...")
-            self.server_process = subprocess.Popen(
+            self.server_process = _safe_popen(
                 ["python", "manage.py", "runserver"],
                 cwd=str(self.project_path),
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                shell=True
+                stderr=subprocess.PIPE
             )
         else:
             print("⚠️ Could not detect Python framework")
@@ -144,12 +189,11 @@ class PlaywrightRunner:
     async def _start_static_server(self) -> bool:
         """Start simple HTTP server for static files"""
         print("🚀 Starting static file server...")
-        self.server_process = subprocess.Popen(
+        self.server_process = _safe_popen(
             ["python", "-m", "http.server", "8000"],
             cwd=str(self.project_path),
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            shell=True
+            stderr=subprocess.PIPE
         )
 
         return await self._wait_for_server()
@@ -253,6 +297,20 @@ class PlaywrightRunner:
                     "duration_ms": int((time.time() - start_time) * 1000)
                 }
 
+        except asyncio.TimeoutError:
+            return {
+                "name": test_name,
+                "status": "timeout",
+                "error": "Page load timed out",
+                "duration_ms": int((time.time() - start_time) * 1000)
+            }
+        except ConnectionError as e:
+            return {
+                "name": test_name,
+                "status": "failed",
+                "error": f"Connection error: {str(e)}",
+                "duration_ms": int((time.time() - start_time) * 1000)
+            }
         except Exception as e:
             return {
                 "name": test_name,
@@ -612,3 +670,256 @@ class PlaywrightRunner:
                 "first_contentful_paint_ms": 0,
                 "total_size_kb": 0
             }
+
+    async def discover_all_pages(
+        self,
+        start_url: str = None,
+        credentials: Dict = None,
+        max_pages: int = 100
+    ) -> List[str]:
+        """
+        Crawl the application and discover all internal pages.
+
+        Args:
+            start_url: Starting URL (defaults to self.server_url)
+            credentials: Optional dict with 'email' and 'password' for auth
+            max_pages: Maximum pages to discover (default 100)
+
+        Returns:
+            List of unique internal URLs discovered
+        """
+        start_url = start_url or self.server_url
+        if not start_url:
+            print("❌ No server URL set")
+            return []
+
+        base_domain = urlparse(start_url).netloc
+        discovered_urls: Set[str] = set()
+        urls_to_visit: List[str] = [start_url]
+        visited_urls: Set[str] = set()
+
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context()
+            page = await context.new_page()
+
+            # Handle authentication if credentials provided
+            if credentials and credentials.get('email') and credentials.get('password'):
+                try:
+                    print("🔐 Attempting authentication...")
+                    await page.goto(start_url, wait_until="networkidle", timeout=self.timeout)
+
+                    # Try common auth patterns
+                    email_selectors = ['input[type="email"]', 'input[name="email"]', '#email', 'input[placeholder*="email" i]']
+                    password_selectors = ['input[type="password"]', 'input[name="password"]', '#password']
+                    submit_selectors = ['button[type="submit"]', 'input[type="submit"]', 'button:has-text("Log in")', 'button:has-text("Sign in")']
+
+                    for selector in email_selectors:
+                        try:
+                            email_input = await page.query_selector(selector)
+                            if email_input:
+                                await email_input.fill(credentials['email'])
+                                break
+                        except:
+                            continue
+
+                    for selector in password_selectors:
+                        try:
+                            password_input = await page.query_selector(selector)
+                            if password_input:
+                                await password_input.fill(credentials['password'])
+                                break
+                        except:
+                            continue
+
+                    for selector in submit_selectors:
+                        try:
+                            submit_btn = await page.query_selector(selector)
+                            if submit_btn:
+                                await submit_btn.click()
+                                await page.wait_for_load_state("networkidle", timeout=10000)
+                                print("✅ Authentication successful")
+                                break
+                        except:
+                            continue
+
+                except Exception as e:
+                    print(f"⚠️ Authentication attempt failed: {e}")
+
+            # BFS crawl to discover pages
+            while urls_to_visit and len(discovered_urls) < max_pages:
+                current_url = urls_to_visit.pop(0)
+
+                # Normalize URL (remove fragments and trailing slashes)
+                parsed = urlparse(current_url)
+                normalized_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path.rstrip('/')}"
+
+                if normalized_url in visited_urls:
+                    continue
+
+                visited_urls.add(normalized_url)
+
+                try:
+                    await page.goto(current_url, wait_until="networkidle", timeout=self.timeout)
+                    discovered_urls.add(normalized_url)
+                    print(f"🔍 Discovered: {normalized_url}")
+
+                    # Extract all internal links
+                    links = await page.evaluate(f'''() => {{
+                        const links = Array.from(document.querySelectorAll('a[href]'));
+                        return links
+                            .map(a => a.href)
+                            .filter(href => {{
+                                try {{
+                                    const url = new URL(href);
+                                    return url.hostname === '{base_domain}' &&
+                                           !href.includes('#') &&
+                                           !href.match(/\\.(pdf|zip|png|jpg|jpeg|gif|svg|css|js)$/i);
+                                }} catch {{
+                                    return false;
+                                }}
+                            }});
+                    }}''')
+
+                    for link in links:
+                        parsed_link = urlparse(link)
+                        normalized_link = f"{parsed_link.scheme}://{parsed_link.netloc}{parsed_link.path.rstrip('/')}"
+                        if normalized_link not in visited_urls and normalized_link not in urls_to_visit:
+                            urls_to_visit.append(normalized_link)
+
+                except Exception as e:
+                    print(f"⚠️ Failed to crawl {current_url}: {e}")
+
+            await browser.close()
+
+        print(f"✅ Discovered {len(discovered_urls)} unique pages")
+        return list(discovered_urls)
+
+    async def capture_all_pages_with_vision(
+        self,
+        urls: List[str] = None,
+        credentials: Dict = None,
+        viewports: List[str] = None
+    ) -> List[Dict]:
+        """
+        Capture screenshots of all pages with base64 encoding for vision API.
+
+        Args:
+            urls: List of URLs to capture (if None, discovers automatically)
+            credentials: Optional auth credentials
+            viewports: Which viewports to capture (default: ['mobile', 'desktop'])
+
+        Returns:
+            List of dicts with: url, viewport, base64, mime_type, name
+        """
+        if viewports is None:
+            viewports = ['mobile', 'desktop']
+
+        # Discover pages if not provided
+        if urls is None:
+            urls = await self.discover_all_pages(credentials=credentials)
+
+        if not urls:
+            print("❌ No URLs to capture")
+            return []
+
+        screenshots = []
+        screenshots_dir = Path(self.config.get('screenshots_dir', 'screenshots'))
+        screenshots_dir.mkdir(exist_ok=True)
+        timestamp = int(time.time())
+
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context()
+
+            # Re-authenticate if credentials provided
+            if credentials and credentials.get('email') and credentials.get('password'):
+                temp_page = await context.new_page()
+                try:
+                    await temp_page.goto(urls[0], wait_until="networkidle", timeout=self.timeout)
+
+                    # Try to log in
+                    email_selectors = ['input[type="email"]', 'input[name="email"]', '#email']
+                    password_selectors = ['input[type="password"]', 'input[name="password"]', '#password']
+                    submit_selectors = ['button[type="submit"]', 'input[type="submit"]', 'button:has-text("Log in")']
+
+                    for selector in email_selectors:
+                        try:
+                            el = await temp_page.query_selector(selector)
+                            if el:
+                                await el.fill(credentials['email'])
+                                break
+                        except:
+                            continue
+
+                    for selector in password_selectors:
+                        try:
+                            el = await temp_page.query_selector(selector)
+                            if el:
+                                await el.fill(credentials['password'])
+                                break
+                        except:
+                            continue
+
+                    for selector in submit_selectors:
+                        try:
+                            el = await temp_page.query_selector(selector)
+                            if el:
+                                await el.click()
+                                await temp_page.wait_for_load_state("networkidle", timeout=10000)
+                                break
+                        except:
+                            continue
+
+                except Exception as e:
+                    print(f"⚠️ Auth setup failed: {e}")
+                finally:
+                    await temp_page.close()
+
+            # Capture each URL at each viewport
+            for url_idx, url in enumerate(urls):
+                page_name = urlparse(url).path or "home"
+                page_name = page_name.strip('/').replace('/', '_') or "home"
+
+                for viewport_name in viewports:
+                    if viewport_name not in self.viewports:
+                        continue
+
+                    viewport_size = self.viewports[viewport_name]
+
+                    try:
+                        page = await context.new_page()
+                        await page.set_viewport_size(viewport_size)
+                        await page.goto(url, wait_until="networkidle", timeout=self.timeout)
+
+                        # Capture screenshot as bytes
+                        screenshot_bytes = await page.screenshot(full_page=True)
+                        base64_data = base64.b64encode(screenshot_bytes).decode('utf-8')
+
+                        # Also save to disk for reference
+                        filename = f"vision_{page_name}_{viewport_name}_{timestamp}.png"
+                        filepath = screenshots_dir / filename
+                        with open(filepath, 'wb') as f:
+                            f.write(screenshot_bytes)
+
+                        screenshots.append({
+                            "url": url,
+                            "page_name": page_name,
+                            "viewport": viewport_name,
+                            "viewport_size": viewport_size,
+                            "base64": base64_data,
+                            "mime_type": "image/png",
+                            "path": str(filepath),
+                            "name": f"{page_name} ({viewport_name.capitalize()})"
+                        })
+
+                        print(f"📸 Captured: {page_name} ({viewport_name})")
+                        await page.close()
+
+                    except Exception as e:
+                        print(f"⚠️ Failed to capture {url} at {viewport_name}: {e}")
+
+            await browser.close()
+
+        print(f"✅ Captured {len(screenshots)} screenshots across {len(urls)} pages")
+        return screenshots

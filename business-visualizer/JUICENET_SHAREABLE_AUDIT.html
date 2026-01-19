@@ -1,0 +1,3437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JuiceNet - Interactive UX Audit Report</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Chart.js for Interactive Graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #EF4444;
+            --primary-light: #FCA5A5;
+            --secondary: #F97316;
+            --accent: #10B981;
+            --dark: #0F172A;
+            --dark-secondary: #1E293B;
+            --light: #F8FAFC;
+            --text: #334155;
+            --text-light: #64748B;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --juicenet-green: #26a45a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--light);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 16px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .nav-brand {
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .nav-brand span {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-link {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* Cover Section */
+        .cover {
+            background: linear-gradient(135deg, var(--dark) 0%, var(--dark-secondary) 100%);
+            color: white;
+            padding: 140px 60px 80px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cover::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(239,68,68,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .cover::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .cover-content {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+        }
+
+        .cover-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            padding: 10px 24px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 28px;
+        }
+
+        .cover h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 56px;
+            font-weight: 700;
+            line-height: 1.15;
+            margin-bottom: 20px;
+        }
+
+        .cover h1 span {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .cover .subtitle {
+            font-size: 20px;
+            opacity: 0.85;
+            margin-bottom: 48px;
+            line-height: 1.6;
+            max-width: 600px;
+        }
+
+        .cover-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            max-width: 800px;
+        }
+
+        .cover-stat {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        .cover-stat:hover {
+            transform: translateY(-4px);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .cover-stat-value {
+            font-size: 36px;
+            font-weight: 800;
+        }
+
+        .cover-stat-value.danger { color: var(--danger); }
+        .cover-stat-value.warning { color: var(--warning); }
+        .cover-stat-value.success { color: var(--success); }
+        .cover-stat-value.info { color: #60A5FA; }
+
+        .cover-stat-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.7;
+            margin-top: 8px;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 40px;
+        }
+
+        /* Section */
+        .section {
+            background: white;
+            border-radius: 24px;
+            padding: 48px;
+            margin-bottom: 32px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .section-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+
+        .section-icon.danger { background: linear-gradient(135deg, #EF4444, #DC2626); }
+        .section-icon.success { background: linear-gradient(135deg, #10B981, #059669); }
+        .section-icon.warning { background: linear-gradient(135deg, #F59E0B, #D97706); }
+        .section-icon.info { background: linear-gradient(135deg, #3B82F6, #2563EB); }
+        .section-icon.purple { background: linear-gradient(135deg, #8B5CF6, #7C3AED); }
+
+        .section h2 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .section-intro {
+            font-size: 17px;
+            color: var(--text-light);
+            margin-bottom: 32px;
+            line-height: 1.7;
+        }
+
+        /* Charts Container */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 32px;
+            margin: 32px 0;
+        }
+
+        .chart-card {
+            background: var(--light);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .chart-card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 16px;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Interactive Funnel */
+        .funnel-interactive {
+            margin: 32px 0;
+        }
+
+        .funnel-stage {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .funnel-stage:hover {
+            transform: translateX(8px);
+        }
+
+        .funnel-bar {
+            height: 56px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            color: white;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .funnel-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);
+            transform: translateX(-100%);
+            transition: transform 0.5s ease;
+        }
+
+        .funnel-stage:hover .funnel-bar::after {
+            transform: translateX(100%);
+        }
+
+        .funnel-stats {
+            min-width: 150px;
+            text-align: right;
+        }
+
+        .funnel-count {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--dark);
+        }
+
+        .funnel-rate {
+            font-size: 13px;
+            color: var(--text-light);
+        }
+
+        .funnel-dropoff {
+            color: var(--danger);
+            font-weight: 600;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .funnel-arrow {
+            text-align: center;
+            padding: 4px 0 4px 70px;
+            color: var(--text-light);
+            font-size: 14px;
+        }
+
+        /* Issues Grid */
+        .issues-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .issue-card {
+            background: var(--light);
+            border-radius: 16px;
+            padding: 24px;
+            border-left: 4px solid;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+        }
+
+        .issue-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+
+        .issue-card.critical { border-left-color: #DC2626; }
+        .issue-card.high { border-left-color: #D97706; }
+        .issue-card.medium { border-left-color: #2563EB; }
+
+        .issue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+
+        .issue-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .issue-badge {
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .issue-badge.critical { background: #FEE2E2; color: #DC2626; }
+        .issue-badge.high { background: #FEF3C7; color: #D97706; }
+        .issue-badge.medium { background: #DBEAFE; color: #2563EB; }
+
+        .issue-description {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .issue-impact {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--danger);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Heuristics */
+        .heuristics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .heuristic-item {
+            background: var(--light);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s ease;
+        }
+
+        .heuristic-item:hover {
+            transform: translateX(4px);
+        }
+
+        .heuristic-name {
+            font-size: 14px;
+            color: var(--dark);
+            font-weight: 500;
+        }
+
+        .heuristic-score {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .heuristic-score.good { color: var(--success); }
+        .heuristic-score.ok { color: var(--warning); }
+        .heuristic-score.bad { color: var(--danger); }
+
+        .heuristics-total {
+            background: linear-gradient(135deg, var(--dark), var(--dark-secondary));
+            color: white;
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+            margin-top: 24px;
+        }
+
+        .heuristics-total-value {
+            font-size: 56px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .heuristics-total-label {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+
+        /* Recommendations */
+        .recommendations-list {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .recommendation {
+            background: var(--light);
+            border-radius: 16px;
+            padding: 28px;
+            display: grid;
+            grid-template-columns: 60px 1fr auto;
+            gap: 24px;
+            align-items: start;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .recommendation:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+
+        .recommendation-number {
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 20px;
+        }
+
+        .recommendation-content h4 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+
+        .recommendation-content p {
+            font-size: 14px;
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        .recommendation-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            text-align: right;
+        }
+
+        .recommendation-impact {
+            background: #D1FAE5;
+            color: #059669;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .recommendation-effort {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        /* Interactive Prototype Section */
+        .prototype-section {
+            background: linear-gradient(135deg, var(--dark) 0%, var(--dark-secondary) 100%);
+            border-radius: 24px;
+            padding: 48px;
+            margin-bottom: 32px;
+            color: white;
+        }
+
+        .prototype-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .prototype-header h2 {
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .prototype-toggle {
+            display: flex;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 4px;
+        }
+
+        .toggle-btn {
+            padding: 12px 24px;
+            border: none;
+            background: transparent;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .toggle-btn.active {
+            background: white;
+            color: var(--dark);
+        }
+
+        .prototype-container {
+            background: #e8e8e8;
+            border-radius: 16px;
+            min-height: 700px;
+            overflow: hidden;
+        }
+
+        .prototype-iframe {
+            width: 100%;
+            height: 700px;
+            border: none;
+        }
+
+        /* Embedded Prototype Styles */
+        .embedded-prototype {
+            width: 100%;
+            min-height: 700px;
+        }
+
+        /* ROI Calculator */
+        .roi-calculator {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            border-radius: 16px;
+            padding: 32px;
+            color: white;
+            margin-top: 32px;
+        }
+
+        .roi-calculator h3 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .roi-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .roi-item {
+            text-align: center;
+        }
+
+        .roi-value {
+            font-size: 36px;
+            font-weight: 800;
+        }
+
+        .roi-label {
+            font-size: 13px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--dark);
+            color: white;
+            padding: 40px 60px;
+            text-align: center;
+        }
+
+        .footer p {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-in {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .cover {
+                padding: 120px 24px 60px;
+            }
+
+            .cover h1 {
+                font-size: 36px;
+            }
+
+            .cover-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .container {
+                padding: 40px 20px;
+            }
+
+            .section {
+                padding: 24px;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .heuristics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .recommendation {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .recommendation-number {
+                margin: 0 auto;
+            }
+
+            .recommendation-meta {
+                text-align: center;
+                flex-direction: row;
+                justify-content: center;
+            }
+
+            .roi-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .nav {
+                padding: 12px 20px;
+            }
+
+            .nav-links {
+                display: none;
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            .nav, .prototype-section {
+                display: none;
+            }
+
+            .cover {
+                min-height: auto;
+                padding: 40px;
+            }
+
+            .section {
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-brand"><span>JuiceNet</span> Audit Report</div>
+        <div class="nav-links">
+            <a href="#overview" class="nav-link active">Overview</a>
+            <a href="#funnel" class="nav-link">Funnel</a>
+            <a href="#issues" class="nav-link">Issues</a>
+            <a href="#prototype" class="nav-link">Prototype</a>
+            <a href="#recommendations" class="nav-link">Fixes</a>
+        </div>
+    </nav>
+
+    <!-- Cover Section -->
+    <section class="cover" id="overview">
+        <div class="cover-content">
+            <div class="cover-badge">Interactive UX Audit</div>
+            <h1>JuiceNet<br><span>Comprehensive Analysis</span></h1>
+            <p class="subtitle">EV Charging Marketplace - Deep dive into user experience, conversion funnels, and actionable improvements with interactive prototype.</p>
+
+            <div class="cover-stats">
+                <div class="cover-stat">
+                    <div class="cover-stat-value danger">5.0%</div>
+                    <div class="cover-stat-label">Conversion Rate</div>
+                </div>
+                <div class="cover-stat">
+                    <div class="cover-stat-value warning">64/100</div>
+                    <div class="cover-stat-label">UX Score</div>
+                </div>
+                <div class="cover-stat">
+                    <div class="cover-stat-value info">5</div>
+                    <div class="cover-stat-label">Critical Issues</div>
+                </div>
+                <div class="cover-stat">
+                    <div class="cover-stat-value success">+45%</div>
+                    <div class="cover-stat-label">Potential Uplift</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Funnel Section -->
+        <section class="section" id="funnel">
+            <div class="section-header">
+                <div class="section-icon danger">&#128202;</div>
+                <h2>Conversion Funnel Analysis</h2>
+            </div>
+            <p class="section-intro">Interactive visualization of user journey from first visit to conversion. Click on any stage to see detailed breakdown.</p>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Guest Signup Funnel</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="guestFunnelChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Host Signup Funnel</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="hostFunnelChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin: 40px 0 24px; font-size: 20px; color: var(--dark);">Detailed Guest Funnel</h3>
+            <div class="funnel-interactive">
+                
+            <div class="funnel-stage">
+                <div style="flex: 1;">
+                    <div class="funnel-bar" style="width: 48.111332007952285%; background: #3B82F6;">
+                        Page Views
+                    </div>
+                </div>
+                <div class="funnel-stats">
+                    <div class="funnel-count">968</div>
+                    <div class="funnel-rate">100% of signups</div>
+                </div>
+            </div>
+            
+                <div class="funnel-arrow">
+                    &#8595; <span class="funnel-dropoff">-0.0% drop-off</span>
+                </div>
+                
+            <div class="funnel-stage">
+                <div style="flex: 1;">
+                    <div class="funnel-bar" style="width: 100.0%; background: #8B5CF6;">
+                        Signups
+                    </div>
+                </div>
+                <div class="funnel-stats">
+                    <div class="funnel-count">2,012</div>
+                    <div class="funnel-rate">100% of signups</div>
+                </div>
+            </div>
+            
+                <div class="funnel-arrow">
+                    &#8595; <span class="funnel-dropoff">-23.3% drop-off</span>
+                </div>
+                
+            <div class="funnel-stage">
+                <div style="flex: 1;">
+                    <div class="funnel-bar" style="width: 76.68986083499007%; background: #10B981;">
+                        Email Verified
+                    </div>
+                </div>
+                <div class="funnel-stats">
+                    <div class="funnel-count">1,543</div>
+                    <div class="funnel-rate">76.7% of signups</div>
+                </div>
+            </div>
+            
+                <div class="funnel-arrow">
+                    &#8595; <span class="funnel-dropoff">-29.9% drop-off</span>
+                </div>
+                
+            <div class="funnel-stage">
+                <div style="flex: 1;">
+                    <div class="funnel-bar" style="width: 46.76938369781312%; background: #F59E0B;">
+                        Profile Complete
+                    </div>
+                </div>
+                <div class="funnel-stats">
+                    <div class="funnel-count">941</div>
+                    <div class="funnel-rate">46.8% of signups</div>
+                </div>
+            </div>
+            
+                <div class="funnel-arrow">
+                    &#8595; <span class="funnel-dropoff">-41.8% drop-off</span>
+                </div>
+                
+            <div class="funnel-stage">
+                <div style="flex: 1;">
+                    <div class="funnel-bar" style="width: 5.019880715705765%; background: #EF4444;">
+                        First Booking
+                    </div>
+                </div>
+                <div class="funnel-stats">
+                    <div class="funnel-count">101</div>
+                    <div class="funnel-rate">5.0% of signups</div>
+                </div>
+            </div>
+            
+            </div>
+        </section>
+
+        <!-- Issues Section -->
+        <section class="section" id="issues">
+            <div class="section-header">
+                <div class="section-icon warning">&#9888;</div>
+                <h2>UX Issues Identified</h2>
+            </div>
+            <p class="section-intro">Critical user experience issues discovered during production testing, ranked by impact on conversion.</p>
+
+            <div class="issues-grid">
+                
+            <div class="issue-card critical">
+                <div class="issue-header">
+                    <div class="issue-title">No Privacy Explanation for Sensitive Data</div>
+                    <span class="issue-badge critical">CRITICAL</span>
+                </div>
+                <div class="issue-description">Users abandon signup when asked for DOB/Address without context</div>
+                <div class="issue-impact">
+                    &#9888; 23% drop-off at profile step
+                </div>
+            </div>
+            
+            <div class="issue-card critical">
+                <div class="issue-header">
+                    <div class="issue-title">Missing Role Selection at Entry</div>
+                    <span class="issue-badge critical">CRITICAL</span>
+                </div>
+                <div class="issue-description">Users confused about whether to sign up as host or guest</div>
+                <div class="issue-impact">
+                    &#9888; Estimated 15-20% confusion rate
+                </div>
+            </div>
+            
+            <div class="issue-card high">
+                <div class="issue-header">
+                    <div class="issue-title">No Earnings Preview for Hosts</div>
+                    <span class="issue-badge high">HIGH</span>
+                </div>
+                <div class="issue-description">Hosts lack motivation to complete lengthy signup</div>
+                <div class="issue-impact">
+                    &#9888; 31.5% host drop-off
+                </div>
+            </div>
+            
+            <div class="issue-card medium">
+                <div class="issue-header">
+                    <div class="issue-title">Progress Steps Lack Encouragement</div>
+                    <span class="issue-badge medium">MEDIUM</span>
+                </div>
+                <div class="issue-description">Users don't know how far along they are</div>
+                <div class="issue-impact">
+                    &#9888; Increased abandonment mid-flow
+                </div>
+            </div>
+            
+            <div class="issue-card medium">
+                <div class="issue-header">
+                    <div class="issue-title">Photo Upload Missing Motivation</div>
+                    <span class="issue-badge medium">MEDIUM</span>
+                </div>
+                <div class="issue-description">Many hosts skip photos, reducing booking rates</div>
+                <div class="issue-impact">
+                    &#9888; Listings without photos get 70% fewer bookings
+                </div>
+            </div>
+            
+            </div>
+
+            <h3 style="margin: 40px 0 24px; font-size: 20px; color: var(--dark);">Nielsen's Heuristics Evaluation</h3>
+            <div class="heuristics-grid">
+                
+            <div class="heuristic-item">
+                <div class="heuristic-name">Visibility of System Status</div>
+                <div class="heuristic-score ok">6/10</div>
+            </div>
+            
+            <div class="heuristic-item">
+                <div class="heuristic-name">Match with Real World</div>
+                <div class="heuristic-score good">8/10</div>
+            </div>
+            
+            <div class="heuristic-item">
+                <div class="heuristic-name">User Control & Freedom</div>
+                <div class="heuristic-score good">7/10</div>
+            </div>
+            
+            <div class="heuristic-item">
+                <div class="heuristic-name">Consistency & Standards</div>
+                <div class="heuristic-score good">8/10</div>
+            </div>
+            
+            <div class="heuristic-item">
+                <div class="heuristic-name">Error Prevention</div>
+                <div class="heuristic-score ok">5/10</div>
+            </div>
+            
+            <div class="heuristic-item">
+                <div class="heuristic-name">Recognition over Recall</div>
+                <div class="heuristic-score good">7/10</div>
+            </div>
+            
+            <div class="heuristic-item">
+                <div class="heuristic-name">Flexibility & Efficiency</div>
+                <div class="heuristic-score ok">6/10</div>
+            </div>
+            
+            <div class="heuristic-item">
+                <div class="heuristic-name">Aesthetic & Minimal Design</div>
+                <div class="heuristic-score good">8/10</div>
+            </div>
+            
+            <div class="heuristic-item">
+                <div class="heuristic-name">Help Users with Errors</div>
+                <div class="heuristic-score ok">5/10</div>
+            </div>
+            
+            <div class="heuristic-item">
+                <div class="heuristic-name">Help & Documentation</div>
+                <div class="heuristic-score bad">4/10</div>
+            </div>
+            
+            </div>
+            <div class="heuristics-total">
+                <div class="heuristics-total-value">64/100</div>
+                <div class="heuristics-total-label">Overall UX Score</div>
+            </div>
+        </section>
+
+        <!-- Interactive Prototype Section -->
+        <section class="prototype-section" id="prototype">
+            <div class="prototype-header">
+                <h2>&#128241; Interactive Prototype</h2>
+                <div class="prototype-toggle">
+                    <button class="toggle-btn" onclick="showCurrentIssues()">Current Issues</button>
+                    <button class="toggle-btn active" onclick="showProposedFixes()">Proposed Fixes</button>
+                </div>
+            </div>
+            <div class="prototype-container" id="prototypeContainer">
+                <!-- Embedded prototype will be injected here -->
+            </div>
+        </section>
+
+        <!-- Recommendations Section -->
+        <section class="section" id="recommendations">
+            <div class="section-header">
+                <div class="section-icon success">&#10003;</div>
+                <h2>Recommended Fixes</h2>
+            </div>
+            <p class="section-intro">Prioritized list of improvements with expected impact and implementation effort.</p>
+
+            <div class="recommendations-list">
+                
+            <div class="recommendation">
+                <div class="recommendation-number">1</div>
+                <div class="recommendation-content">
+                    <h4>Add Privacy Explanations</h4>
+                    <p>Add trust-building text under DOB ('Required by Stripe for secure payouts') and Address ('Never shown publicly')</p>
+                </div>
+                <div class="recommendation-meta">
+                    <span class="recommendation-impact">Reduce profile abandonment by 15-20%</span>
+                    <span class="recommendation-effort">Effort: Low (copy changes only)</span>
+                </div>
+            </div>
+            
+            <div class="recommendation">
+                <div class="recommendation-number">2</div>
+                <div class="recommendation-content">
+                    <h4>Landing Page with Role Selection</h4>
+                    <p>Show clear CHARGE vs EARN options upfront so users self-select their journey</p>
+                </div>
+                <div class="recommendation-meta">
+                    <span class="recommendation-impact">Reduce confusion by 30-40%</span>
+                    <span class="recommendation-effort">Effort: Medium (new component)</span>
+                </div>
+            </div>
+            
+            <div class="recommendation">
+                <div class="recommendation-number">3</div>
+                <div class="recommendation-content">
+                    <h4>Earnings Preview for Hosts</h4>
+                    <p>Show '$180-$320 average monthly earnings' during host signup</p>
+                </div>
+                <div class="recommendation-meta">
+                    <span class="recommendation-impact">Increase host conversion by 20-25%</span>
+                    <span class="recommendation-effort">Effort: Low (UI addition)</span>
+                </div>
+            </div>
+            
+            <div class="recommendation">
+                <div class="recommendation-number">4</div>
+                <div class="recommendation-content">
+                    <h4>Progress Encouragement Text</h4>
+                    <p>Add step indicators like 'Almost there! Step 3 of 4'</p>
+                </div>
+                <div class="recommendation-meta">
+                    <span class="recommendation-impact">Reduce mid-flow abandonment by 10-15%</span>
+                    <span class="recommendation-effort">Effort: Low (copy changes)</span>
+                </div>
+            </div>
+            
+            <div class="recommendation">
+                <div class="recommendation-number">5</div>
+                <div class="recommendation-content">
+                    <h4>Photo Motivation Text</h4>
+                    <p>Add 'Listings with photos get 3x more bookings' under upload</p>
+                </div>
+                <div class="recommendation-meta">
+                    <span class="recommendation-impact">Increase photo uploads by 40%</span>
+                    <span class="recommendation-effort">Effort: Low (single line)</span>
+                </div>
+            </div>
+            
+            </div>
+
+            <div class="roi-calculator">
+                <h3>&#128200; Projected ROI</h3>
+                <div class="roi-grid">
+                    <div class="roi-item">
+                        <div class="roi-value">+490</div>
+                        <div class="roi-label">Additional Conversions/Month</div>
+                    </div>
+                    <div class="roi-item">
+                        <div class="roi-value">$5,600</div>
+                        <div class="roi-label">Est. Monthly Revenue</div>
+                    </div>
+                    <div class="roi-item">
+                        <div class="roi-value">2 weeks</div>
+                        <div class="roi-label">Implementation Time</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Generated by Weaver Pro Audit System | January 15, 2026</p>
+    </footer>
+
+    <!-- Embedded Prototype Content (Hidden) -->
+    <template id="prototypeTemplate">
+        <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JuiceNet UX Flow Prototype</title>
+    <!-- Poppins Font - Exact Match -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* JuiceNet Exact Color Palette */
+        :root {
+            --color-black: #1a1515;
+            --color-white: #ffffff;
+            --color-green: #26a45a;
+            --color-green-light: #53b67c;
+            --color-red: #c30000;
+            --color-background-blue: #f3f8ff;
+            --color-border-blue: #d8e8ff;
+            --color-typo-primary: #102441;
+            --color-typo-secondary: #5c6c82;
+            --color-typo-tertiary: #9fa8b6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Poppins", sans-serif;
+        }
+
+        body {
+            background: #e8e8e8;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--color-typo-primary);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: var(--color-typo-secondary);
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 10px 16px;
+            background: #fff;
+            border: 1px solid var(--color-border-blue);
+            border-radius: 0px 12px;
+            color: var(--color-typo-primary);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background: var(--color-background-blue);
+        }
+
+        .tab.active {
+            background: var(--color-green);
+            color: #fff;
+            border-color: var(--color-green);
+        }
+
+        /* Phone Frame */
+        .phone {
+            width: 390px;
+            height: 844px;
+            background: #000;
+            border-radius: 50px;
+            padding: 12px;
+            position: relative;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 42px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 34px;
+            background: #000;
+            border-radius: 0 0 20px 20px;
+            z-index: 10;
+        }
+
+        /* App Styles */
+        .app-content {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            color: var(--color-typo-primary);
+            padding-top: 50px;
+        }
+
+        /* Header - Ionic Style */
+        .app-header {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .back-btn {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--color-typo-primary);
+            position: absolute;
+            left: 16px;
+        }
+
+        .back-btn svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .app-header-title {
+            flex: 1;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 500;
+            line-height: 24px;
+            color: var(--color-typo-primary);
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            display: flex;
+            gap: 5px;
+            padding: 12px 16px;
+            background: var(--color-background-blue);
+        }
+
+        .progress-dot {
+            flex: 1;
+            height: 4px;
+            background: var(--color-border-blue);
+            border-radius: 2px;
+        }
+
+        .progress-dot.active {
+            background: var(--color-green);
+        }
+
+        .step-indicator {
+            text-align: center;
+            font-size: 12px;
+            color: var(--color-typo-secondary);
+            margin: 0;
+            padding: 8px 16px 0;
+        }
+
+        .app-body {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        /* Typography - Exact JuiceNet Classes */
+        .h3 {
+            font-weight: 600;
+            font-size: 26px;
+            line-height: 32px;
+            color: var(--color-typo-primary);
+            margin-bottom: 8px;
+        }
+
+        .h4 {
+            font-weight: 600;
+            font-size: 20px;
+            line-height: 32px;
+            color: var(--color-typo-primary);
+        }
+
+        .p1-bold {
+            font-weight: 500;
+            font-size: 18px;
+            line-height: 24px;
+        }
+
+        .p2 {
+            font-weight: 400;
+            font-size: 16px;
+            line-height: 24px;
+        }
+
+        .p2-bold {
+            font-weight: 500;
+            font-size: 16px;
+            line-height: 24px;
+        }
+
+        .p3 {
+            font-weight: 400;
+            font-size: 14px;
+            line-height: 18px;
+        }
+
+        .p4 {
+            font-weight: 400;
+            font-size: 12px;
+            line-height: 16px;
+        }
+
+        .section-subtitle {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--color-typo-secondary);
+            margin-bottom: 20px;
+            line-height: 18px;
+        }
+
+        /* Form Styles - Exact JuiceNet */
+        .input-container {
+            margin-bottom: 16px;
+            position: relative;
+        }
+
+        .input-container label {
+            color: var(--color-typo-primary);
+            font-size: 12px;
+            font-weight: 400;
+            line-height: 16px;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .input {
+            width: 100%;
+            padding: 13px 16px;
+            background: var(--color-background-blue);
+            border: 1px solid var(--color-background-blue);
+            border-radius: 8px;
+            color: var(--color-typo-primary);
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 18px;
+            font-family: "Poppins", sans-serif;
+        }
+
+        .input:focus {
+            border-color: var(--color-typo-secondary);
+            outline: none;
+        }
+
+        .input::placeholder {
+            color: var(--color-typo-tertiary);
+        }
+
+        .input-message {
+            color: var(--color-typo-secondary);
+            font-size: 12px;
+            font-weight: 400;
+            line-height: 16px;
+            margin-top: 4px;
+        }
+
+        .input-message--success {
+            color: var(--color-green);
+        }
+
+        .input-message--error {
+            color: var(--color-red);
+        }
+
+        .show-password-btn {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--color-green);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: "Poppins", sans-serif;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .form-row .input-container {
+            flex: 1;
+        }
+
+        /* Buttons - JuiceNet Style with Asymmetric Corners */
+        .btn-primary {
+            width: 100%;
+            padding: 16px;
+            background: var(--color-green);
+            border: 1px solid var(--color-green);
+            border-radius: 0px 12px;
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 24px;
+            cursor: pointer;
+            font-family: "Poppins", sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.85;
+        }
+
+        .btn-secondary {
+            width: 100%;
+            padding: 16px;
+            background: var(--color-white);
+            border: 1px solid var(--color-green);
+            border-radius: 0px 12px;
+            color: var(--color-green);
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 24px;
+            cursor: pointer;
+            font-family: "Poppins", sans-serif;
+            margin-top: 10px;
+        }
+
+        .btn-small-gray {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--color-white);
+            border: 1px solid var(--color-typo-secondary);
+            border-radius: 0px 12px;
+            color: var(--color-typo-primary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: "Poppins", sans-serif;
+            margin-top: 10px;
+        }
+
+        .btn-small-green {
+            padding: 12px 16px;
+            background: var(--color-white);
+            border: 1px solid var(--color-green);
+            border-radius: 0px 12px;
+            color: var(--color-green);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: "Poppins", sans-serif;
+        }
+
+        /* Social Login */
+        .social-login {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .social-btn {
+            flex: 1;
+            padding: 12px;
+            background: var(--color-background-blue);
+            border: 1px solid var(--color-border-blue);
+            border-radius: 8px;
+            color: var(--color-typo-primary);
+            font-size: 14px;
+            font-weight: 400;
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .divider-line {
+            flex: 1;
+            height: 1px;
+            background: var(--color-border-blue);
+        }
+
+        .divider-text {
+            color: var(--color-typo-tertiary);
+            font-size: 12px;
+            font-weight: 400;
+        }
+
+        /* Checkbox - JuiceNet Style */
+        .input-checkbox-container {
+            color: var(--color-typo-secondary);
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .checkbox {
+            width: 18px;
+            height: 18px;
+            min-width: 18px;
+            min-height: 18px;
+            border: 1px solid var(--color-typo-tertiary);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            cursor: pointer;
+            margin-top: 3px;
+        }
+
+        .checkbox.checked {
+            background: var(--color-typo-primary);
+            border-color: var(--color-typo-primary);
+        }
+
+        .checkbox.checked svg {
+            display: block;
+        }
+
+        .checkbox svg {
+            display: none;
+            width: 10px;
+            height: 10px;
+        }
+
+        .checkbox-label {
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 24px;
+            color: var(--color-typo-secondary);
+        }
+
+        .checkbox-label a, .checkbox-label .link {
+            color: var(--color-green);
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .reddot {
+            color: var(--color-red);
+        }
+
+        /* Role Selection Cards */
+        .role-cards {
+            display: flex;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .role-card {
+            flex: 1;
+            padding: 20px 12px;
+            background: var(--color-background-blue);
+            border: 2px solid var(--color-border-blue);
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .role-card:hover, .role-card.selected {
+            border-color: var(--color-green);
+            background: rgba(38, 164, 90, 0.08);
+        }
+
+        .role-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .role-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--color-typo-primary);
+        }
+
+        .role-desc {
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--color-typo-secondary);
+            line-height: 16px;
+        }
+
+        /* Info Card */
+        .info-card {
+            background: rgba(38, 164, 90, 0.08);
+            border: 1px solid rgba(38, 164, 90, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .info-card-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--color-green);
+            margin-bottom: 4px;
+        }
+
+        .info-card-desc {
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--color-typo-secondary);
+        }
+
+        /* Map Preview */
+        .map-preview {
+            width: 100%;
+            height: 160px;
+            background: linear-gradient(135deg, #e8f4e8 0%, #d4e8d4 100%);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--color-border-blue);
+        }
+
+        .map-pin {
+            width: 24px;
+            height: 24px;
+            position: absolute;
+        }
+
+        .map-pin svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .map-pin.draggable {
+            width: 32px;
+            height: 32px;
+            cursor: grab;
+        }
+
+        .map-label {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--color-typo-primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .map-instruction {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--color-typo-primary);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 400;
+            white-space: nowrap;
+        }
+
+        /* Photo Upload */
+        .photo-upload {
+            width: 100%;
+            height: 100px;
+            background: var(--color-background-blue);
+            border: 2px dashed var(--color-border-blue);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .photo-upload-icon {
+            font-size: 28px;
+            color: var(--color-typo-tertiary);
+        }
+
+        .photo-upload-text {
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--color-typo-secondary);
+        }
+
+        /* Avatar Upload */
+        .avatar-upload {
+            width: 80px;
+            height: 80px;
+            background: var(--color-background-blue);
+            border: 2px dashed var(--color-border-blue);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            cursor: pointer;
+        }
+
+        /* Availability Options */
+        .availability-option {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: var(--color-background-blue);
+            border: 1px solid var(--color-border-blue);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        .availability-option.selected {
+            border-color: var(--color-green);
+            background: rgba(38, 164, 90, 0.08);
+        }
+
+        .availability-check {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--color-typo-tertiary);
+            border-radius: 4px;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .availability-option.selected .availability-check {
+            background: var(--color-green);
+            border-color: var(--color-green);
+        }
+
+        .availability-option.selected .availability-check svg {
+            display: block;
+        }
+
+        .availability-check svg {
+            display: none;
+            width: 12px;
+            height: 12px;
+        }
+
+        .availability-info {
+            flex: 1;
+        }
+
+        .availability-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--color-typo-primary);
+        }
+
+        .availability-desc {
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--color-typo-secondary);
+        }
+
+        /* Time Slots Grid */
+        .time-slots-grid {
+            display: grid;
+            grid-template-columns: 60px repeat(4, 1fr);
+            gap: 3px;
+            margin-top: 12px;
+        }
+
+        .time-slot-header {
+            font-size: 9px;
+            font-weight: 400;
+            color: var(--color-typo-secondary);
+            text-align: center;
+            padding: 4px 2px;
+        }
+
+        .time-slot-day {
+            font-size: 10px;
+            font-weight: 400;
+            color: var(--color-typo-secondary);
+            padding: 6px 4px;
+            text-align: right;
+        }
+
+        .time-slot {
+            padding: 6px 2px;
+            background: var(--color-background-blue);
+            border: 1px solid var(--color-border-blue);
+            border-radius: 4px;
+            text-align: center;
+            font-size: 9px;
+            cursor: pointer;
+            color: var(--color-typo-tertiary);
+        }
+
+        .time-slot.selected {
+            background: rgba(38, 164, 90, 0.15);
+            border-color: var(--color-green);
+            color: var(--color-green);
+        }
+
+        /* Day Chips for Custom Time Windows */
+        .day-chip {
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--color-typo-secondary);
+            background: white;
+            border: 1px solid var(--color-typo-tertiary);
+            border-radius: 16px;
+            cursor: pointer;
+        }
+
+        .day-chip.selected {
+            color: white;
+            background: var(--color-green);
+            border-color: var(--color-green);
+        }
+
+        /* Amenity Chips */
+        .amenity-chip {
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--color-typo-secondary);
+            background: var(--color-background-blue);
+            border: 1px solid var(--color-border-blue);
+            border-radius: 16px;
+            cursor: pointer;
+        }
+
+        .amenity-chip.selected {
+            color: var(--color-green);
+            background: rgba(38, 164, 90, 0.1);
+            border-color: var(--color-green);
+        }
+
+        /* Smart charger integration section */
+        .smart-charger-section {
+            border: 1px solid var(--color-border-blue);
+            border-radius: 8px;
+            background: var(--color-background-blue);
+            margin: 16px 0;
+            overflow: hidden;
+        }
+
+        .smart-charger-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            cursor: pointer;
+        }
+
+        .smart-charger-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--color-typo-primary);
+        }
+
+        .smart-charger-subtitle {
+            font-size: 12px;
+            color: var(--color-typo-secondary);
+        }
+
+        .smart-charger-body {
+            padding: 0 16px 16px;
+            display: none;
+        }
+
+        .smart-charger-body.expanded {
+            display: block;
+        }
+
+        .charger-brand-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .charger-brand-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: white;
+            border: 1px solid var(--color-border-blue);
+            border-radius: 8px;
+        }
+
+        .charger-brand-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--color-typo-primary);
+        }
+
+        .charger-connect-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--color-green);
+            background: rgba(38, 164, 90, 0.1);
+            border: 1px solid var(--color-green);
+            border-radius: 0px 8px;
+            cursor: pointer;
+        }
+
+        .charger-connect-btn.connected {
+            color: white;
+            background: var(--color-green);
+        }
+
+        .ocpp-section {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--color-border-blue);
+        }
+
+        .ocpp-fields {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .ocpp-fields.visible {
+            display: flex;
+        }
+
+        /* Time Window Items */
+        .time-window-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: white;
+            border: 1px solid var(--color-border-blue);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .time-window-info {
+            flex: 1;
+        }
+
+        .time-window-days {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--color-typo-primary);
+        }
+
+        .time-window-hours {
+            font-size: 12px;
+            color: var(--color-green);
+            font-weight: 500;
+        }
+
+        .time-window-delete {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: rgba(195, 0, 0, 0.1);
+            color: var(--color-red);
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Pricing Card */
+        .pricing-card {
+            background: var(--color-background-blue);
+            border: 1px solid var(--color-border-blue);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .pricing-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--color-border-blue);
+        }
+
+        .pricing-row:last-child {
+            border-bottom: none;
+        }
+
+        .pricing-label {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--color-typo-primary);
+        }
+
+        .pricing-time {
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--color-typo-secondary);
+        }
+
+        .pricing-input {
+            width: 90px;
+            padding: 8px 10px;
+            background: #fff;
+            border: 1px solid var(--color-border-blue);
+            border-radius: 6px;
+            color: var(--color-typo-primary);
+            font-size: 14px;
+            font-weight: 400;
+            text-align: right;
+            font-family: "Poppins", sans-serif;
+        }
+
+        /* Connector Types */
+        .connector-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .connector-option {
+            padding: 10px;
+            background: var(--color-background-blue);
+            border: 1px solid var(--color-border-blue);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .connector-option.selected {
+            border-color: var(--color-green);
+            background: rgba(38, 164, 90, 0.08);
+        }
+
+        .connector-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--color-typo-primary);
+        }
+
+        /* Success Screen */
+        .success-image {
+            width: 200px;
+            height: 120px;
+            margin: 0 auto 16px;
+        }
+
+        .success-title {
+            font-size: 20px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 8px;
+            color: var(--color-typo-primary);
+        }
+
+        .success-desc {
+            text-align: center;
+            color: var(--color-typo-secondary);
+            font-size: 14px;
+            font-weight: 400;
+            margin-bottom: 20px;
+        }
+
+        /* Share Buttons */
+        .share-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .share-btn {
+            flex: 1;
+            padding: 10px;
+            background: var(--color-background-blue);
+            border: 1px solid var(--color-border-blue);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--color-typo-primary);
+        }
+
+        .share-btn:hover {
+            border-color: var(--color-green);
+        }
+
+        /* Screen Navigation */
+        .screen-nav {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .screen-nav button {
+            padding: 6px 10px;
+            background: #fff;
+            border: 1px solid var(--color-border-blue);
+            border-radius: 0px 8px;
+            color: var(--color-typo-primary);
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 400;
+            font-family: "Poppins", sans-serif;
+        }
+
+        .screen-nav button:hover {
+            background: var(--color-background-blue);
+        }
+
+        .screen-nav button.active {
+            background: var(--color-green);
+            color: #fff;
+            border-color: var(--color-green);
+        }
+
+        .screen-counter {
+            text-align: center;
+            margin-top: 8px;
+            color: var(--color-typo-secondary);
+            font-size: 11px;
+            font-weight: 400;
+            max-width: 390px;
+        }
+
+        /* Hide/Show Screens */
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Tab Pills */
+        .tab-pills {
+            display: flex;
+            background: var(--color-background-blue);
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 12px;
+        }
+
+        .tab-pill {
+            flex: 1;
+            padding: 8px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: var(--color-typo-secondary);
+            font-size: 12px;
+            font-weight: 400;
+            cursor: pointer;
+            font-family: "Poppins", sans-serif;
+        }
+
+        .tab-pill.active {
+            background: var(--color-green);
+            color: #fff;
+        }
+
+        /* Single phone view */
+        .single-phone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .section-content {
+            display: none;
+        }
+
+        .section-content.active {
+            display: flex;
+        }
+
+        @media (max-width: 450px) {
+            .phone {
+                width: 100%;
+                max-width: 340px;
+                height: 720px;
+            }
+        }
+
+        /* Stats row */
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            padding: 12px;
+            background: var(--color-background-blue);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .stat-item {
+            flex: 1;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--color-typo-primary);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--color-typo-secondary);
+        }
+
+        /* Listing Preview Card */
+        .listing-preview {
+            background: var(--color-background-blue);
+            border-radius: 12px;
+            padding: 12px;
+            margin: 16px 0;
+        }
+
+        .listing-image {
+            width: 100%;
+            height: 80px;
+            background: linear-gradient(135deg, #e8f4e8 0%, #d4e8d4 100%);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .listing-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--color-typo-primary);
+        }
+
+        .listing-address {
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--color-typo-secondary);
+            margin-bottom: 8px;
+        }
+
+        .listing-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            font-weight: 400;
+        }
+
+        .listing-meta span {
+            color: var(--color-green);
+        }
+
+        /* Footer link */
+        .footer-link {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 16px;
+            font-weight: 400;
+            color: var(--color-typo-primary);
+        }
+
+        .footer-link a, .footer-link .link {
+            color: var(--color-green);
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        /* App Footer */
+        .app-footer {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Logo */
+        .logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+
+        /* Checkmark icon */
+        .checkmark-icon {
+            fill: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>JuiceNet UX Flow Prototype</h1>
+        <p>Proposed new user flows - exact app styling</p>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="showSection('landing')">Landing</button>
+        <button class="tab" onclick="showSection('guest-signup')">Guest Signup</button>
+        <button class="tab" onclick="showSection('guest-onboard')">Guest Onboard</button>
+        <button class="tab" onclick="showSection('host-signup')">Host Signup</button>
+        <button class="tab" onclick="showSection('host-onboard')">Host Onboard</button>
+    </div>
+
+    <!-- SVG Definitions -->
+    <svg style="display: none;">
+        <defs>
+            <!-- Back Arrow -->
+            <symbol id="icon-arrow-left" viewBox="0 0 24 24">
+                <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </symbol>
+            <!-- Checkmark -->
+            <symbol id="icon-check" viewBox="0 0 24 24">
+                <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </symbol>
+            <!-- Charger Pin Icon -->
+            <symbol id="icon-charger-pin" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" fill="#102441"/>
+                <path d="M13 7L10 12H14L11 17" stroke="#26a45a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </symbol>
+        </defs>
+    </svg>
+
+    <!-- ==================== LANDING ==================== -->
+    <div id="landing" class="section-content active single-phone">
+        <div class="phone">
+            <div class="phone-screen">
+                <div class="notch"></div>
+                <div class="app-content" style="position: relative;">
+                    <!-- Full-screen map background -->
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, #e8f4e8 0%, #d4e8d4 50%, #c5ddc5 100%); z-index: 0;">
+                        <svg class="map-pin" style="position: absolute; top: 15%; left: 20%;"><use href="#icon-charger-pin"/></svg>
+                        <svg class="map-pin" style="position: absolute; top: 25%; left: 55%;"><use href="#icon-charger-pin"/></svg>
+                        <svg class="map-pin" style="position: absolute; top: 35%; left: 75%;"><use href="#icon-charger-pin"/></svg>
+                        <svg class="map-pin" style="position: absolute; top: 22%; left: 35%;"><use href="#icon-charger-pin"/></svg>
+                        <svg class="map-pin" style="position: absolute; top: 40%; left: 15%;"><use href="#icon-charger-pin"/></svg>
+                        <svg class="map-pin" style="position: absolute; top: 30%; left: 85%;"><use href="#icon-charger-pin"/></svg>
+                        <!-- Map grid lines for realism -->
+                        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0.15;">
+                            <div style="position: absolute; top: 20%; left: 0; right: 0; height: 1px; background: #888;"></div>
+                            <div style="position: absolute; top: 40%; left: 0; right: 0; height: 2px; background: #666;"></div>
+                            <div style="position: absolute; top: 60%; left: 0; right: 0; height: 1px; background: #888;"></div>
+                            <div style="position: absolute; top: 0; bottom: 0; left: 30%; width: 1px; background: #888;"></div>
+                            <div style="position: absolute; top: 0; bottom: 0; left: 60%; width: 2px; background: #666;"></div>
+                        </div>
+                    </div>
+                    <!-- Content overlay -->
+                    <div class="app-body" style="position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; text-align: center; padding: 24px; padding-bottom: 40px;">
+                        <!-- Semi-transparent card for content -->
+                        <div style="background: rgba(255,255,255,0.95); border-radius: 16px; padding: 24px; width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                            <!-- JuiceNet Logo -->
+                            <div class="logo" style="margin-bottom: 12px;">
+                                <svg width="153" height="24" viewBox="0 0 153 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <g id="Logo">
+                                    <g id="Group">
+                                    <path d="M28.4461 24C24.7088 24 22.0382 21.8372 21.2207 18.7969L25.9663 17.1972C26.2504 18.3582 27.0641 19.1386 28.1969 19.1386C29.9566 19.1386 30.3653 17.7913 30.3653 15.8498V1.21533H35.7688V15.8188C35.7688 19.3289 34.5114 23.9961 28.4461 23.9961V24Z" fill="#26A45A"/>
+                                    <path d="M50.2505 23.406V21.2432H50.1882C49.4641 22.6217 47.6733 23.8448 45.4738 23.8448C41.2616 23.8448 39.7861 20.587 39.7861 17.4536V7.80078H44.9716V16.2615C44.9716 18.0166 45.4115 19.5853 47.2957 19.5853C49.1799 19.5853 50.0597 18.0166 50.0597 16.2305V7.80078H55.2141V23.406H50.2505Z" fill="#26A45A"/>
+                                    <path d="M61.8786 5.63792C60.2124 5.63792 58.9238 4.35269 58.9238 2.81896C58.9238 1.28523 60.2124 0 61.8786 0C63.5448 0 64.8334 1.25416 64.8334 2.81896C64.8334 4.38375 63.5137 5.63792 61.8786 5.63792ZM59.3014 23.4059V7.80067H64.4558V23.4059H59.3014Z" fill="#26A45A"/>
+                                    <path d="M79.3161 12.8445C78.7516 12.0912 77.6187 11.5903 76.5832 11.5903C74.4148 11.5903 72.9705 13.4386 72.9705 15.6013C72.9705 17.7641 74.3836 19.5813 76.6455 19.5813C77.681 19.5813 78.8139 19.1736 79.4407 18.4203L82.2981 21.8993C81.0095 23.1535 78.81 23.9068 76.517 23.9068C71.5846 23.9068 67.75 20.7733 67.75 15.6013C67.75 10.4294 71.6157 7.2959 76.4859 7.2959C78.7166 7.2959 81.0718 8.14236 82.2981 9.39653L79.3122 12.8445H79.3161Z" fill="#26A45A"/>
+                                    <path d="M99.8362 17.0108H88.492C88.6477 18.7348 90.3762 19.9579 92.2293 19.9579C93.8643 19.9579 94.9933 19.2667 95.6862 18.3271L99.2678 20.583C97.7923 22.7147 95.3398 23.9029 92.167 23.9029C87.4526 23.9029 83.5596 20.9247 83.5596 15.6596C83.5596 10.3944 87.2657 7.29199 92.0113 7.29199C96.7568 7.29199 99.8673 10.4565 99.8673 15.7838C99.8673 16.1915 99.8673 16.6303 99.8362 17.0069V17.0108ZM95.1218 13.8152C95.1218 12.1844 94.0862 10.837 92.0424 10.837C89.9986 10.837 88.6166 12.2155 88.492 13.8152H95.1218Z" fill="#26A45A"/>
+                                    <path d="M119.787 20.1132H119.849V1.21533H122.111V23.402H119.285L106.341 4.31774H106.278V23.402H104.017V1.21533H106.843L119.787 20.1132Z" fill="#26A45A"/>
+                                    <path d="M141.25 16.6382H129.057C129.119 19.5853 131.412 21.9655 134.429 21.9655C136.629 21.9655 138.326 20.7424 139.144 19.4261L140.748 20.6802C139.019 22.874 136.851 23.7826 134.433 23.7826C130.065 23.7826 126.83 20.4939 126.83 16.0752C126.83 11.6565 130.065 8.36768 134.246 8.36768C138.863 8.36768 141.285 11.6254 141.285 15.6364C141.285 15.9198 141.285 16.2615 141.254 16.6382H141.25ZM139.112 14.9452C138.988 12.1884 137.291 10.1499 134.242 10.1499C131.385 10.1499 129.279 12.4369 129.088 14.9452H139.112Z" fill="#26A45A"/>
+                                    <path d="M152.5 10.5263H148.354V19.0803C148.354 21.2741 149.265 21.775 150.554 21.775C151.15 21.775 151.843 21.5886 152.407 21.3051L152.5 23.1534C151.745 23.4368 150.959 23.5922 149.986 23.5922C148.413 23.5922 146.213 22.901 146.213 19.6743V10.5224H143.165V8.73632H146.213V4.60107H148.351V8.73632H152.497V10.5224L152.5 10.5263Z" fill="#26A45A"/>
+                                    </g>
+                                    <path d="M0.526878 17.3288C0.526878 17.3288 -0.485263 7.36165 9.91256 6.57602C9.91256 6.57602 21.3136 5.07382 21.22 0.666504C21.22 0.666504 21.22 14.7086 12.347 15.913C12.1196 15.9432 11.8878 15.9561 11.6559 15.9561C10.2603 15.9518 4.53976 15.9561 2.90785 16.4741C2.90785 16.4741 4.85187 12.6539 9.73421 10.2322C9.73421 10.2322 4.83404 10.5171 0.522418 17.3332L0.526878 17.3288Z" fill="#26A45A"/>
+                                    </g>
+                                </svg>
+                            </div>
+                            <p class="p3" style="color: var(--color-typo-secondary); margin-bottom: 20px;">Power sharing, switched on</p>
+
+                            <p class="p2" style="margin-bottom: 12px; color: var(--color-typo-primary);">What brings you here?</p>
+
+                            <div class="role-cards" style="width: 100%; margin-bottom: 16px;">
+                                <div class="role-card" onclick="showSection('guest-signup')">
+                                    <div class="role-icon">&#128663;</div>
+                                    <div class="role-title">CHARGE</div>
+                                    <div class="role-desc">Find a charger near you</div>
+                                </div>
+                                <div class="role-card" onclick="showSection('host-signup')">
+                                    <div class="role-icon">&#127968;</div>
+                                    <div class="role-title">EARN</div>
+                                    <div class="role-desc">Share your charger</div>
+                                </div>
+                            </div>
+
+                            <p class="footer-link" style="margin-top: 0;">Already a member? <span class="link">Log in</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== GUEST SIGNUP ==================== -->
+    <div id="guest-signup" class="section-content single-phone">
+        <div class="phone">
+            <div class="phone-screen">
+                <div class="notch"></div>
+                <div class="app-content">
+                    <div class="app-header">
+                        <div class="back-btn" onclick="showSection('landing')">
+                            <svg><use href="#icon-arrow-left"/></svg>
+                        </div>
+                        <span class="app-header-title">Sign up</span>
+                    </div>
+                    <div class="app-body">
+                        <h3 class="h3">Find chargers near you</h3>
+                        <p class="section-subtitle">Book EV charging at homes and businesses</p>
+
+                        <div class="input-container">
+                            <label>Email</label>
+                            <input type="text" class="input" placeholder="Email">
+                        </div>
+
+                        <div class="input-container">
+                            <label>Password</label>
+                            <div style="position: relative;">
+                                <input type="password" class="input" placeholder="Password" id="guest-password">
+                                <button type="button" class="show-password-btn" onclick="togglePassword('guest-password', this)">Show</button>
+                            </div>
+                            <p class="input-message">8+ characters, 1 capital letter, 1 special character</p>
+                        </div>
+
+                        <div class="input-checkbox-container">
+                            <div class="checkbox checked">
+                                <svg class="checkmark-icon"><use href="#icon-check"/></svg>
+                            </div>
+                            <span class="checkbox-label">I agree to the <span class="link">Terms</span> and <span class="link">Privacy Policy</span><span class="reddot">*</span></span>
+                        </div>
+
+                        <button class="btn-primary" onclick="showSection('guest-onboard')">Continue</button>
+
+                        <div class="divider">
+                            <div class="divider-line"></div>
+                            <span class="divider-text">or sign up with</span>
+                            <div class="divider-line"></div>
+                        </div>
+
+                        <div class="social-login">
+                            <div class="social-btn">&#63743; Apple</div>
+                            <div class="social-btn">f Facebook</div>
+                            <div class="social-btn">G Google</div>
+                        </div>
+
+                        <p class="footer-link">Already a member? <span class="link">Log in</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== GUEST ONBOARDING ==================== -->
+    <div id="guest-onboard" class="section-content single-phone">
+        <div class="phone" id="guest-onboard-phone">
+            <div class="phone-screen">
+                <div class="notch"></div>
+
+                <!-- Guest Step 1: Verify Email Notice -->
+                <div class="app-content screen active" id="guest-step-1">
+                    <div class="app-body" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 24px;">
+                        <!-- Success Image -->
+                        <svg class="success-image" viewBox="0 0 343 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="171.5" cy="100.5" r="77.5" fill="#E1F2E8"/>
+                            <path d="M120.384 96.9904L134 105L139.845 109.384C139.947 109.461 140.064 109.517 140.187 109.55L199.265 125.304C199.699 125.42 200.158 125.231 200.385 124.844L250.946 38.6488C251.436 37.8138 250.572 36.8395 249.684 37.2259L120.599 93.4328C119.101 94.0852 118.975 96.1618 120.384 96.9904Z" fill="white"/>
+                            <path d="M135.502 105.7L120.23 96.9733C118.486 95.9763 118.632 93.4143 120.479 92.6228L252.599 36M252.599 36L200.564 123.638C200.009 124.572 198.902 125.026 197.852 124.749L146.654 111.276M252.599 36L146.654 111.276M146.654 111.276L157.594 139.444L177.905 119.5" stroke="#26A45A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M249.267 38.1758L147.371 111.744L157.594 139.445L133.537 104.827L249.267 38.1758Z" fill="#26A45A" stroke="#26A45A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M43 160.884L43.3116 160.43C52.9928 146.336 71.627 141.609 86.8557 149.386V149.386C103.701 157.987 124.328 151.209 132.787 134.291L133.254 133.358" stroke="#26A45A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7.3 9.74"/>
+                        </svg>
+                        <div class="success-title">Check your email!</div>
+                        <p class="success-desc">We sent a verification link to<br><strong>you@email.com</strong></p>
+
+                        <button class="btn-primary" style="width: 100%;" onclick="showGuestStep(2)">Explore Chargers While You Wait</button>
+
+                        <p style="margin-top: 12px; color: var(--color-typo-secondary); font-size: 14px;">Didn't get it? <span class="link">Resend link</span></p>
+
+                        <div class="info-card" style="width: 100%; margin-top: 20px; text-align: left;">
+                            <p class="info-card-desc">You can browse chargers now. Book after verifying your email.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Guest Step 2: Profile Info -->
+                <div class="app-content screen" id="guest-step-2">
+                    <div class="app-header">
+                        <div class="back-btn" onclick="showGuestStep(1)">
+                            <svg><use href="#icon-arrow-left"/></svg>
+                        </div>
+                        <span class="app-header-title">Complete Profile</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-dot active"></div>
+                        <div class="progress-dot"></div>
+                    </div>
+                    <div class="app-body">
+                        <h3 class="h3">Tell us about you</h3>
+                        <p class="section-subtitle">This helps hosts know who's booking</p>
+
+                        <div class="avatar-upload">
+                            <span style="font-size: 24px; color: var(--color-typo-tertiary);">&#128247;</span>
+                        </div>
+                        <p style="text-align: center; font-size: 12px; color: var(--color-typo-secondary); margin-bottom: 16px;">Add profile photo (optional)</p>
+
+                        <div class="form-row">
+                            <div class="input-container">
+                                <label>First Name</label>
+                                <input type="text" class="input" placeholder="John">
+                            </div>
+                            <div class="input-container">
+                                <label>Last Name</label>
+                                <input type="text" class="input" placeholder="Smith">
+                            </div>
+                        </div>
+
+                        <div class="input-container">
+                            <label>Phone Number</label>
+                            <input type="text" class="input" placeholder="(555) 123-4567">
+                            <p class="input-message">For booking confirmations</p>
+                        </div>
+
+                        <button class="btn-primary" onclick="showGuestStep(3)">Continue</button>
+                        <button class="btn-small-gray">Skip for now</button>
+                    </div>
+                </div>
+
+                <!-- Guest Step 3: Vehicle Info -->
+                <div class="app-content screen" id="guest-step-3">
+                    <div class="app-header">
+                        <div class="back-btn" onclick="showGuestStep(2)">
+                            <svg><use href="#icon-arrow-left"/></svg>
+                        </div>
+                        <span class="app-header-title">Your Vehicle</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-dot active"></div>
+                        <div class="progress-dot active"></div>
+                    </div>
+                    <div class="app-body">
+                        <h3 class="h3">What do you drive?</h3>
+                        <p class="section-subtitle">We'll show compatible chargers</p>
+
+                        <div class="input-container">
+                            <label>Vehicle Make</label>
+                            <select class="input">
+                                <option>Select make...</option>
+                                <option>Tesla</option>
+                                <option>Chevrolet</option>
+                                <option>Ford</option>
+                                <option>Rivian</option>
+                                <option>BMW</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+
+                        <div class="input-container">
+                            <label>Vehicle Model</label>
+                            <select class="input">
+                                <option>Select model...</option>
+                                <option>Model 3</option>
+                                <option>Model Y</option>
+                                <option>Model S</option>
+                            </select>
+                        </div>
+
+                        <div class="input-container">
+                            <label>Connector Type</label>
+                            <div class="connector-grid">
+                                <div class="connector-option selected">
+                                    <div class="connector-name">J1772</div>
+                                </div>
+                                <div class="connector-option">
+                                    <div class="connector-name">Tesla</div>
+                                </div>
+                                <div class="connector-option">
+                                    <div class="connector-name">CCS</div>
+                                </div>
+                                <div class="connector-option">
+                                    <div class="connector-name">CHAdeMO</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary" onclick="showGuestStep(4)">Start Finding Chargers</button>
+                    </div>
+                </div>
+
+                <!-- Guest Success -->
+                <div class="app-content screen" id="guest-step-4">
+                    <div class="app-body" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 24px;">
+                        <!-- Success Image -->
+                        <svg class="success-image" viewBox="0 0 343 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="171.5" cy="100.5" r="77.5" fill="#E1F2E8"/>
+                            <path d="M120.384 96.9904L134 105L139.845 109.384C139.947 109.461 140.064 109.517 140.187 109.55L199.265 125.304C199.699 125.42 200.158 125.231 200.385 124.844L250.946 38.6488C251.436 37.8138 250.572 36.8395 249.684 37.2259L120.599 93.4328C119.101 94.0852 118.975 96.1618 120.384 96.9904Z" fill="white"/>
+                            <path d="M135.502 105.7L120.23 96.9733C118.486 95.9763 118.632 93.4143 120.479 92.6228L252.599 36M252.599 36L200.564 123.638C200.009 124.572 198.902 125.026 197.852 124.749L146.654 111.276M252.599 36L146.654 111.276M146.654 111.276L157.594 139.444L177.905 119.5" stroke="#26A45A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M249.267 38.1758L147.371 111.744L157.594 139.445L133.537 104.827L249.267 38.1758Z" fill="#26A45A" stroke="#26A45A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M43 160.884L43.3116 160.43C52.9928 146.336 71.627 141.609 86.8557 149.386V149.386C103.701 157.987 124.328 151.209 132.787 134.291L133.254 133.358" stroke="#26A45A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7.3 9.74"/>
+                        </svg>
+                        <div class="success-title">You're all set!</div>
+                        <p class="success-desc">Find chargers near you and book instantly</p>
+
+                        <div class="map-preview" style="width: 100%; height: 180px;">
+                            <svg class="map-pin" style="top: 30%; left: 20%;"><use href="#icon-charger-pin"/></svg>
+                            <svg class="map-pin" style="top: 50%; left: 40%;"><use href="#icon-charger-pin"/></svg>
+                            <svg class="map-pin" style="top: 35%; left: 65%;"><use href="#icon-charger-pin"/></svg>
+                            <svg class="map-pin" style="top: 60%; left: 30%;"><use href="#icon-charger-pin"/></svg>
+                            <div class="map-label">12 chargers nearby</div>
+                        </div>
+
+                        <button class="btn-primary" style="width: 100%;">View Map</button>
+
+                        <div class="info-card" style="width: 100%; margin-top: 12px; text-align: left;">
+                            <p style="font-size: 12px; color: var(--color-green); margin-bottom: 3px;">&#10003; Email verified!</p>
+                            <p class="info-card-desc">You can now make bookings</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="screen-nav">
+            <button onclick="showGuestStep(1)" class="active">Email Sent</button>
+            <button onclick="showGuestStep(2)">Profile</button>
+            <button onclick="showGuestStep(3)">Vehicle</button>
+            <button onclick="showGuestStep(4)">Success</button>
+        </div>
+    </div>
+
+    <!-- ==================== HOST SIGNUP ==================== -->
+    <div id="host-signup" class="section-content single-phone">
+        <div class="phone">
+            <div class="phone-screen">
+                <div class="notch"></div>
+                <div class="app-content">
+                    <div class="app-header">
+                        <div class="back-btn" onclick="showSection('landing')">
+                            <svg><use href="#icon-arrow-left"/></svg>
+                        </div>
+                        <span class="app-header-title">Start Earning</span>
+                    </div>
+                    <div class="app-body">
+                        <h3 class="h3">Earn with your charger</h3>
+                        <p class="section-subtitle">Share your home charger and make money</p>
+
+                        <div class="stats-row">
+                            <div class="stat-item">
+                                <div class="stat-value">$217</div>
+                                <div class="stat-label">avg/month</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">12</div>
+                                <div class="stat-label">sessions</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">4.8</div>
+                                <div class="stat-label">avg rating</div>
+                            </div>
+                        </div>
+
+                        <div class="input-container">
+                            <label>Email</label>
+                            <input type="text" class="input" placeholder="you@email.com">
+                        </div>
+
+                        <div class="input-container">
+                            <label>Password</label>
+                            <div style="position: relative;">
+                                <input type="password" class="input" placeholder="Enter password" id="host-password">
+                                <button type="button" class="show-password-btn" onclick="togglePassword('host-password', this)">Show</button>
+                            </div>
+                            <p class="input-message">8+ characters, 1 capital letter, 1 special character</p>
+                        </div>
+
+                        <div class="input-checkbox-container">
+                            <div class="checkbox checked">
+                                <svg class="checkmark-icon"><use href="#icon-check"/></svg>
+                            </div>
+                            <span class="checkbox-label">I agree to the <span class="link">Terms</span> and <span class="link">Privacy Policy</span><span class="reddot">*</span></span>
+                        </div>
+
+                        <button class="btn-primary" onclick="showSection('host-onboard')">Start Earning</button>
+
+                        <div class="divider">
+                            <div class="divider-line"></div>
+                            <span class="divider-text">or sign up with</span>
+                            <div class="divider-line"></div>
+                        </div>
+
+                        <div class="social-login">
+                            <div class="social-btn">&#63743; Apple</div>
+                            <div class="social-btn">f Facebook</div>
+                            <div class="social-btn">G Google</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== HOST ONBOARDING ==================== -->
+    <div id="host-onboard" class="section-content single-phone">
+        <div class="phone" id="host-onboard-phone">
+            <div class="phone-screen">
+                <div class="notch"></div>
+
+                <!-- Host Step 1: Profile Info (for payouts) -->
+                <div class="app-content screen active" id="host-step-1">
+                    <div class="app-header">
+                        <div class="back-btn" onclick="showSection('host-signup')">
+                            <svg><use href="#icon-arrow-left"/></svg>
+                        </div>
+                        <span class="app-header-title">Your Profile</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-dot active"></div>
+                        <div class="progress-dot"></div>
+                        <div class="progress-dot"></div>
+                        <div class="progress-dot"></div>
+                    </div>
+                    <p class="step-indicator">Step 1 of 4</p>
+                    <div class="app-body">
+                        <h3 class="h3">Tell us about you</h3>
+                        <p class="section-subtitle">Required for identity verification and payouts</p>
+
+                        <div class="form-row">
+                            <div class="input-container">
+                                <label>First Name</label>
+                                <input type="text" class="input" placeholder="John">
+                            </div>
+                            <div class="input-container">
+                                <label>Last Name</label>
+                                <input type="text" class="input" placeholder="Smith">
+                            </div>
+                        </div>
+
+                        <div class="input-container">
+                            <label>Phone Number</label>
+                            <input type="text" class="input" placeholder="(555) 123-4567">
+                        </div>
+
+                        <div class="input-container">
+                            <label>Date of Birth</label>
+                            <input type="date" class="input">
+                            <p class="input-message">&#128274; Required by Stripe for secure payouts - never shared</p>
+                        </div>
+
+                        <div class="input-container">
+                            <label>Address</label>
+                            <input type="text" class="input" placeholder="123 Main St, City, State ZIP">
+                            <p class="input-message">&#128274; Your exact address is never shown publicly</p>
+                        </div>
+
+                        <button class="btn-primary" onclick="showHostStep(2)">Continue</button>
+                        <p style="text-align: center; font-size: 11px; color: var(--color-typo-secondary); margin-top: 8px;">Step 1 of 4 - About You</p>
+                    </div>
+                </div>
+
+                <!-- Host Step 2: Charger Setup (Location + Photo + Type) -->
+                <div class="app-content screen" id="host-step-2">
+                    <div class="app-header">
+                        <div class="back-btn" onclick="showHostStep(1)">
+                            <svg><use href="#icon-arrow-left"/></svg>
+                        </div>
+                        <span class="app-header-title">Your Charger</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-dot active"></div>
+                        <div class="progress-dot active"></div>
+                        <div class="progress-dot"></div>
+                        <div class="progress-dot"></div>
+                    </div>
+                    <p class="step-indicator">Step 2 of 4</p>
+                    <div class="app-body">
+                        <h3 class="h3">Charger Details</h3>
+                        <p class="section-subtitle">Where is your charger located?</p>
+
+                        <div class="input-container">
+                            <label>Charger Address</label>
+                            <input type="text" class="input" placeholder="123 Main St, City, State ZIP">
+                        </div>
+
+                        <div class="map-preview" style="height: 100px; cursor: crosshair;">
+                            <svg class="map-pin draggable" style="top: 50%; left: 50%; transform: translate(-50%, -50%);"><use href="#icon-charger-pin"/></svg>
+                            <div class="map-instruction">Adjust pin if needed</div>
+                        </div>
+
+                        <div class="input-container">
+                            <label>Location Name</label>
+                            <input type="text" class="input" placeholder="e.g. Home Garage, Driveway">
+                        </div>
+
+                        <div class="form-row">
+                            <div class="input-container">
+                                <label>Charger Type</label>
+                                <select class="input">
+                                    <option>Level 2 (240V)</option>
+                                    <option>Level 1 (120V)</option>
+                                    <option>DC Fast</option>
+                                </select>
+                            </div>
+                            <div class="input-container">
+                                <label>Connector</label>
+                                <select class="input">
+                                    <option>J1772</option>
+                                    <option>Tesla</option>
+                                    <option>CCS</option>
+                                    <option>NEMA 14-50</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="photo-upload" style="height: 80px; margin-top: 8px;">
+                            <div class="photo-upload-icon">&#128247;</div>
+                            <div class="photo-upload-text">Add charger photo</div>
+                        </div>
+                        <p style="text-align: center; font-size: 11px; color: var(--color-green); margin-top: 4px; margin-bottom: 8px;">Listings with photos get 3x more bookings</p>
+
+                        <div class="input-container">
+                            <label>Arrival Instructions <span style="color: var(--color-typo-tertiary); font-weight: 400;">(optional)</span></label>
+                            <textarea class="input" placeholder="e.g. Park in driveway, charger is on left side of garage" style="min-height: 60px; resize: none;"></textarea>
+                        </div>
+
+                        <div class="input-container">
+                            <label>Amenities <span style="color: var(--color-typo-tertiary); font-weight: 400;">(optional)</span></label>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
+                                <span class="amenity-chip selected">&#128246; WiFi</span>
+                                <span class="amenity-chip">&#128701; Restroom</span>
+                                <span class="amenity-chip selected">&#127783;&#65039; Covered</span>
+                                <span class="amenity-chip">&#128161; Lighting</span>
+                                <span class="amenity-chip">&#128274; Secure</span>
+                            </div>
+                        </div>
+
+                        <!-- Smart Charger Integration (Optional) - Moved to bottom -->
+                        <div class="smart-charger-section">
+                            <div class="smart-charger-header" onclick="toggleSmartCharger()">
+                                <div>
+                                    <div class="smart-charger-title">Smart Charger Integration</div>
+                                    <div class="smart-charger-subtitle">Optional - for automatic session tracking</div>
+                                </div>
+                                <span id="smart-charger-arrow" style="color: var(--color-typo-tertiary); transition: transform 0.2s;">&#9660;</span>
+                            </div>
+                            <div class="smart-charger-body" id="smart-charger-body">
+                                <p style="font-size: 12px; color: var(--color-typo-secondary); margin-bottom: 12px;">
+                                    Connect your smart charger to enable automatic session start/stop and energy tracking.
+                                </p>
+
+                                <div class="charger-brand-list">
+                                    <div class="charger-brand-item">
+                                        <span class="charger-brand-name">Tesla</span>
+                                        <button class="charger-connect-btn">Connect</button>
+                                    </div>
+                                    <div class="charger-brand-item">
+                                        <span class="charger-brand-name">Grizzl-e</span>
+                                        <button class="charger-connect-btn">Connect</button>
+                                    </div>
+                                    <div class="charger-brand-item">
+                                        <span class="charger-brand-name">Emporia</span>
+                                        <button class="charger-connect-btn">Connect</button>
+                                    </div>
+                                    <div class="charger-brand-item">
+                                        <span class="charger-brand-name">Autel</span>
+                                        <button class="charger-connect-btn">Connect</button>
+                                    </div>
+                                    <div class="charger-brand-item">
+                                        <span class="charger-brand-name">ChargePoint</span>
+                                        <button class="charger-connect-btn">Connect</button>
+                                    </div>
+                                </div>
+
+                                <!-- OCPP Option -->
+                                <div class="ocpp-section">
+                                    <div class="charger-brand-item" style="cursor: pointer;" onclick="toggleOcppFields()">
+                                        <span class="charger-brand-name">OCPP Compatible</span>
+                                        <button class="charger-connect-btn">Configure</button>
+                                    </div>
+                                    <div class="ocpp-fields" id="ocpp-fields">
+                                        <div class="input-container" style="margin: 0;">
+                                            <label style="font-size: 12px;">OCPP Endpoint URL</label>
+                                            <input type="text" class="input" placeholder="wss://your-charger.example.com/ocpp">
+                                            <p class="input-message">Find this in your charger's app or manual</p>
+                                        </div>
+                                        <div class="input-container" style="margin: 0;">
+                                            <label style="font-size: 12px;">Charger ID</label>
+                                            <input type="text" class="input" placeholder="CHARGER-001">
+                                            <p class="input-message">Usually found in your charger's settings</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p style="font-size: 11px; color: var(--color-typo-secondary); margin-top: 12px; text-align: center;">
+                                    Don't have a smart charger? No problem! You can manually start/stop sessions.
+                                </p>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary" onclick="showHostStep(3)">Continue</button>
+                        <p style="text-align: center; font-size: 11px; color: var(--color-typo-secondary); margin-top: 8px;">Almost there! Just 2 more steps</p>
+                    </div>
+                </div>
+
+                <!-- Host Step 3: Pricing & Availability (Combined) -->
+                <div class="app-content screen" id="host-step-3">
+                    <div class="app-header">
+                        <div class="back-btn" onclick="showHostStep(2)">
+                            <svg><use href="#icon-arrow-left"/></svg>
+                        </div>
+                        <span class="app-header-title">Pricing & Hours</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-dot active"></div>
+                        <div class="progress-dot active"></div>
+                        <div class="progress-dot active"></div>
+                        <div class="progress-dot"></div>
+                    </div>
+                    <p class="step-indicator">Step 3 of 4</p>
+                    <div class="app-body">
+                        <h3 class="h3">Set your rates</h3>
+
+                        <div class="pricing-card">
+                            <div class="pricing-row">
+                                <div>
+                                    <div class="pricing-label">Peak Rate</div>
+                                    <div class="pricing-time">4pm - 9pm weekdays</div>
+                                </div>
+                                <input type="text" class="pricing-input" value="$0.55/kWh">
+                            </div>
+                            <div class="pricing-row">
+                                <div>
+                                    <div class="pricing-label">Off-Peak Rate</div>
+                                    <div class="pricing-time">All other times</div>
+                                </div>
+                                <input type="text" class="pricing-input" value="$0.35/kWh">
+                            </div>
+                        </div>
+
+                        <h4 style="font-size: 16px; font-weight: 600; margin: 16px 0 8px; color: var(--color-typo-primary);">When are you available?</h4>
+
+                        <div class="availability-option selected" style="padding: 10px;">
+                            <div class="availability-check" style="width: 16px; height: 16px; min-width: 16px;">
+                                <svg style="color: #fff; width: 10px; height: 10px;"><use href="#icon-check"/></svg>
+                            </div>
+                            <div class="availability-info">
+                                <div class="availability-title" style="font-size: 13px;">Weekday Mornings &amp; Evenings</div>
+                                <div class="availability-desc" style="font-size: 11px;">Mon-Fri, 6am-9am &amp; 5pm-10pm</div>
+                            </div>
+                        </div>
+
+                        <div class="availability-option selected" style="padding: 10px;">
+                            <div class="availability-check" style="width: 16px; height: 16px; min-width: 16px;">
+                                <svg style="color: #fff; width: 10px; height: 10px;"><use href="#icon-check"/></svg>
+                            </div>
+                            <div class="availability-info">
+                                <div class="availability-title" style="font-size: 13px;">Weekends</div>
+                                <div class="availability-desc" style="font-size: 11px;">Sat-Sun, 8am - 8pm</div>
+                            </div>
+                        </div>
+
+                        <p style="font-size: 11px; color: var(--color-green); margin-top: 8px; cursor: pointer;">+ Add custom time window</p>
+
+                        <div style="background: var(--color-background-blue); border-radius: 8px; padding: 10px; margin-top: 12px;">
+                            <p style="font-size: 12px; color: var(--color-typo-secondary);">Est. earnings: <strong style="color: var(--color-green);">$180-$320/mo</strong></p>
+                        </div>
+
+                        <button class="btn-primary" onclick="showHostStep(4)">Continue</button>
+                    </div>
+                </div>
+
+                <!-- Host Step 4: Payment -->
+                <div class="app-content screen" id="host-step-4">
+                    <div class="app-header">
+                        <div class="back-btn" onclick="showHostStep(3)">
+                            <svg><use href="#icon-arrow-left"/></svg>
+                        </div>
+                        <span class="app-header-title">Get Paid</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-dot active"></div>
+                        <div class="progress-dot active"></div>
+                        <div class="progress-dot active"></div>
+                        <div class="progress-dot active"></div>
+                    </div>
+                    <p class="step-indicator">Step 4 of 4</p>
+                    <div class="app-body">
+                        <h3 class="h3">Connect Your Bank</h3>
+                        <p class="section-subtitle">Receive earnings directly to your account</p>
+
+                        <div style="background: var(--color-background-blue); border-radius: 12px; padding: 24px; text-align: center; margin: 16px 0;">
+                            <div style="font-size: 32px; margin-bottom: 8px;">&#128179;</div>
+                            <p style="font-size: 16px; font-weight: 500; color: var(--color-typo-primary);">Stripe Connect</p>
+                            <p style="font-size: 12px; color: var(--color-typo-secondary);">Secure payments. We never see your bank details.</p>
+                        </div>
+
+                        <div style="background: var(--color-background-blue); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                            <p style="font-size: 13px; color: var(--color-typo-primary); font-weight: 500; margin-bottom: 4px;">How payouts work</p>
+                            <ul style="font-size: 11px; color: var(--color-typo-secondary); margin-left: 16px; line-height: 1.5;">
+                                <li>Guests pay when booking</li>
+                                <li>You get paid within 2-3 days</li>
+                                <li>Track earnings in the app</li>
+                            </ul>
+                        </div>
+
+                        <button class="btn-primary" onclick="showHostStep(5)">Connect Bank Account</button>
+                        <button class="btn-small-gray">I'll do this later</button>
+                    </div>
+                </div>
+
+                <!-- Host Success -->
+                <div class="app-content screen" id="host-step-5">
+                    <div class="app-body" style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 20px;">
+                        <!-- Success Image -->
+                        <svg class="success-image" viewBox="0 0 343 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="171.5" cy="100.5" r="77.5" fill="#E1F2E8"/>
+                            <path d="M120.384 96.9904L134 105L139.845 109.384C139.947 109.461 140.064 109.517 140.187 109.55L199.265 125.304C199.699 125.42 200.158 125.231 200.385 124.844L250.946 38.6488C251.436 37.8138 250.572 36.8395 249.684 37.2259L120.599 93.4328C119.101 94.0852 118.975 96.1618 120.384 96.9904Z" fill="white"/>
+                            <path d="M135.502 105.7L120.23 96.9733C118.486 95.9763 118.632 93.4143 120.479 92.6228L252.599 36M252.599 36L200.564 123.638C200.009 124.572 198.902 125.026 197.852 124.749L146.654 111.276M252.599 36L146.654 111.276M146.654 111.276L157.594 139.444L177.905 119.5" stroke="#26A45A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M249.267 38.1758L147.371 111.744L157.594 139.445L133.537 104.827L249.267 38.1758Z" fill="#26A45A" stroke="#26A45A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M43 160.884L43.3116 160.43C52.9928 146.336 71.627 141.609 86.8557 149.386V149.386C103.701 157.987 124.328 151.209 132.787 134.291L133.254 133.358" stroke="#26A45A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7.3 9.74"/>
+                        </svg>
+                        <div class="success-title">Your charger is live!</div>
+                        <p class="success-desc">Guests can now find and book your charger</p>
+
+                        <div class="listing-preview" style="width: 100%;">
+                            <div class="listing-image"></div>
+                            <div class="listing-name">Your Level 2 Charger</div>
+                            <div class="listing-address">123 Main Street, Anytown</div>
+                            <div class="listing-meta">
+                                <span>$0.35-0.55/kWh</span>
+                                <span style="color: var(--color-typo-secondary);">New</span>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary" style="width: 100%;">View My Listing</button>
+
+                        <div class="share-buttons" style="width: 100%; margin-top: 12px;">
+                            <div class="share-btn">Copy Link</div>
+                            <div class="share-btn">Message</div>
+                            <div class="share-btn">Share</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="screen-nav">
+            <button onclick="showHostStep(1)" class="active">Profile</button>
+            <button onclick="showHostStep(2)">Charger</button>
+            <button onclick="showHostStep(3)">Pricing</button>
+            <button onclick="showHostStep(4)">Payment</button>
+            <button onclick="showHostStep(5)">Success</button>
+        </div>
+        <div class="screen-counter">
+            4 steps: Profile → Charger Setup → Pricing &amp; Hours → Payment
+        </div>
+    </div>
+
+    <script>
+        function showSection(sectionId) {
+            document.querySelectorAll('.section-content').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+
+            document.querySelectorAll('.tabs .tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        function showGuestStep(step) {
+            document.querySelectorAll('#guest-onboard-phone .screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById('guest-step-' + step).classList.add('active');
+
+            document.querySelectorAll('#guest-onboard .screen-nav button').forEach((btn, i) => {
+                btn.classList.remove('active');
+                if (i === step - 1) btn.classList.add('active');
+            });
+        }
+
+        function showHostStep(step) {
+            document.querySelectorAll('#host-onboard-phone .screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById('host-step-' + step).classList.add('active');
+
+            document.querySelectorAll('#host-onboard .screen-nav button').forEach((btn, i) => {
+                btn.classList.remove('active');
+                if (i === step - 1) btn.classList.add('active');
+            });
+        }
+
+        function toggleSmartCharger() {
+            const body = document.getElementById('smart-charger-body');
+            const arrow = document.getElementById('smart-charger-arrow');
+            body.classList.toggle('expanded');
+            if (body.classList.contains('expanded')) {
+                arrow.style.transform = 'rotate(180deg)';
+            } else {
+                arrow.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function toggleOcppFields() {
+            const fields = document.getElementById('ocpp-fields');
+            fields.classList.toggle('visible');
+        }
+
+        function showAvailabilityTab(tab) {
+            if (tab === 'quick') {
+                document.getElementById('availability-quick').style.display = 'block';
+                document.getElementById('availability-custom').style.display = 'none';
+            } else {
+                document.getElementById('availability-quick').style.display = 'none';
+                document.getElementById('availability-custom').style.display = 'block';
+            }
+            document.querySelectorAll('.tab-pill').forEach(pill => pill.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function togglePassword(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = 'Hide';
+            } else {
+                input.type = 'password';
+                btn.textContent = 'Show';
+            }
+        }
+    </script>
+</body>
+</html>
+
+    </template>
+
+    <script>
+        // Chart.js Configuration
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.color = '#64748B';
+
+        // Guest Funnel Chart
+        const guestCtx = document.getElementById('guestFunnelChart').getContext('2d');
+        new Chart(guestCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Page Views', 'Signups', 'Email Verified', 'Profile Done', 'First Booking'],
+                datasets: [{
+                    label: 'Users',
+                    data: [968, 2012, 1543, 941, 101],
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.8)',
+                        'rgba(139, 92, 246, 0.8)',
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(239, 68, 68, 0.8)'
+                    ],
+                    borderRadius: 8,
+                    borderSkipped: false,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: '#0F172A',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        padding: 12,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                return context.raw.toLocaleString() + ' users';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // Host Funnel Chart
+        const hostCtx = document.getElementById('hostFunnelChart').getContext('2d');
+        new Chart(hostCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Host Signups', 'Charger Added', 'Profile Complete', 'First Booking'],
+                datasets: [{
+                    data: [127, 87, 64, 23],
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.8)',
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(239, 68, 68, 0.8)'
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 16,
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#0F172A',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        padding: 12,
+                        cornerRadius: 8
+                    }
+                }
+            }
+        });
+
+        // Prototype Toggle Functions
+        function showCurrentIssues() {
+            document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const container = document.getElementById('prototypeContainer');
+            container.innerHTML = `
+                <div style="padding: 60px; text-align: center;">
+                    <h3 style="color: #EF4444; margin-bottom: 16px;">Current App Issues</h3>
+                    <div style="display: grid; gap: 16px; max-width: 600px; margin: 0 auto; text-align: left;">
+                        <div style="background: white; padding: 20px; border-radius: 12px; border-left: 4px solid #EF4444;">
+                            <strong style="color: #0F172A;">No Privacy Explanation</strong>
+                            <p style="color: #64748B; margin-top: 8px; font-size: 14px;">Users see requests for DOB and Address with no context why.</p>
+                        </div>
+                        <div style="background: white; padding: 20px; border-radius: 12px; border-left: 4px solid #EF4444;">
+                            <strong style="color: #0F172A;">Missing Role Selection</strong>
+                            <p style="color: #64748B; margin-top: 8px; font-size: 14px;">Users don't know if they should sign up as host or guest.</p>
+                        </div>
+                        <div style="background: white; padding: 20px; border-radius: 12px; border-left: 4px solid #F59E0B;">
+                            <strong style="color: #0F172A;">No Earnings Preview</strong>
+                            <p style="color: #64748B; margin-top: 8px; font-size: 14px;">Hosts have no idea how much they can earn.</p>
+                        </div>
+                        <div style="background: white; padding: 20px; border-radius: 12px; border-left: 4px solid #F59E0B;">
+                            <strong style="color: #0F172A;">Progress Steps Unclear</strong>
+                            <p style="color: #64748B; margin-top: 8px; font-size: 14px;">Users don't know how far along they are in signup.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showProposedFixes() {
+            document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Load the embedded prototype
+            const template = document.getElementById('prototypeTemplate');
+            const container = document.getElementById('prototypeContainer');
+
+            // Create an iframe with the prototype content
+            const iframe = document.createElement('iframe');
+            iframe.className = 'prototype-iframe';
+            iframe.srcdoc = template.innerHTML;
+
+            container.innerHTML = '';
+            container.appendChild(iframe);
+        }
+
+        // Initialize with proposed fixes view
+        document.addEventListener('DOMContentLoaded', function() {
+            showProposedFixes();
+
+            // Smooth scroll for nav links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+
+                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            // Update active nav on scroll
+            const sections = document.querySelectorAll('section[id]');
+            window.addEventListener('scroll', function() {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (scrollY >= sectionTop - 100) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + current) {
+                        link.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

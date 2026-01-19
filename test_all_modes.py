@@ -21,8 +21,22 @@ class ImprovementMode:
 
 def load_agent_config():
     """Load agents.config.json"""
-    with open('agents.config.json', 'r') as f:
-        return json.load(f)
+    try:
+        with open('agents.config.json', 'r') as f:
+            config = json.load(f)
+            if 'agents' not in config:
+                print("[X] agents.config.json missing 'agents' key")
+                return {'agents': []}
+            return config
+    except FileNotFoundError:
+        print("[X] agents.config.json not found. Run setup or generate config first!")
+        return {'agents': []}
+    except json.JSONDecodeError as e:
+        print(f"[X] Invalid JSON in agents.config.json: {e}")
+        return {'agents': []}
+    except Exception as e:
+        print(f"[X] Unexpected error loading agents.config.json: {e}")
+        return {'agents': []}
 
 
 def test_agents_exist():

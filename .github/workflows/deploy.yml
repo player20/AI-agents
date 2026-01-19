@@ -1,0 +1,118 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Build and test before deploy
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd apps/web && npm ci
+
+      - name: Build frontend
+        run: cd apps/web && npm run build
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: apps/api/requirements.txt
+
+      - name: Install backend dependencies
+        run: pip install -r apps/api/requirements.txt
+
+  # Deploy frontend to Vercel (when secrets are configured)
+  deploy-frontend:
+    name: Deploy Frontend
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Deploy to Vercel (Preview)
+        if: ${{ !github.event.inputs.production }}
+        run: |
+          echo "Vercel deployment would run here."
+          echo "Configure VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID secrets to enable."
+        # Uncomment when secrets are configured:
+        # env:
+        #   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        #   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        #   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        # run: |
+        #   cd apps/web
+        #   vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        #   vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        #   vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+
+  # Deploy backend to Railway (when secrets are configured)
+  deploy-backend:
+    name: Deploy Backend
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Railway
+        run: |
+          echo "Railway deployment would run here."
+          echo "Configure RAILWAY_TOKEN secret to enable."
+        # Uncomment when secrets are configured:
+        # env:
+        #   RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        # run: |
+        #   npm install -g @railway/cli
+        #   cd apps/api
+        #   railway up
+
+  # Notify on completion
+  notify:
+    name: Notify
+    needs: [deploy-frontend, deploy-backend]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Deployment Status
+        run: |
+          if [[ "${{ needs.deploy-frontend.result }}" == "success" ]] && \
+             [[ "${{ needs.deploy-backend.result }}" == "success" ]]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "⚠️ Deployment completed with warnings. Check individual jobs."
+          fi

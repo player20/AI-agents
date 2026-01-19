@@ -1,0 +1,29 @@
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+});
+
+export const metadata: Metadata = {
+  title: 'Mira News - Unbiased AI-Powered News',
+  description: 'Fact-first news summaries without political spin or emotional framing.',
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" className="dark">
+      <body
+        className={`${inter.className} bg-background text-foreground min-h-screen flex flex-col`}
+      >
+        {children}
+      </body>
+    </html>
+  );
+}

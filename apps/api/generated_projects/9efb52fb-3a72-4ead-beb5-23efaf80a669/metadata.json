@@ -1,0 +1,192 @@
+{
+  "files": {
+    "app/main.py": {
+      "language": "python",
+      "size_bytes": 775,
+      "checksum": "c2a78236b895e6a73c5df2316dab6fde",
+      "updated_at": "2026-01-19T16:45:47.018454"
+    },
+    "app/routers/news.py": {
+      "language": "python",
+      "size_bytes": 1347,
+      "checksum": "3344c4472d09e7fb79330cae643e1434",
+      "updated_at": "2026-01-19T16:45:47.020260"
+    },
+    "app/services/news_service.py": {
+      "language": "python",
+      "size_bytes": 697,
+      "checksum": "e32b446b8697d5b09addd4fa7649485e",
+      "updated_at": "2026-01-19T16:45:47.029089"
+    },
+    "app/repositories/news_repository.py": {
+      "language": "python",
+      "size_bytes": 1103,
+      "checksum": "f630c73a43f35d3f1b75af888585ecee",
+      "updated_at": "2026-01-19T16:45:47.035382"
+    },
+    "app/models/news.py": {
+      "language": "python",
+      "size_bytes": 248,
+      "checksum": "3c4d7fd8cfc6cc9f511e8521f919f30a",
+      "updated_at": "2026-01-19T16:45:47.041264"
+    },
+    "requirements.txt": {
+      "language": null,
+      "size_bytes": 136,
+      "checksum": "2922279d08b8fde44689bd039b96be1d",
+      "updated_at": "2026-01-19T16:45:47.048894"
+    },
+    ".env.example": {
+      "language": null,
+      "size_bytes": 143,
+      "checksum": "d7b13d8724cbfb18cb973ee800e32a3c",
+      "updated_at": "2026-01-19T16:45:47.055428"
+    },
+    "package.json": {
+      "language": "json",
+      "size_bytes": 635,
+      "checksum": "23e27e8c064dff9bd7b0a3c6d9d49078",
+      "updated_at": "2026-01-19T16:45:47.061519"
+    },
+    "tailwind.config.ts": {
+      "language": "typescript",
+      "size_bytes": 1277,
+      "checksum": "e6bb98c87f784b3060daa486522042ea",
+      "updated_at": "2026-01-19T16:45:47.066825"
+    },
+    "postcss.config.mjs": {
+      "language": null,
+      "size_bytes": 80,
+      "checksum": "c6b223994720cbbb46eb850686641b34",
+      "updated_at": "2026-01-19T16:45:47.071952"
+    },
+    "tsconfig.json": {
+      "language": "json",
+      "size_bytes": 598,
+      "checksum": "d5a7cd1429acf6692f78848e20128ba1",
+      "updated_at": "2026-01-19T16:45:47.077435"
+    },
+    "next.config.ts": {
+      "language": "typescript",
+      "size_bytes": 136,
+      "checksum": "11e146d9f2c4e0d13918382fad4e4ffa",
+      "updated_at": "2026-01-19T16:45:47.082387"
+    },
+    "src/app/layout.tsx": {
+      "language": "typescript",
+      "size_bytes": 657,
+      "checksum": "34160c332eb2675857edd79a459c7040",
+      "updated_at": "2026-01-19T16:45:47.088336"
+    },
+    "src/app/page.tsx": {
+      "language": "typescript",
+      "size_bytes": 3505,
+      "checksum": "8e4ed62e1a486cb4a628ec52386de396",
+      "updated_at": "2026-01-19T16:45:47.093777"
+    },
+    "src/app/globals.css": {
+      "language": "css",
+      "size_bytes": 1559,
+      "checksum": "b7d3d42d43d79cc079f52b65bd7cb0ba",
+      "updated_at": "2026-01-19T16:45:47.099096"
+    },
+    "src/components/ui/button.tsx": {
+      "language": "typescript",
+      "size_bytes": 1868,
+      "checksum": "7867f0c168a7b9e7cbdda0216a254334",
+      "updated_at": "2026-01-19T16:45:47.104835"
+    },
+    "src/components/ui/card.tsx": {
+      "language": "typescript",
+      "size_bytes": 1891,
+      "checksum": "5bacd9f88c929dde5f1b5d054eb216d4",
+      "updated_at": "2026-01-19T16:45:47.109968"
+    },
+    "src/components/layout/header.tsx": {
+      "language": "typescript",
+      "size_bytes": 1310,
+      "checksum": "d0a7ba018f35274bd08ac1552d5d4769",
+      "updated_at": "2026-01-19T16:45:47.115630"
+    },
+    "src/components/layout/footer.tsx": {
+      "language": "typescript",
+      "size_bytes": 2647,
+      "checksum": "5e8b577b8df47ba8d58858dc09755580",
+      "updated_at": "2026-01-19T16:45:47.120584"
+    },
+    "src/lib/utils.ts": {
+      "language": "typescript",
+      "size_bytes": 168,
+      "checksum": "f9be4f094b904a88a1082be7c9cf34d7",
+      "updated_at": "2026-01-19T16:45:47.126457"
+    },
+    "docker-compose.yml": {
+      "language": "yaml",
+      "size_bytes": 975,
+      "checksum": "47427da4f0f493d75992c43cd6b249b2",
+      "updated_at": "2026-01-19T16:45:47.131241"
+    },
+    "backend/Dockerfile": {
+      "language": null,
+      "size_bytes": 300,
+      "checksum": "bda20bfed861e95c5035f16376a67bf1",
+      "updated_at": "2026-01-19T16:45:47.137313"
+    },
+    "frontend/Dockerfile": {
+      "language": null,
+      "size_bytes": 241,
+      "checksum": "d0f765bf03404fc8a1aa4b87ed0ab534",
+      "updated_at": "2026-01-19T16:45:47.142966"
+    },
+    ".github/workflows/ci.yml": {
+      "language": "yaml",
+      "size_bytes": 2266,
+      "checksum": "2c3b1513d06e3d457c2abc6ef3a2c3f5",
+      "updated_at": "2026-01-19T16:45:47.148856"
+    },
+    ".github/workflows/cd.yml": {
+      "language": "yaml",
+      "size_bytes": 1066,
+      "checksum": "9da5cabe8b5e84e980ca4cb3ea093ff9",
+      "updated_at": "2026-01-19T16:45:47.154736"
+    },
+    "k8s/backend-deployment.yml": {
+      "language": "yaml",
+      "size_bytes": 1184,
+      "checksum": "9525ba4ea9449cc7dbc725e9e3543a23",
+      "updated_at": "2026-01-19T16:45:47.160654"
+    },
+    "k8s/backend-service.yml": {
+      "language": "yaml",
+      "size_bytes": 217,
+      "checksum": "39cd2665e391af63920cc46df3d2e969",
+      "updated_at": "2026-01-19T16:45:47.166252"
+    },
+    "k8s/frontend-deployment.yml": {
+      "language": "yaml",
+      "size_bytes": 734,
+      "checksum": "e7e7f1402ae40d059bd69ff425c5db38",
+      "updated_at": "2026-01-19T16:45:47.171912"
+    },
+    "k8s/frontend-service.yml": {
+      "language": "yaml",
+      "size_bytes": 222,
+      "checksum": "641c9b15c63fd76484bd1a9f98b91756",
+      "updated_at": "2026-01-19T16:45:47.177957"
+    },
+    "terraform/main.tf": {
+      "language": null,
+      "size_bytes": 1308,
+      "checksum": "79ad68e413913a8e0b7cff2e9b00905f",
+      "updated_at": "2026-01-19T16:45:47.183397"
+    },
+    "terraform/variables.tf": {
+      "language": null,
+      "size_bytes": 601,
+      "checksum": "7104430ee14726a0a22a90dd1445945d",
+      "updated_at": "2026-01-19T16:45:47.188764"
+    }
+  },
+  "created_at": "2026-01-19T16:45:47.018957",
+  "updated_at": "2026-01-19T16:45:47.192557"
+}

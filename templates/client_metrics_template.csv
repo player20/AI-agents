@@ -1,0 +1,17 @@
+metric_name,metric_value,metric_percentage,time_period,notes
+page_views,,,last_30_days,Total visits to signup/landing page
+signups_started,,,last_30_days,Clicked signup button
+signups_completed,,,last_30_days,Account successfully created
+email_verified,,,last_30_days,Confirmed email address
+profile_completed,,,last_30_days,Filled in profile information
+first_action,,,last_30_days,Made first purchase/booking/post
+retained_day_7,,,last_30_days,Returned after 7 days
+retained_day_30,,,last_30_days,Returned after 30 days
+monthly_active_users,,,current,MAU
+daily_active_users,,,current,DAU
+paying_customers,,,current,Total paying users
+monthly_recurring_revenue,,,current,MRR in USD
+average_revenue_per_user,,,current,ARPU in USD
+customer_acquisition_cost,,,current,CAC in USD
+churn_rate,,,monthly,Percentage churning per month
+nps_score,,,current,Net Promoter Score (-100 to 100)

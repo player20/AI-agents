@@ -1,0 +1,1790 @@
+"""
+Toggle Prototype Generator
+==========================
+
+Creates an interactive before/after prototype with toggle switch.
+Users can flip between CURRENT and PROPOSED app flows to see the difference.
+"""
+
+
+def generate_toggle_prototype() -> str:
+    """
+    Generate a combined prototype with toggle between Current and Proposed flows.
+
+    Features:
+    - Toggle switch to flip between versions
+    - Both prototypes in same container
+    - Smooth fade transitions
+    - Visual indicator of which version is active
+    """
+    return '''
+    <!-- Before/After Toggle Prototype Section -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon success">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+            </div>
+            <h2>Interactive Before & After Prototype</h2>
+        </div>
+        <p class="section-intro">
+            Toggle between the current app flow and our proposed improvements. Experience the difference firsthand.
+        </p>
+    </div>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+        /* Toggle Prototype Container */
+        .toggle-prototype-wrapper {
+            background: #e8e8e8;
+            padding: 30px 20px;
+            border-radius: 16px;
+            margin: 20px 0 40px;
+        }
+
+        .toggle-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .toggle-header h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #102441;
+            margin-bottom: 16px;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .toggle-label {
+            font-size: 14px;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .toggle-label.current {
+            color: #5c6c82;
+        }
+
+        .toggle-label.current.active {
+            background: #5c6c82;
+            color: #fff;
+        }
+
+        .toggle-label.proposed {
+            color: #26a45a;
+        }
+
+        .toggle-label.proposed.active {
+            background: #26a45a;
+            color: #fff;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 32px;
+            background: #5c6c82;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.proposed {
+            background: #26a45a;
+        }
+
+        .toggle-switch-knob {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 24px;
+            height: 24px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch.proposed .toggle-switch-knob {
+            transform: translateX(28px);
+        }
+
+        /* Version Indicator */
+        .version-indicator {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .version-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .version-badge.current {
+            background: rgba(92, 108, 130, 0.15);
+            color: #5c6c82;
+        }
+
+        .version-badge.proposed {
+            background: rgba(38, 164, 90, 0.15);
+            color: #26a45a;
+        }
+
+        /* Flow Tabs */
+        .flow-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .flow-tab {
+            padding: 10px 16px;
+            background: #fff;
+            border: 1px solid #d8e8ff;
+            border-radius: 0px 12px;
+            color: #102441;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .flow-tab:hover {
+            background: #f3f8ff;
+        }
+
+        .flow-tab.active {
+            background: var(--active-color, #26a45a);
+            color: #fff;
+            border-color: var(--active-color, #26a45a);
+        }
+
+        /* Phone Container */
+        .toggle-phone-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            min-height: 720px;
+        }
+
+        /* Phone Frame */
+        .toggle-phone {
+            width: 320px;
+            height: 680px;
+            background: #000;
+            border-radius: 42px;
+            padding: 10px;
+            position: absolute;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            transition: opacity 0.4s, transform 0.4s;
+        }
+
+        .toggle-phone.hidden {
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+        }
+
+        .toggle-phone-screen {
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 34px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .toggle-notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 28px;
+            background: #000;
+            border-radius: 0 0 16px 16px;
+            z-index: 10;
+        }
+
+        .toggle-app-content {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            color: #102441;
+            padding-top: 40px;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .toggle-app-header {
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .toggle-back-btn {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #102441;
+            position: absolute;
+            left: 14px;
+            font-size: 18px;
+        }
+
+        .toggle-header-title {
+            flex: 1;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 500;
+            color: #102441;
+        }
+
+        .toggle-progress-bar {
+            display: flex;
+            gap: 4px;
+            padding: 10px 14px;
+            background: #f3f8ff;
+        }
+
+        .toggle-progress-dot {
+            flex: 1;
+            height: 3px;
+            background: #d8e8ff;
+            border-radius: 2px;
+        }
+
+        .toggle-progress-dot.active {
+            background: #26a45a;
+        }
+
+        .toggle-step-indicator {
+            text-align: center;
+            font-size: 11px;
+            color: #5c6c82;
+            margin: 0;
+            padding: 6px 14px 0;
+        }
+
+        .toggle-app-body {
+            flex: 1;
+            padding: 14px;
+            overflow-y: auto;
+        }
+
+        .toggle-h3 {
+            font-weight: 600;
+            font-size: 20px;
+            line-height: 26px;
+            color: #102441;
+            margin-bottom: 6px;
+        }
+
+        .toggle-subtitle {
+            font-size: 12px;
+            color: #5c6c82;
+            margin-bottom: 16px;
+            line-height: 16px;
+        }
+
+        .toggle-input-container {
+            margin-bottom: 12px;
+        }
+
+        .toggle-input-container label {
+            color: #102441;
+            font-size: 11px;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .toggle-input {
+            width: 100%;
+            padding: 10px 12px;
+            background: #f3f8ff;
+            border: 1px solid #f3f8ff;
+            border-radius: 6px;
+            color: #102441;
+            font-size: 12px;
+        }
+
+        .toggle-input-message {
+            color: #5c6c82;
+            font-size: 10px;
+            margin-top: 3px;
+        }
+
+        .toggle-input-message.success {
+            color: #26a45a;
+        }
+
+        .toggle-btn-primary {
+            width: 100%;
+            padding: 12px;
+            background: #26a45a;
+            border: 1px solid #26a45a;
+            border-radius: 0px 10px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .toggle-btn-secondary {
+            width: 100%;
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #5c6c82;
+            border-radius: 0px 10px;
+            color: #102441;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .toggle-checkbox-container {
+            color: #5c6c82;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+
+        .toggle-checkbox {
+            width: 16px;
+            height: 16px;
+            min-width: 16px;
+            background: #102441;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+            margin-top: 2px;
+        }
+
+        .toggle-link {
+            color: #26a45a;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        /* Pain Point - Only shows in Current */
+        .toggle-pain-point {
+            background: #FEE2E2;
+            border: 1px solid #FCA5A5;
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin: 8px 0;
+        }
+
+        .toggle-pain-point p {
+            font-size: 10px;
+            color: #DC2626;
+            margin: 0;
+        }
+
+        /* Improvement - Only shows in Proposed */
+        .toggle-improvement {
+            background: #D1FAE5;
+            border: 1px solid #6EE7B7;
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin: 8px 0;
+        }
+
+        .toggle-improvement p {
+            font-size: 10px;
+            color: #065F46;
+            margin: 0;
+        }
+
+        .toggle-screen {
+            display: none;
+        }
+
+        .toggle-screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toggle-section-content {
+            display: none;
+        }
+
+        .toggle-section-content.active {
+            display: block;
+        }
+
+        .toggle-screen-nav {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .toggle-screen-nav button {
+            padding: 6px 10px;
+            background: #fff;
+            border: 1px solid #d8e8ff;
+            border-radius: 0px 8px;
+            color: #102441;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 400;
+        }
+
+        .toggle-screen-nav button:hover {
+            background: #f3f8ff;
+        }
+
+        .toggle-screen-nav button.active {
+            background: var(--active-color, #26a45a);
+            color: #fff;
+            border-color: var(--active-color, #26a45a);
+        }
+
+        .toggle-footer-link {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 13px;
+            color: #102441;
+        }
+
+        .toggle-form-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .toggle-form-row .toggle-input-container {
+            flex: 1;
+        }
+
+        /* Role Cards */
+        .toggle-role-cards {
+            display: flex;
+            gap: 10px;
+            margin: 16px 0;
+        }
+
+        .toggle-role-card {
+            flex: 1;
+            padding: 16px 10px;
+            background: #f3f8ff;
+            border: 2px solid #d8e8ff;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle-role-card:hover, .toggle-role-card.selected {
+            border-color: #26a45a;
+            background: rgba(38, 164, 90, 0.08);
+        }
+
+        .toggle-role-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .toggle-role-title {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 3px;
+            color: #102441;
+        }
+
+        .toggle-role-desc {
+            font-size: 10px;
+            color: #5c6c82;
+        }
+
+        /* Stats Row */
+        .toggle-stats-row {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            padding: 10px;
+            background: #f3f8ff;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        .toggle-stat-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #102441;
+        }
+
+        .toggle-stat-label {
+            font-size: 10px;
+            color: #5c6c82;
+        }
+
+        /* Social Login */
+        .toggle-social-login {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .toggle-social-btn {
+            flex: 1;
+            padding: 8px;
+            background: #f3f8ff;
+            border: 1px solid #d8e8ff;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 11px;
+            color: #102441;
+        }
+
+        .toggle-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 14px 0;
+        }
+
+        .toggle-divider-line {
+            flex: 1;
+            height: 1px;
+            background: #d8e8ff;
+        }
+
+        .toggle-divider-text {
+            color: #9fa8b6;
+            font-size: 10px;
+        }
+
+        /* Map Preview */
+        .toggle-map-preview {
+            width: 100%;
+            height: 70px;
+            background: linear-gradient(135deg, #e8f4e8 0%, #d4e8d4 100%);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border: 1px solid #d8e8ff;
+        }
+
+        .toggle-map-pin {
+            width: 20px;
+            height: 20px;
+            background: #102441;
+            border-radius: 50%;
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        .toggle-map-label {
+            position: absolute;
+            bottom: 6px;
+            left: 6px;
+            background: #fff;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            color: #102441;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        /* Logo */
+        .toggle-logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 6px;
+        }
+
+        .toggle-logo-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #26a45a;
+        }
+
+        /* Success */
+        .toggle-success-title {
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 6px;
+            color: #102441;
+        }
+
+        .toggle-success-desc {
+            text-align: center;
+            color: #5c6c82;
+            font-size: 12px;
+            margin-bottom: 16px;
+        }
+
+        /* Info Card */
+        .toggle-info-card {
+            background: rgba(38, 164, 90, 0.08);
+            border: 1px solid rgba(38, 164, 90, 0.3);
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 12px;
+        }
+
+        .toggle-info-card p {
+            font-size: 11px;
+            color: #5c6c82;
+            margin: 0;
+        }
+
+        /* Photo Upload */
+        .toggle-photo-upload {
+            width: 100%;
+            height: 60px;
+            background: #f3f8ff;
+            border: 2px dashed #d8e8ff;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+            margin-top: 6px;
+        }
+
+        .toggle-photo-upload-icon {
+            font-size: 20px;
+            color: #9fa8b6;
+        }
+
+        .toggle-photo-upload-text {
+            font-size: 10px;
+            color: #5c6c82;
+        }
+
+        /* Amenities */
+        .toggle-amenity-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .toggle-amenity-chip {
+            padding: 4px 8px;
+            font-size: 10px;
+            color: #5c6c82;
+            background: #f3f8ff;
+            border: 1px solid #d8e8ff;
+            border-radius: 12px;
+        }
+
+        .toggle-amenity-chip.selected {
+            color: #26a45a;
+            background: rgba(38, 164, 90, 0.1);
+            border-color: #26a45a;
+        }
+
+        /* Pricing */
+        .toggle-pricing-card {
+            background: #f3f8ff;
+            border: 1px solid #d8e8ff;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 12px;
+        }
+
+        .toggle-pricing-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #d8e8ff;
+        }
+
+        .toggle-pricing-row:last-child {
+            border-bottom: none;
+        }
+
+        .toggle-pricing-label {
+            font-size: 12px;
+            color: #102441;
+        }
+
+        .toggle-pricing-time {
+            font-size: 10px;
+            color: #5c6c82;
+        }
+
+        .toggle-pricing-input {
+            width: 70px;
+            padding: 6px 8px;
+            background: #fff;
+            border: 1px solid #d8e8ff;
+            border-radius: 4px;
+            color: #102441;
+            font-size: 12px;
+            text-align: right;
+        }
+
+        /* Availability */
+        .toggle-availability-option {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            background: rgba(38, 164, 90, 0.08);
+            border: 1px solid #26a45a;
+            border-radius: 6px;
+            margin-bottom: 6px;
+        }
+
+        .toggle-availability-check {
+            width: 16px;
+            height: 16px;
+            background: #26a45a;
+            border-radius: 3px;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+        }
+
+        .toggle-availability-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: #102441;
+        }
+
+        .toggle-availability-desc {
+            font-size: 10px;
+            color: #5c6c82;
+        }
+
+        /* Share buttons */
+        .toggle-share-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .toggle-share-btn {
+            flex: 1;
+            padding: 8px;
+            background: #f3f8ff;
+            border: 1px solid #d8e8ff;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 11px;
+            color: #102441;
+            cursor: pointer;
+        }
+
+        /* Listing Preview */
+        .toggle-listing-preview {
+            background: #f3f8ff;
+            border-radius: 10px;
+            padding: 10px;
+            margin: 12px 0;
+            width: 100%;
+        }
+
+        .toggle-listing-image {
+            width: 100%;
+            height: 60px;
+            background: linear-gradient(135deg, #e8f4e8 0%, #d4e8d4 100%);
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .toggle-listing-name {
+            font-weight: 600;
+            font-size: 12px;
+            color: #102441;
+        }
+
+        .toggle-listing-address {
+            font-size: 10px;
+            color: #5c6c82;
+            margin-bottom: 6px;
+        }
+
+        .toggle-listing-meta {
+            display: flex;
+            gap: 10px;
+            font-size: 10px;
+        }
+
+        .toggle-listing-meta span {
+            color: #26a45a;
+        }
+
+        /* Counter */
+        .toggle-screen-counter {
+            text-align: center;
+            margin-top: 8px;
+            color: #5c6c82;
+            font-size: 11px;
+            max-width: 320px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Changes Panel */
+        .changes-panel {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 24px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .changes-panel-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        .changes-panel-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .changes-panel-icon.current {
+            background: rgba(92, 108, 130, 0.15);
+        }
+
+        .changes-panel-icon.proposed {
+            background: rgba(38, 164, 90, 0.15);
+        }
+
+        .changes-panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #102441;
+        }
+
+        .changes-panel-subtitle {
+            font-size: 12px;
+            color: #5c6c82;
+        }
+
+        .changes-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .changes-list li {
+            display: flex;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid #f3f8ff;
+        }
+
+        .changes-list li:last-child {
+            border-bottom: none;
+        }
+
+        .change-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .change-icon.issue {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+
+        .change-icon.fix {
+            background: #D1FAE5;
+            color: #059669;
+        }
+
+        .change-content {
+            flex: 1;
+        }
+
+        .change-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #102441;
+            margin-bottom: 4px;
+        }
+
+        .change-desc {
+            font-size: 11px;
+            color: #5c6c82;
+            line-height: 1.4;
+        }
+
+        .change-impact {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+            margin-top: 6px;
+        }
+
+        .change-impact.high {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+
+        .change-impact.medium {
+            background: #FEF3C7;
+            color: #D97706;
+        }
+
+        .change-impact.positive {
+            background: #D1FAE5;
+            color: #059669;
+        }
+    </style>
+
+    <div class="toggle-prototype-wrapper">
+        <div class="toggle-header">
+            <h3>Experience the Difference</h3>
+
+            <!-- Toggle Switch -->
+            <div class="toggle-switch-container">
+                <span class="toggle-label current active" onclick="switchToVersion('current')">Current</span>
+                <div class="toggle-switch" id="versionSwitch" onclick="toggleVersion()">
+                    <div class="toggle-switch-knob"></div>
+                </div>
+                <span class="toggle-label proposed" onclick="switchToVersion('proposed')">Proposed</span>
+            </div>
+
+            <!-- Version Badge -->
+            <div class="version-indicator">
+                <span class="version-badge current" id="versionBadge">Viewing Current App</span>
+            </div>
+        </div>
+
+        <!-- Flow Tabs -->
+        <div class="flow-tabs" id="flowTabs" style="--active-color: #5c6c82;">
+            <button class="flow-tab active" onclick="showToggleFlow('landing')">Landing</button>
+            <button class="flow-tab" onclick="showToggleFlow('signup')">Signup</button>
+            <button class="flow-tab" onclick="showToggleFlow('host-setup')">Host Setup</button>
+            <button class="flow-tab" onclick="showToggleFlow('success')">Success</button>
+        </div>
+
+        <!-- Phone Container -->
+        <div class="toggle-phone-container">
+
+            <!-- ==================== CURRENT VERSION ==================== -->
+            <div class="toggle-phone" id="currentPhone">
+                <div class="toggle-phone-screen">
+                    <div class="toggle-notch"></div>
+
+                    <!-- Current: Landing -->
+                    <div class="toggle-section-content active" id="current-landing">
+                        <div class="toggle-app-content">
+                            <div class="toggle-app-body" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 24px;">
+                                <div style="font-size: 48px; margin-bottom: 16px;">&#9889;</div>
+                                <div class="toggle-h3" style="font-size: 28px;">JuiceNet</div>
+                                <p class="toggle-subtitle" style="margin-bottom: 32px;">EV charging made simple</p>
+
+                                <div class="toggle-pain-point" style="width: 100%; margin-bottom: 20px;">
+                                    <p>&#9888; Generic welcome - no role clarity, no value proposition</p>
+                                </div>
+
+                                <button class="toggle-btn-primary" style="margin-bottom: 12px;">Sign Up</button>
+                                <p class="toggle-footer-link">Already have an account? <span class="toggle-link">Log in</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Current: Signup -->
+                    <div class="toggle-section-content" id="current-signup">
+                        <div class="toggle-app-content">
+                            <div class="toggle-app-header">
+                                <div class="toggle-back-btn">&larr;</div>
+                                <span class="toggle-header-title">Sign up</span>
+                            </div>
+                            <div class="toggle-app-body">
+                                <div class="toggle-h3">Create Account</div>
+                                <p class="toggle-subtitle">Join JuiceNet</p>
+
+                                <div class="toggle-pain-point">
+                                    <p>&#9888; No earnings preview for hosts - key value hidden</p>
+                                </div>
+
+                                <div class="toggle-input-container">
+                                    <label>Email</label>
+                                    <input type="text" class="toggle-input" placeholder="Email">
+                                </div>
+
+                                <div class="toggle-input-container">
+                                    <label>Password</label>
+                                    <input type="password" class="toggle-input" placeholder="Password">
+                                    <p class="toggle-input-message">8+ characters, 1 capital, 1 special char</p>
+                                </div>
+
+                                <div class="toggle-checkbox-container">
+                                    <div class="toggle-checkbox">&#10003;</div>
+                                    <span>I agree to the <span class="toggle-link">Terms</span> and <span class="toggle-link">Privacy</span></span>
+                                </div>
+
+                                <button class="toggle-btn-primary">Continue</button>
+
+                                <div class="toggle-divider">
+                                    <div class="toggle-divider-line"></div>
+                                    <span class="toggle-divider-text">or</span>
+                                    <div class="toggle-divider-line"></div>
+                                </div>
+
+                                <div class="toggle-social-login">
+                                    <div class="toggle-social-btn">&#63743; Apple</div>
+                                    <div class="toggle-social-btn">G Google</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Current: Host Setup -->
+                    <div class="toggle-section-content" id="current-host-setup">
+                        <div class="toggle-app-content">
+                            <div class="toggle-app-header">
+                                <div class="toggle-back-btn">&larr;</div>
+                                <span class="toggle-header-title">Account Setup</span>
+                            </div>
+                            <div class="toggle-progress-bar">
+                                <div class="toggle-progress-dot active"></div>
+                                <div class="toggle-progress-dot"></div>
+                                <div class="toggle-progress-dot"></div>
+                                <div class="toggle-progress-dot"></div>
+                            </div>
+                            <div class="toggle-app-body">
+                                <div class="toggle-h3">Create Profile</div>
+
+                                <div class="toggle-form-row">
+                                    <div class="toggle-input-container">
+                                        <label>First Name</label>
+                                        <input type="text" class="toggle-input" placeholder="First">
+                                    </div>
+                                    <div class="toggle-input-container">
+                                        <label>Last Name</label>
+                                        <input type="text" class="toggle-input" placeholder="Last">
+                                    </div>
+                                </div>
+
+                                <div class="toggle-input-container">
+                                    <label>Date of Birth</label>
+                                    <input type="date" class="toggle-input">
+                                    <div class="toggle-pain-point" style="margin-top: 4px;">
+                                        <p>&#9888; No explanation why DOB needed</p>
+                                    </div>
+                                </div>
+
+                                <div class="toggle-input-container">
+                                    <label>Address</label>
+                                    <input type="text" class="toggle-input" placeholder="Address">
+                                    <div class="toggle-pain-point" style="margin-top: 4px;">
+                                        <p>&#9888; Users worry address will be public</p>
+                                    </div>
+                                </div>
+
+                                <div class="toggle-input-container">
+                                    <label>Phone</label>
+                                    <input type="text" class="toggle-input" placeholder="Phone">
+                                </div>
+
+                                <button class="toggle-btn-primary">Next</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Current: Success -->
+                    <div class="toggle-section-content" id="current-success">
+                        <div class="toggle-app-content">
+                            <div class="toggle-app-body" style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 20px;">
+                                <div style="font-size: 48px; margin-bottom: 12px;">&#10003;</div>
+                                <div class="toggle-success-title">Setup Complete</div>
+                                <p class="toggle-success-desc">Your charger is now listed</p>
+
+                                <div class="toggle-pain-point" style="width: 100%;">
+                                    <p>&#9888; No share buttons, no "add another" option - missed viral opportunity</p>
+                                </div>
+
+                                <button class="toggle-btn-primary" style="width: 100%;">Go to Dashboard</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== PROPOSED VERSION ==================== -->
+            <div class="toggle-phone hidden" id="proposedPhone">
+                <div class="toggle-phone-screen">
+                    <div class="toggle-notch"></div>
+
+                    <!-- Proposed: Landing -->
+                    <div class="toggle-section-content active" id="proposed-landing">
+                        <div class="toggle-app-content" style="position: relative;">
+                            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, #e8f4e8 0%, #d4e8d4 50%, #c5ddc5 100%); z-index: 0;">
+                                <div class="toggle-map-pin" style="top: 15%; left: 20%;">&#9889;</div>
+                                <div class="toggle-map-pin" style="top: 25%; left: 55%;">&#9889;</div>
+                                <div class="toggle-map-pin" style="top: 35%; left: 75%;">&#9889;</div>
+                            </div>
+                            <div class="toggle-app-body" style="position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 20px; padding-bottom: 30px;">
+                                <div style="background: rgba(255,255,255,0.95); border-radius: 14px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                                    <div class="toggle-logo">
+                                        <span class="toggle-logo-text">JuiceNet</span>
+                                    </div>
+                                    <p style="font-size: 11px; color: #5c6c82; margin-bottom: 12px; text-align: center;">Power sharing, switched on</p>
+
+                                    <p style="font-size: 13px; color: #102441; margin-bottom: 10px; text-align: center;">What brings you here?</p>
+
+                                    <div class="toggle-improvement" style="margin-bottom: 12px;">
+                                        <p>&#10003; Clear role selection FIRST - users know what they're getting</p>
+                                    </div>
+
+                                    <div class="toggle-role-cards">
+                                        <div class="toggle-role-card">
+                                            <div class="toggle-role-icon">&#128663;</div>
+                                            <div class="toggle-role-title">CHARGE</div>
+                                            <div class="toggle-role-desc">Find chargers</div>
+                                        </div>
+                                        <div class="toggle-role-card selected">
+                                            <div class="toggle-role-icon">&#127968;</div>
+                                            <div class="toggle-role-title">EARN</div>
+                                            <div class="toggle-role-desc">Share charger</div>
+                                        </div>
+                                    </div>
+
+                                    <p class="toggle-footer-link">Already a member? <span class="toggle-link">Log in</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Proposed: Signup (Host) -->
+                    <div class="toggle-section-content" id="proposed-signup">
+                        <div class="toggle-app-content">
+                            <div class="toggle-app-header">
+                                <div class="toggle-back-btn">&larr;</div>
+                                <span class="toggle-header-title">Start Earning</span>
+                            </div>
+                            <div class="toggle-app-body">
+                                <div class="toggle-h3">Earn with your charger</div>
+                                <p class="toggle-subtitle">Share your home charger and make money</p>
+
+                                <div class="toggle-improvement">
+                                    <p>&#10003; Earnings preview builds motivation upfront</p>
+                                </div>
+
+                                <div class="toggle-stats-row">
+                                    <div>
+                                        <div class="toggle-stat-value">$217</div>
+                                        <div class="toggle-stat-label">avg/month</div>
+                                    </div>
+                                    <div>
+                                        <div class="toggle-stat-value">12</div>
+                                        <div class="toggle-stat-label">sessions</div>
+                                    </div>
+                                    <div>
+                                        <div class="toggle-stat-value">4.8</div>
+                                        <div class="toggle-stat-label">rating</div>
+                                    </div>
+                                </div>
+
+                                <div class="toggle-input-container">
+                                    <label>Email</label>
+                                    <input type="text" class="toggle-input" placeholder="you@email.com">
+                                </div>
+
+                                <div class="toggle-input-container">
+                                    <label>Password</label>
+                                    <input type="password" class="toggle-input" placeholder="Password">
+                                </div>
+
+                                <div class="toggle-checkbox-container">
+                                    <div class="toggle-checkbox">&#10003;</div>
+                                    <span>I agree to <span class="toggle-link">Terms</span></span>
+                                </div>
+
+                                <button class="toggle-btn-primary">Start Earning</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Proposed: Host Setup -->
+                    <div class="toggle-section-content" id="proposed-host-setup">
+                        <div class="toggle-app-content">
+                            <div class="toggle-app-header">
+                                <div class="toggle-back-btn">&larr;</div>
+                                <span class="toggle-header-title">Your Profile</span>
+                            </div>
+                            <div class="toggle-progress-bar">
+                                <div class="toggle-progress-dot active"></div>
+                                <div class="toggle-progress-dot"></div>
+                                <div class="toggle-progress-dot"></div>
+                                <div class="toggle-progress-dot"></div>
+                            </div>
+                            <p class="toggle-step-indicator">Step 1 of 4 - About You</p>
+                            <div class="toggle-app-body">
+                                <div class="toggle-h3">Tell us about you</div>
+                                <p class="toggle-subtitle">Required for verification and payouts</p>
+
+                                <div class="toggle-improvement">
+                                    <p>&#10003; Clear step indicators reduce anxiety</p>
+                                </div>
+
+                                <div class="toggle-form-row">
+                                    <div class="toggle-input-container">
+                                        <label>First Name</label>
+                                        <input type="text" class="toggle-input" placeholder="John">
+                                    </div>
+                                    <div class="toggle-input-container">
+                                        <label>Last Name</label>
+                                        <input type="text" class="toggle-input" placeholder="Smith">
+                                    </div>
+                                </div>
+
+                                <div class="toggle-input-container">
+                                    <label>Date of Birth</label>
+                                    <input type="date" class="toggle-input">
+                                    <p class="toggle-input-message success">&#128274; Required by Stripe for payouts - never shared</p>
+                                </div>
+
+                                <div class="toggle-input-container">
+                                    <label>Address</label>
+                                    <input type="text" class="toggle-input" placeholder="123 Main St">
+                                    <p class="toggle-input-message success">&#128274; Your exact address is never shown publicly</p>
+                                </div>
+
+                                <button class="toggle-btn-primary">Continue</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Proposed: Success -->
+                    <div class="toggle-section-content" id="proposed-success">
+                        <div class="toggle-app-content">
+                            <div class="toggle-app-body" style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 16px;">
+                                <div style="font-size: 48px; margin-bottom: 10px;">&#127881;</div>
+                                <div class="toggle-success-title">Your charger is live!</div>
+                                <p class="toggle-success-desc">Guests can now find and book your charger</p>
+
+                                <div class="toggle-improvement" style="width: 100%;">
+                                    <p>&#10003; Share buttons for viral growth + add another option</p>
+                                </div>
+
+                                <div class="toggle-listing-preview">
+                                    <div class="toggle-listing-image"></div>
+                                    <div class="toggle-listing-name">Your Level 2 Charger</div>
+                                    <div class="toggle-listing-address">123 Main Street</div>
+                                    <div class="toggle-listing-meta">
+                                        <span>$0.35-0.55/kWh</span>
+                                        <span style="color: #5c6c82;">New</span>
+                                    </div>
+                                </div>
+
+                                <button class="toggle-btn-primary" style="width: 100%;">View My Listing</button>
+
+                                <div class="toggle-share-buttons" style="width: 100%;">
+                                    <div class="toggle-share-btn">Copy Link</div>
+                                    <div class="toggle-share-btn">Share</div>
+                                </div>
+
+                                <p style="margin-top: 12px; font-size: 12px; color: #26a45a; cursor: pointer;">+ Add Another Charger</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== CHANGES PANEL ==================== -->
+        <div class="changes-panel" id="changesPanel">
+
+            <!-- Current: Landing Changes -->
+            <div class="changes-content" id="changes-current-landing">
+                <div class="changes-panel-header">
+                    <div class="changes-panel-icon current">⚠️</div>
+                    <div>
+                        <div class="changes-panel-title">Landing Page Issues</div>
+                        <div class="changes-panel-subtitle">3 problems identified</div>
+                    </div>
+                </div>
+                <ul class="changes-list">
+                    <li>
+                        <div class="change-icon issue">✗</div>
+                        <div class="change-content">
+                            <div class="change-title">No Role Clarity</div>
+                            <div class="change-desc">Users don't know if this is for charging or hosting. They arrive confused about what action to take.</div>
+                            <span class="change-impact high">High Impact - 30% drop-off</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon issue">✗</div>
+                        <div class="change-content">
+                            <div class="change-title">Missing Value Proposition</div>
+                            <div class="change-desc">No earnings preview, no benefits shown. Hosts don't see why they should list their charger.</div>
+                            <span class="change-impact high">High Impact - Lost conversions</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon issue">✗</div>
+                        <div class="change-content">
+                            <div class="change-title">Generic Welcome</div>
+                            <div class="change-desc">"EV charging made simple" doesn't differentiate from competitors or explain the marketplace model.</div>
+                            <span class="change-impact medium">Medium Impact</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Proposed: Landing Changes -->
+            <div class="changes-content" id="changes-proposed-landing" style="display: none;">
+                <div class="changes-panel-header">
+                    <div class="changes-panel-icon proposed">✓</div>
+                    <div>
+                        <div class="changes-panel-title">Landing Page Improvements</div>
+                        <div class="changes-panel-subtitle">3 enhancements implemented</div>
+                    </div>
+                </div>
+                <ul class="changes-list">
+                    <li>
+                        <div class="change-icon fix">✓</div>
+                        <div class="change-content">
+                            <div class="change-title">Clear Role Selection</div>
+                            <div class="change-desc">CHARGE vs EARN cards let users self-select immediately. Reduces confusion and segments the funnel.</div>
+                            <span class="change-impact positive">+25-30% conversion expected</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon fix">✓</div>
+                        <div class="change-content">
+                            <div class="change-title">Map Background Context</div>
+                            <div class="change-desc">Visual map with charger pins immediately communicates "location-based marketplace" without words.</div>
+                            <span class="change-impact positive">Improved first impression</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon fix">✓</div>
+                        <div class="change-content">
+                            <div class="change-title">Modern Tagline</div>
+                            <div class="change-desc">"Power sharing, switched on" is memorable and differentiates from generic charging apps.</div>
+                            <span class="change-impact positive">Brand differentiation</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Current: Signup Changes -->
+            <div class="changes-content" id="changes-current-signup" style="display: none;">
+                <div class="changes-panel-header">
+                    <div class="changes-panel-icon current">⚠️</div>
+                    <div>
+                        <div class="changes-panel-title">Signup Page Issues</div>
+                        <div class="changes-panel-subtitle">2 problems identified</div>
+                    </div>
+                </div>
+                <ul class="changes-list">
+                    <li>
+                        <div class="change-icon issue">✗</div>
+                        <div class="change-content">
+                            <div class="change-title">No Earnings Preview for Hosts</div>
+                            <div class="change-desc">Hosts see the same generic signup as guests. The key motivator (money) is completely hidden until after registration.</div>
+                            <span class="change-impact high">High Impact - 40% host drop-off</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon issue">✗</div>
+                        <div class="change-content">
+                            <div class="change-title">Generic "Create Account" Copy</div>
+                            <div class="change-desc">No excitement, no urgency. Doesn't reinforce the value they'll get by completing signup.</div>
+                            <span class="change-impact medium">Medium Impact</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Proposed: Signup Changes -->
+            <div class="changes-content" id="changes-proposed-signup" style="display: none;">
+                <div class="changes-panel-header">
+                    <div class="changes-panel-icon proposed">✓</div>
+                    <div>
+                        <div class="changes-panel-title">Signup Page Improvements</div>
+                        <div class="changes-panel-subtitle">3 enhancements implemented</div>
+                    </div>
+                </div>
+                <ul class="changes-list">
+                    <li>
+                        <div class="change-icon fix">✓</div>
+                        <div class="change-content">
+                            <div class="change-title">Earnings Stats Upfront</div>
+                            <div class="change-desc">$217 avg/month, 12 sessions, 4.8 rating - real data that motivates hosts to complete signup.</div>
+                            <span class="change-impact positive">+35% signup completion expected</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon fix">✓</div>
+                        <div class="change-content">
+                            <div class="change-title">Action-Oriented Header</div>
+                            <div class="change-desc">"Earn with your charger" reinforces the benefit. "Start Earning" CTA creates excitement.</div>
+                            <span class="change-impact positive">Improved motivation</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon fix">✓</div>
+                        <div class="change-content">
+                            <div class="change-title">Contextual Title</div>
+                            <div class="change-desc">Header shows "Start Earning" instead of generic "Sign up" - maintains context from role selection.</div>
+                            <span class="change-impact positive">Reduced confusion</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Current: Host Setup Changes -->
+            <div class="changes-content" id="changes-current-host-setup" style="display: none;">
+                <div class="changes-panel-header">
+                    <div class="changes-panel-icon current">⚠️</div>
+                    <div>
+                        <div class="changes-panel-title">Host Setup Issues</div>
+                        <div class="changes-panel-subtitle">4 problems identified</div>
+                    </div>
+                </div>
+                <ul class="changes-list">
+                    <li>
+                        <div class="change-icon issue">✗</div>
+                        <div class="change-content">
+                            <div class="change-title">No Privacy Explanations</div>
+                            <div class="change-desc">DOB and Address fields feel invasive. Users don't know why you need this info or how it's protected.</div>
+                            <span class="change-impact high">High Impact - 23% abandon here</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon issue">✗</div>
+                        <div class="change-content">
+                            <div class="change-title">No Step Indicators</div>
+                            <div class="change-desc">Progress dots exist but no text. Users don't know how many steps remain or what comes next.</div>
+                            <span class="change-impact medium">Medium Impact - Increases anxiety</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon issue">✗</div>
+                        <div class="change-content">
+                            <div class="change-title">Vague Purpose</div>
+                            <div class="change-desc">"Create Profile" doesn't explain this is required for payouts. Users wonder why so much info needed.</div>
+                            <span class="change-impact medium">Medium Impact</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon issue">✗</div>
+                        <div class="change-content">
+                            <div class="change-title">Address Privacy Concerns</div>
+                            <div class="change-desc">Users worry their exact home address will be visible to strangers. No reassurance provided.</div>
+                            <span class="change-impact high">High Impact - Trust barrier</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Proposed: Host Setup Changes -->
+            <div class="changes-content" id="changes-proposed-host-setup" style="display: none;">
+                <div class="changes-panel-header">
+                    <div class="changes-panel-icon proposed">✓</div>
+                    <div>
+                        <div class="changes-panel-title">Host Setup Improvements</div>
+                        <div class="changes-panel-subtitle">4 enhancements implemented</div>
+                    </div>
+                </div>
+                <ul class="changes-list">
+                    <li>
+                        <div class="change-icon fix">✓</div>
+                        <div class="change-content">
+                            <div class="change-title">Privacy Reassurance Text</div>
+                            <div class="change-desc">🔒 icons with explanations: "Required by Stripe for payouts - never shared" builds trust.</div>
+                            <span class="change-impact positive">+15-20% completion expected</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon fix">✓</div>
+                        <div class="change-content">
+                            <div class="change-title">Clear Step Indicators</div>
+                            <div class="change-desc">"Step 1 of 4 - About You" reduces anxiety. Users know exactly where they are and what's coming.</div>
+                            <span class="change-impact positive">Reduced abandonment</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon fix">✓</div>
+                        <div class="change-content">
+                            <div class="change-title">Contextual Subtitle</div>
+                            <div class="change-desc">"Required for verification and payouts" explains WHY info is needed before asking for it.</div>
+                            <span class="change-impact positive">Improved trust</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon fix">✓</div>
+                        <div class="change-content">
+                            <div class="change-title">Address Privacy Guarantee</div>
+                            <div class="change-desc">"Your exact address is never shown publicly" directly addresses the #1 host concern.</div>
+                            <span class="change-impact positive">Reduced drop-off</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Current: Success Changes -->
+            <div class="changes-content" id="changes-current-success" style="display: none;">
+                <div class="changes-panel-header">
+                    <div class="changes-panel-icon current">⚠️</div>
+                    <div>
+                        <div class="changes-panel-title">Success Page Issues</div>
+                        <div class="changes-panel-subtitle">3 problems identified</div>
+                    </div>
+                </div>
+                <ul class="changes-list">
+                    <li>
+                        <div class="change-icon issue">✗</div>
+                        <div class="change-content">
+                            <div class="change-title">No Share Functionality</div>
+                            <div class="change-desc">Hosts just completed setup but can't share their listing. Massive missed opportunity for viral growth.</div>
+                            <span class="change-impact high">High Impact - Lost referrals</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon issue">✗</div>
+                        <div class="change-content">
+                            <div class="change-title">No "Add Another" Option</div>
+                            <div class="change-desc">Users with multiple chargers have to navigate back through menus. Friction reduces multi-listing hosts.</div>
+                            <span class="change-impact medium">Medium Impact - Lost inventory</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon issue">✗</div>
+                        <div class="change-content">
+                            <div class="change-title">No Listing Preview</div>
+                            <div class="change-desc">Users don't see what their listing looks like to guests. Missed opportunity for excitement and corrections.</div>
+                            <span class="change-impact medium">Medium Impact</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Proposed: Success Changes -->
+            <div class="changes-content" id="changes-proposed-success" style="display: none;">
+                <div class="changes-panel-header">
+                    <div class="changes-panel-icon proposed">✓</div>
+                    <div>
+                        <div class="changes-panel-title">Success Page Improvements</div>
+                        <div class="changes-panel-subtitle">4 enhancements implemented</div>
+                    </div>
+                </div>
+                <ul class="changes-list">
+                    <li>
+                        <div class="change-icon fix">✓</div>
+                        <div class="change-content">
+                            <div class="change-title">Share Buttons</div>
+                            <div class="change-desc">Copy Link + Share buttons let hosts immediately spread the word. Uses native share on mobile.</div>
+                            <span class="change-impact positive">+10-15% viral growth expected</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon fix">✓</div>
+                        <div class="change-content">
+                            <div class="change-title">Listing Preview Card</div>
+                            <div class="change-desc">Shows exactly how their listing appears to guests. Creates excitement and allows quick corrections.</div>
+                            <span class="change-impact positive">Improved satisfaction</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon fix">✓</div>
+                        <div class="change-content">
+                            <div class="change-title">"Add Another Charger" Link</div>
+                            <div class="change-desc">One-tap to add more chargers. Captures multi-location hosts while they're engaged.</div>
+                            <span class="change-impact positive">+8% inventory growth</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="change-icon fix">✓</div>
+                        <div class="change-content">
+                            <div class="change-title">Celebratory Copy</div>
+                            <div class="change-desc">"Your charger is live!" with 🎉 emoji creates excitement. "Guests can now find and book" confirms success.</div>
+                            <span class="change-impact positive">Improved experience</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentVersion = 'current';
+        let currentFlow = 'landing';
+
+        function toggleVersion() {
+            if (currentVersion === 'current') {
+                switchToVersion('proposed');
+            } else {
+                switchToVersion('current');
+            }
+        }
+
+        function switchToVersion(version) {
+            currentVersion = version;
+
+            const toggle = document.getElementById('versionSwitch');
+            const currentLabel = document.querySelector('.toggle-label.current');
+            const proposedLabel = document.querySelector('.toggle-label.proposed');
+            const badge = document.getElementById('versionBadge');
+            const tabs = document.getElementById('flowTabs');
+            const currentPhone = document.getElementById('currentPhone');
+            const proposedPhone = document.getElementById('proposedPhone');
+
+            if (version === 'proposed') {
+                toggle.classList.add('proposed');
+                currentLabel.classList.remove('active');
+                proposedLabel.classList.add('active');
+                badge.textContent = 'Viewing Proposed Improvements';
+                badge.className = 'version-badge proposed';
+                tabs.style.setProperty('--active-color', '#26a45a');
+                currentPhone.classList.add('hidden');
+                proposedPhone.classList.remove('hidden');
+            } else {
+                toggle.classList.remove('proposed');
+                currentLabel.classList.add('active');
+                proposedLabel.classList.remove('active');
+                badge.textContent = 'Viewing Current App';
+                badge.className = 'version-badge current';
+                tabs.style.setProperty('--active-color', '#5c6c82');
+                currentPhone.classList.remove('hidden');
+                proposedPhone.classList.add('hidden');
+            }
+
+            // Update visible flow and changes panel
+            showToggleFlow(currentFlow);
+        }
+
+        function showToggleFlow(flow) {
+            currentFlow = flow;
+
+            // Hide all sections in both phones
+            document.querySelectorAll('.toggle-section-content').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            // Show the selected flow in the active version
+            const prefix = currentVersion;
+            const section = document.getElementById(prefix + '-' + flow);
+            if (section) {
+                section.classList.add('active');
+            }
+
+            // Update tab styles
+            document.querySelectorAll('.flow-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            if (event && event.target && event.target.classList.contains('flow-tab')) {
+                event.target.classList.add('active');
+            }
+
+            // Update changes panel
+            updateChangesPanel();
+        }
+
+        function updateChangesPanel() {
+            // Hide all changes content
+            document.querySelectorAll('.changes-content').forEach(el => {
+                el.style.display = 'none';
+            });
+
+            // Show the changes for current version and flow
+            const changesId = 'changes-' + currentVersion + '-' + currentFlow;
+            const changesEl = document.getElementById(changesId);
+            if (changesEl) {
+                changesEl.style.display = 'block';
+            }
+        }
+
+        // Initialize changes panel on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateChangesPanel();
+        });
+    </script>
+    '''
+
+
+if __name__ == "__main__":
+    # Generate standalone HTML file
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JuiceNet Before & After - Interactive Prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {{
+            font-family: 'Poppins', sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
+        }}
+    </style>
+</head>
+<body>
+    {generate_toggle_prototype()}
+</body>
+</html>"""
+
+    with open("JUICENET_TOGGLE_PROTOTYPE.html", "w", encoding="utf-8") as f:
+        f.write(html)
+    print("Toggle prototype saved to JUICENET_TOGGLE_PROTOTYPE.html")

@@ -1,0 +1,8 @@
+# FastAPI server dependencies
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.0.0
+
+# Already in main requirements but listed for clarity
+httpx>=0.24.0
+aiohttp>=3.8.0

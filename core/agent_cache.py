@@ -92,8 +92,8 @@ class AgentCache:
             # Expired - delete cache file
             try:
                 cache_file.unlink()
-            except:
-                pass
+            except (OSError, PermissionError) as e:
+                print(f"[WARNING] Failed to delete expired cache file {cache_file}: {e}")
             return None
 
         # Load cached results
@@ -101,12 +101,13 @@ class AgentCache:
             with open(cache_file, 'rb') as f:
                 cached_data = pickle.load(f)
             return cached_data.get('issues')
-        except Exception:
+        except Exception as e:
             # Corrupted cache - delete and return None
+            print(f"[WARNING] Corrupted cache file {cache_file}: {e}")
             try:
                 cache_file.unlink()
-            except:
-                pass
+            except (OSError, PermissionError) as del_e:
+                print(f"[WARNING] Failed to delete corrupted cache file: {del_e}")
             return None
 
     def set_cached_analysis(self, file_path: str, mode: str, issues: List[Dict]) -> None:
@@ -149,8 +150,8 @@ class AgentCache:
             try:
                 cache_file.unlink()
                 count += 1
-            except:
-                pass
+            except (OSError, PermissionError) as e:
+                print(f"[WARNING] Failed to delete cache file {cache_file}: {e}")
         return count
 
     def clear_expired(self) -> int:
@@ -169,8 +170,8 @@ class AgentCache:
                 if file_age > self.ttl:
                     cache_file.unlink()
                     count += 1
-            except:
-                pass
+            except (OSError, PermissionError) as e:
+                print(f"[WARNING] Failed to delete expired cache file {cache_file}: {e}")
 
         return count
 
@@ -192,8 +193,8 @@ class AgentCache:
                 file_age = now - datetime.fromtimestamp(cache_file.stat().st_mtime)
                 if file_age > self.ttl:
                     expired_count += 1
-            except:
-                pass
+            except (OSError, ValueError) as e:
+                print(f"[WARNING] Failed to check cache file age {cache_file}: {e}")
 
         return {
             'total_entries': len(cache_files),

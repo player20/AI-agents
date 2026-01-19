@@ -8,6 +8,7 @@ analytics SDK integrations (PostHog, AppsFlyer, OneSignal, etc.)
 import os
 import json
 import asyncio
+import logging
 from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
 import zipfile
@@ -15,6 +16,9 @@ import io
 import re
 from faker import Faker
 from datetime import datetime
+
+# Set up module logger
+logger = logging.getLogger(__name__)
 
 # Import Playwright for crawling
 from playwright.async_api import async_playwright, Page, Browser
@@ -24,6 +28,83 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from multi_agent_team import create_agent_with_model, load_agent_configs
 from crewai import Agent, Task, Crew, Process
+
+
+async def find_first_matching_selector(page: Page, selectors: List[str], timeout: int = 5000) -> Tuple[Optional[Any], Optional[str]]:
+    """
+    Find the first matching selector using parallel checking.
+
+    Instead of checking selectors sequentially (slow), this function:
+    1. Creates locators for all selectors
+    2. Uses asyncio.gather to check visibility in parallel
+    3. Returns the first visible element found
+
+    Args:
+        page: Playwright page object
+        selectors: List of CSS/Playwright selectors to try
+        timeout: Maximum time to wait (applies to entire operation, not per selector)
+
+    Returns:
+        Tuple of (element, matching_selector) or (None, None) if no match
+    """
+    async def check_selector(selector: str) -> Tuple[Optional[Any], str]:
+        """Check if a selector matches and is visible."""
+        try:
+            locator = page.locator(selector).first
+            # Quick visibility check - don't wait long
+            if await locator.is_visible():
+                return (locator, selector)
+        except Exception as e:
+            # Expected for non-matching selectors - log at debug level
+            logger.debug(f"Selector check failed for '{selector}': {e}")
+        return (None, selector)
+
+    # First pass: instant check for already-visible elements (no waiting)
+    results = await asyncio.gather(*[check_selector(s) for s in selectors])
+    for element, selector in results:
+        if element:
+            return (element, selector)
+
+    # Second pass: wait a bit for elements that may be loading
+    # Use a single wait_for_timeout then recheck
+    await page.wait_for_timeout(min(timeout // 2, 1500))
+
+    results = await asyncio.gather(*[check_selector(s) for s in selectors])
+    for element, selector in results:
+        if element:
+            return (element, selector)
+
+    # Third pass: final check after full timeout
+    await page.wait_for_timeout(min(timeout // 2, 1500))
+
+    results = await asyncio.gather(*[check_selector(s) for s in selectors])
+    for element, selector in results:
+        if element:
+            return (element, selector)
+
+    return (None, None)
+
+
+async def fill_form_field_parallel(page: Page, field_selectors: List[str], value: str) -> bool:
+    """
+    Fill a form field by trying multiple selectors in parallel.
+
+    Args:
+        page: Playwright page
+        field_selectors: List of possible selectors for this field
+        value: Value to fill
+
+    Returns:
+        True if field was filled, False otherwise
+    """
+    element, _ = await find_first_matching_selector(page, field_selectors, timeout=2000)
+    if element:
+        try:
+            await element.fill(value)
+            return True
+        except Exception as e:
+            logger.debug(f"Failed to fill form field: {e}")
+    return False
 
 
 class AuditModeAnalyzer:
@@ -142,33 +223,83 @@ class AuditModeAnalyzer:
             })
 
             # Step 2: Try to find signup/login
+            # Expanded selectors for various frameworks and patterns
             signup_selectors = [
+                # Standard button text patterns (case variations)
                 'button:has-text("Sign Up")',
+                'button:has-text("Sign up")',
+                'button:has-text("SIGN UP")',
                 'button:has-text("Get Started")',
+                'button:has-text("Get started")',
+                'button:has-text("GET STARTED")',
+                'button:has-text("Create Account")',
+                'button:has-text("Create account")',
+                'button:has-text("Register")',
+                'button:has-text("Join")',
+                'button:has-text("Start")',
+                'button:has-text("Continue")',
+                'button:has-text("Next")',
+
+                # Link-based signup
                 'a:has-text("Sign Up")',
+                'a:has-text("Sign up")',
+                'a:has-text("Get Started")',
+                'a:has-text("Register")',
+                'a:has-text("Create Account")',
+
+                # Framework-specific components
+                'ion-button',                          # Ionic
+                'ion-button:has-text("Sign")',
+                'ion-button:has-text("Continue")',
+                'app-button',                          # Angular custom
+                'app-button:has-text("Sign")',
+                'mat-button',                          # Angular Material
+                'mat-raised-button',
+                '.MuiButton-root',                     # Material UI
+                '.MuiButton-containedPrimary',
+
+                # Test IDs and data attributes
                 '[data-testid="signup"]',
+                '[data-testid="signup-button"]',
+                '[data-testid*="sign"]',
+                '[data-cy="signup"]',
+                '[data-test="signup"]',
+
+                # Common CSS classes
                 '#signup',
-                '.signup-button'
+                '.signup-button',
+                '.signup-btn',
+                '.btn-signup',
+                '.btn-primary',
+                '.cta-button',
+                '.hero-button',
+
+                # Role-based selectors
+                '[role="button"]:has-text("Sign")',
+                '[role="button"]:has-text("Get Started")',
             ]
 
-            signup_found = False
-            for selector in signup_selectors:
-                try:
-                    element = await page.wait_for_selector(selector, timeout=2000)
-                    if element:
-                        await element.click()
-                        signup_found = True
-                        session_data['steps'].append({
-                            'step': 'signup_clicked',
-                            'selector': selector,
-                            'timestamp': datetime.now().isoformat(),
-                            'success': True
-                        })
-                        break
-                except Exception:
-                    continue
+            # Use parallel selector checking (MUCH faster than sequential)
+            signup_element, matched_selector = await find_first_matching_selector(
+                page, signup_selectors, timeout=5000
+            )
 
-            if not signup_found:
+            if signup_element:
+                try:
+                    await signup_element.click()
+                    session_data['steps'].append({
+                        'step': 'signup_clicked',
+                        'selector': matched_selector,
+                        'timestamp': datetime.now().isoformat(),
+                        'success': True
+                    })
+                except Exception as click_err:
+                    session_data['errors'].append({
+                        'step': 'signup_click',
+                        'error': f'Click failed: {str(click_err)}',
+                        'severity': 'medium'
+                    })
+            else:
                 session_data['drop_off_step'] = 'landing'
                 session_data['errors'].append({
                     'step': 'signup',
@@ -181,36 +312,27 @@ class AuditModeAnalyzer:
             # Wait for signup form
             await page.wait_for_timeout(1000)
 
-            # Step 3: Fill signup form with fake data
+            # Step 3: Fill signup form with fake data (using parallel field detection)
             try:
                 # Generate fake user data
                 fake_email = self.faker.email()
                 fake_password = self.faker.password(length=12)
                 fake_name = self.faker.name()
 
-                # Try to fill common form fields
-                form_filled = False
-                field_selectors = {
-                    'email': ['input[type="email"]', 'input[name*="email"]', '#email'],
-                    'password': ['input[type="password"]', 'input[name*="password"]', '#password'],
-                    'name': ['input[name*="name"]', '#name', 'input[placeholder*="name"]']
-                }
+                # Try to fill common form fields using parallel detection
+                email_selectors = ['input[type="email"]', 'input[name*="email"]', '#email', 'input[placeholder*="email"]']
+                password_selectors = ['input[type="password"]', 'input[name*="password"]', '#password']
+                name_selectors = ['input[name*="name"]', '#name', 'input[placeholder*="name"]', 'input[name*="first"]']
 
-                for field_type, selectors in field_selectors.items():
-                    for selector in selectors:
-                        try:
-                            element = await page.query_selector(selector)
-                            if element:
-                                if field_type == 'email':
-                                    await element.fill(fake_email)
-                                elif field_type == 'password':
-                                    await element.fill(fake_password)
-                                elif field_type == 'name':
-                                    await element.fill(fake_name)
-                                form_filled = True
-                                break
-                        except Exception:
-                            continue
+                # Fill fields in parallel
+                fill_results = await asyncio.gather(
+                    fill_form_field_parallel(page, email_selectors, fake_email),
+                    fill_form_field_parallel(page, password_selectors, fake_password),
+                    fill_form_field_parallel(page, name_selectors, fake_name),
+                    return_exceptions=True
+                )
+
+                form_filled = any(r is True for r in fill_results if not isinstance(r, Exception))
 
                 if form_filled:
                     session_data['steps'].append({
@@ -219,52 +341,100 @@ class AuditModeAnalyzer:
                         'success': True
                     })
 
-                    # Try to submit
+                    # Try to submit - expanded selectors
                     submit_selectors = [
+                        # Standard submit buttons
                         'button[type="submit"]',
+                        'input[type="submit"]',
+
+                        # Common text patterns (all case variations)
                         'button:has-text("Submit")',
                         'button:has-text("Create Account")',
-                        'button:has-text("Sign Up")'
+                        'button:has-text("Create account")',
+                        'button:has-text("Sign Up")',
+                        'button:has-text("Sign up")',
+                        'button:has-text("Register")',
+                        'button:has-text("Continue")',
+                        'button:has-text("Next")',
+                        'button:has-text("Finish")',
+                        'button:has-text("Done")',
+                        'button:has-text("Complete")',
+                        'button:has-text("Save")',
+                        'button:has-text("Go")',
+                        'button:has-text("Join")',
+
+                        # Framework-specific
+                        'ion-button[type="submit"]',
+                        'ion-button:has-text("Continue")',
+                        'ion-button:has-text("Submit")',
+                        'ion-button:has-text("Create")',
+                        'ion-button:has-text("Sign")',
+                        'app-button[type="Primary"]',
+                        'app-button:has-text("Continue")',
+                        'app-button:has-text("Submit")',
+                        'mat-button[type="submit"]',
+                        'mat-raised-button[type="submit"]',
+                        '.MuiButton-root[type="submit"]',
+
+                        # Common CSS patterns
+                        '.btn-primary[type="submit"]',
+                        '.btn-submit',
+                        '.submit-button',
+                        '.form-submit',
+
+                        # Test IDs
+                        '[data-testid="submit"]',
+                        '[data-testid*="submit"]',
+                        '[data-cy="submit"]',
                     ]
 
-                    for selector in submit_selectors:
+                    # Use parallel selector checking for submit button (faster)
+                    submit_element, submit_selector = await find_first_matching_selector(
+                        page, submit_selectors, timeout=5000
+                    )
+
+                    if submit_element:
                         try:
-                            element = await page.wait_for_selector(selector, timeout=2000)
-                            if element:
-                                await element.click()
-                                session_data['steps'].append({
-                                    'step': 'form_submitted',
-                                    'timestamp': datetime.now().isoformat(),
-                                    'success': True
-                                })
-                                break
-                        except Exception:
-                            continue
+                            await submit_element.click()
+                            session_data['steps'].append({
+                                'step': 'form_submitted',
+                                'selector': submit_selector,
+                                'timestamp': datetime.now().isoformat(),
+                                'success': True
+                            })
+                        except Exception as submit_err:
+                            session_data['errors'].append({
+                                'step': 'form_submit_click',
+                                'error': f'Submit click failed: {str(submit_err)}',
+                                'severity': 'medium'
+                            })
 
                     # Wait for response
                     await page.wait_for_timeout(2000)
 
-                    # Check for errors
+                    # Check for errors using parallel detection
                     error_selectors = [
                         '.error',
                         '[role="alert"]',
                         '.alert-danger',
+                        '.alert-error',
+                        '.error-message',
+                        '[class*="error"]',
                         'text="Error"'
                     ]
 
-                    for selector in error_selectors:
+                    error_element, _ = await find_first_matching_selector(page, error_selectors, timeout=1000)
+                    if error_element:
                         try:
-                            error_el = await page.query_selector(selector)
-                            if error_el:
-                                error_text = await error_el.inner_text()
-                                session_data['errors'].append({
-                                    'step': 'form_submission',
-                                    'error': error_text,
-                                    'severity': 'medium'
-                                })
-                                session_data['drop_off_step'] = 'form_submission'
-                        except Exception:
-                            pass
+                            error_text = await error_element.inner_text()
+                            session_data['errors'].append({
+                                'step': 'form_submission',
+                                'error': error_text[:200],  # Truncate long errors
+                                'severity': 'medium'
+                            })
+                            session_data['drop_off_step'] = 'form_submission'
+                        except Exception as e:
+                            logger.warning(f"Could not read error text from form submission: {e}")
 
                 else:
                     session_data['drop_off_step'] = 'signup_form'
@@ -464,11 +634,11 @@ def extract_code_from_zip(zip_data: bytes) -> Dict[str, str]:
                     try:
                         content = zf.read(filename).decode('utf-8', errors='ignore')
                         code_files[filename] = content
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Could not read file {filename} from ZIP: {e}")
 
     except Exception as e:
-        print(f"Error extracting ZIP: {e}")
+        logger.error(f"Error extracting ZIP: {e}")
 
     return code_files
 

@@ -18,26 +18,67 @@
   gap: 0;
   overflow-y: auto;
   max-height: 100%;
+  /* Responsive sidebar */
+  width: clamp(240px, 20vw, 320px);
+  flex-shrink: 0;
 }
 
 .flow-container {
   flex: 1;
   height: 100%;
   background-color: #fafafa;
+  /* Subtle grid pattern for visual guidance */
+  background-image:
+    linear-gradient(rgba(102, 126, 234, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(102, 126, 234, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+  position: relative;
+}
+
+/* Empty state for flow container */
+.flow-container-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #737373;
+  text-align: center;
+  padding: 40px;
+}
+
+.flow-container-empty h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #525252;
+  margin: 0 0 8px 0;
+}
+
+.flow-container-empty p {
+  font-size: 14px;
+  margin: 0;
+  max-width: 300px;
 }
 
 .info-panel {
   background: white;
   padding: 12px 16px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   font-size: 14px;
   display: flex;
   gap: 16px;
+  border: 1px solid #e5e5e5;
 }
 
 .info-panel > div {
-  color: #666;
+  /* Fixed: Changed from #666 to #525252 for better contrast */
+  color: #525252;
+}
+
+.info-panel > div strong {
+  color: #171717;
+  font-weight: 600;
 }
 
 /* React Flow Customization */
@@ -46,7 +87,8 @@
 }
 
 .react-flow__node.selected {
-  box-shadow: 0 0 0 2px #4A90E2;
+  /* Fixed: Changed from #4A90E2 to brand color with stronger highlight */
+  box-shadow: 0 0 0 3px #667eea;
 }
 
 .react-flow__node.highlighted {
@@ -62,10 +104,154 @@
   }
 }
 
+/* Selection highlight animation */
+@keyframes pulse-select {
+  0%, 100% {
+    box-shadow: 0 0 0 3px #667eea;
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(102, 126, 234, 0.5);
+  }
+}
+
+.react-flow__node.just-selected {
+  animation: pulse-select 0.5s ease-out;
+}
+
 .react-flow__edge-path {
   stroke-width: 2;
+  stroke: #a3a3a3;
+  transition: stroke 0.2s ease;
+}
+
+.react-flow__edge-path:hover {
+  stroke: #667eea;
+  stroke-width: 3;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #667eea;
+  stroke-width: 3;
+}
+
+/* Connection line styling */
+.react-flow__connection-line {
+  stroke: #667eea;
+  stroke-width: 2;
+  stroke-dasharray: 5, 5;
 }
 
 .react-flow__minimap {
-  background-color: #f5f5f5;
+  background-color: #fafafa;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.react-flow__minimap-mask {
+  fill: rgba(102, 126, 234, 0.1);
+}
+
+.react-flow__minimap-node {
+  fill: #667eea;
+  stroke: none;
+}
+
+/* Controls panel styling */
+.react-flow__controls {
+  background: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background: white;
+  border: none;
+  border-bottom: 1px solid #e5e5e5;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none;
+}
+
+.react-flow__controls-button:hover {
+  background: #f5f5f5;
+}
+
+.react-flow__controls-button:focus-visible {
+  outline: none;
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+.react-flow__controls-button svg {
+  fill: #525252;
+  width: 16px;
+  height: 16px;
+}
+
+.react-flow__controls-button:hover svg {
+  fill: #171717;
+}
+
+/* Background dots/grid */
+.react-flow__background {
+  background-color: #fafafa;
+}
+
+/* Panel containers */
+.react-flow__panel {
+  margin: 12px;
+}
+
+/* Attribution styling (if shown) */
+.react-flow__attribution {
+  background: rgba(255, 255, 255, 0.8);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__node.highlighted,
+  .react-flow__node.just-selected,
+  .react-flow__edge-path,
+  .react-flow__controls-button {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .left-sidebar {
+    width: 260px;
+  }
+}
+
+@media (max-width: 768px) {
+  .workflow-content {
+    flex-direction: column;
+  }
+
+  .left-sidebar {
+    width: 100%;
+    max-height: 200px;
+    border-right: none;
+    border-bottom: 1px solid #e5e5e5;
+  }
+
+  .flow-container {
+    min-height: 400px;
+  }
 }

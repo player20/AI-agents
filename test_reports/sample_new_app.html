@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow Pro - App Concept</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a6fd6;
+            --secondary: #764ba2;
+            --accent: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg-dark: #1a1d29;
+            --bg-card: #2d3748;
+            --text-primary: #ffffff;
+            --text-secondary: #b8c4d4;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Header / Cover */
+        .report-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 80px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .report-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.5;
+        }
+
+        .report-header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .report-header .tagline {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            margin-bottom: 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 24px;
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Navigation */
+        .nav-sticky {
+            position: sticky;
+            top: 0;
+            background: rgba(26, 29, 41, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 16px 40px;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            justify-content: center;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        /* Sections */
+        .section {
+            padding: 80px 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.125rem;
+            margin-bottom: 40px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        /* Severity Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-high { background: var(--danger); }
+        .badge-medium { background: var(--warning); color: #000; }
+        .badge-low { background: var(--accent); }
+
+        /* Charts Container */
+        .chart-container {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .chart-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        /* Score Circles */
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .score-circle {
+            text-align: center;
+        }
+
+        .score-ring {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: conic-gradient(var(--primary) var(--score-percent), rgba(255,255,255,0.1) 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            position: relative;
+        }
+
+        .score-ring::before {
+            content: '';
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: var(--bg-dark);
+            border-radius: 50%;
+        }
+
+        .score-value {
+            position: relative;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .score-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Toggle Buttons */
+        .toggle-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px;
+            border-radius: 8px;
+            width: fit-content;
+        }
+
+        .toggle-btn {
+            padding: 10px 24px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Recommendations */
+        .recommendation {
+            display: flex;
+            gap: 16px;
+            padding: 20px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .recommendation-icon {
+            font-size: 1.5rem;
+        }
+
+        .recommendation-content {
+            flex: 1;
+        }
+
+        .recommendation-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .recommendation-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Issues List */
+        .issue-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--danger);
+        }
+
+        .issue-card.medium { border-left-color: var(--warning); }
+        .issue-card.low { border-left-color: var(--accent); }
+
+        .issue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .issue-category {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Expandable Sections */
+        .expandable {
+            cursor: pointer;
+        }
+
+        .expandable-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .expandable.open .expandable-content {
+            max-height: 1000px;
+        }
+
+        .expand-icon {
+            transition: transform 0.3s;
+        }
+
+        .expandable.open .expand-icon {
+            transform: rotate(180deg);
+        }
+
+        /* Animations */
+        .fade-in-up {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .fade-in-up.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Counter Animation */
+        @keyframes countUp {
+            from { opacity: 0; transform: scale(0.5); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .animate-count {
+            animation: countUp 0.6s ease forwards;
+        }
+
+        /* Print Styles */
+        @media print {
+            .nav-sticky { display: none; }
+            .no-print { display: none; }
+            body { background: white; color: black; }
+            .section { padding: 40px 20px; }
+            .page-break { page-break-before: always; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .report-header { padding: 60px 20px; }
+            .report-header h1 { font-size: 2rem; }
+            .section { padding: 40px 20px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .nav-links { flex-wrap: wrap; gap: 16px; }
+        }
+        
+
+        .persona-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .persona-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .persona-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .feature-priority {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .priority-must_have { background: var(--danger); }
+        .priority-should_have { background: var(--warning); color: #000; }
+        .priority-nice_to_have { background: var(--accent); }
+
+        .timeline-phase {
+            display: flex;
+            gap: 24px;
+            padding: 24px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .phase-number {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .phase-content {
+            flex: 1;
+        }
+
+        .phase-duration {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .deliverable {
+            display: inline-block;
+            background: rgba(102, 126, 234, 0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            margin: 4px 4px 0 0;
+        }
+
+        .cost-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .cost-item {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .cost-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="report-header">
+        <h1>TaskFlow Pro</h1>
+        <p class="tagline">Streamline your team&#39;s productivity</p>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-number">$2.4B</span>
+                <span class="stat-label">Market Size</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">15% YoY</span>
+                <span class="stat-label">Growth Rate</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" data-counter data-target="5">0</span>
+                <span class="stat-label">Features</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="nav-sticky">
+        <ul class="nav-links">
+            <li><a href="#market">Market</a></li>
+            <li><a href="#personas">Users</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#timeline">Timeline</a></li>
+            <li><a href="#cost">Investment</a></li>
+        </ul>
+    </nav>
+
+    <!-- Market Analysis -->
+    <section id="market" class="section">
+        <h2 class="section-title fade-in-up">Market Analysis</h2>
+        <p class="section-subtitle fade-in-up">Understanding the competitive landscape</p>
+
+        <div class="chart-container fade-in-up">
+            <h3 class="chart-title">Competitive Landscape</h3>
+            <canvas id="competitorChart" height="200"></canvas>
+        </div>
+
+        <h3 class="card-title fade-in-up" style="margin-top: 40px; margin-bottom: 24px;">Key Competitors</h3>
+        
+        <div class="card fade-in-up">
+            <h4 class="card-title">Asana</h4>
+            <p><strong style="color: var(--accent);">Strength:</strong> Enterprise features</p>
+            <p><strong style="color: var(--danger);">Weakness:</strong> Complex pricing</p>
+        </div>
+        
+        <div class="card fade-in-up">
+            <h4 class="card-title">Trello</h4>
+            <p><strong style="color: var(--accent);">Strength:</strong> Simple interface</p>
+            <p><strong style="color: var(--danger);">Weakness:</strong> Limited automation</p>
+        </div>
+        
+        <div class="card fade-in-up">
+            <h4 class="card-title">Monday.com</h4>
+            <p><strong style="color: var(--accent);">Strength:</strong> Customizable</p>
+            <p><strong style="color: var(--danger);">Weakness:</strong> Learning curve</p>
+        </div>
+        
+    </section>
+
+    <!-- User Personas -->
+    <section id="personas" class="section">
+        <h2 class="section-title fade-in-up">Target Users</h2>
+        <p class="section-subtitle fade-in-up">Understanding who we're building for</p>
+
+        
+        <div class="persona-card fade-in-up">
+            <div class="persona-header">
+                <div class="persona-avatar">👤</div>
+                <div>
+                    <h3 class="card-title" style="margin: 0;">Project Manager Paula</h3>
+                    <p style="color: var(--text-secondary); margin: 0;">Senior Project Manager</p>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                <div>
+                    <h4 style="color: var(--accent); margin-bottom: 8px;">Goals</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li>Track team progress</li><li>Reduce meeting overhead</li><li>Automate reporting</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="color: var(--danger); margin-bottom: 8px;">Pain Points</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li>Too many tools</li><li>Manual status updates</li><li>Poor visibility</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="persona-card fade-in-up">
+            <div class="persona-header">
+                <div class="persona-avatar">👤</div>
+                <div>
+                    <h3 class="card-title" style="margin: 0;">Developer Dave</h3>
+                    <p style="color: var(--text-secondary); margin: 0;">Full-Stack Developer</p>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                <div>
+                    <h4 style="color: var(--accent); margin-bottom: 8px;">Goals</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li>Focus on coding</li><li>Clear task priorities</li><li>Quick updates</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="color: var(--danger); margin-bottom: 8px;">Pain Points</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li>Context switching</li><li>Unclear requirements</li><li>Notification overload</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="section">
+        <h2 class="section-title fade-in-up">Proposed Features</h2>
+        <p class="section-subtitle fade-in-up">Prioritized feature roadmap</p>
+
+        
+        <div class="card fade-in-up">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h3 class="card-title">Smart Task Assignment</h3>
+                    <p>AI-powered task distribution based on skills and workload</p>
+                </div>
+                <span class="feature-priority priority-must_have">Must Have</span>
+            </div>
+        </div>
+        
+        <div class="card fade-in-up">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h3 class="card-title">Real-time Collaboration</h3>
+                    <p>Live editing and commenting on tasks</p>
+                </div>
+                <span class="feature-priority priority-must_have">Must Have</span>
+            </div>
+        </div>
+        
+        <div class="card fade-in-up">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h3 class="card-title">Automated Standups</h3>
+                    <p>Daily progress reports generated automatically</p>
+                </div>
+                <span class="feature-priority priority-should_have">Should Have</span>
+            </div>
+        </div>
+        
+        <div class="card fade-in-up">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h3 class="card-title">Integration Hub</h3>
+                    <p>Connect with 50+ popular tools</p>
+                </div>
+                <span class="feature-priority priority-should_have">Should Have</span>
+            </div>
+        </div>
+        
+        <div class="card fade-in-up">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h3 class="card-title">Voice Commands</h3>
+                    <p>Create and update tasks via voice</p>
+                </div>
+                <span class="feature-priority priority-nice_to_have">Nice To Have</span>
+            </div>
+        </div>
+        
+    </section>
+
+    <!-- Timeline -->
+    <section id="timeline" class="section">
+        <h2 class="section-title fade-in-up">Development Timeline</h2>
+        <p class="section-subtitle fade-in-up">Phased approach to delivery</p>
+
+        
+        <div class="timeline-phase fade-in-up">
+            <div class="phase-number">1</div>
+            <div class="phase-content">
+                <h3 class="card-title" style="margin-bottom: 4px;">Discovery &amp; Design</h3>
+                <p class="phase-duration">Duration: 4 weeks</p>
+                <div style="margin-top: 12px;">
+                    <span class="deliverable">User research</span><span class="deliverable">Wireframes</span><span class="deliverable">Design system</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="timeline-phase fade-in-up">
+            <div class="phase-number">2</div>
+            <div class="phase-content">
+                <h3 class="card-title" style="margin-bottom: 4px;">MVP Development</h3>
+                <p class="phase-duration">Duration: 8 weeks</p>
+                <div style="margin-top: 12px;">
+                    <span class="deliverable">Core features</span><span class="deliverable">Basic integrations</span><span class="deliverable">Beta testing</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="timeline-phase fade-in-up">
+            <div class="phase-number">3</div>
+            <div class="phase-content">
+                <h3 class="card-title" style="margin-bottom: 4px;">Launch &amp; Iterate</h3>
+                <p class="phase-duration">Duration: 4 weeks</p>
+                <div style="margin-top: 12px;">
+                    <span class="deliverable">Public launch</span><span class="deliverable">User feedback</span><span class="deliverable">Quick wins</span>
+                </div>
+            </div>
+        </div>
+        
+    </section>
+
+    <!-- Cost Estimate -->
+    <section id="cost" class="section">
+        <h2 class="section-title fade-in-up">Investment Estimate</h2>
+        <p class="section-subtitle fade-in-up">Transparent cost breakdown</p>
+
+        <div class="card fade-in-up" style="text-align: center; padding: 40px;">
+            <h3 style="color: var(--text-secondary); margin-bottom: 8px;">Total Investment</h3>
+            <p style="font-size: 3rem; font-weight: 700; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                $85,000 - $120,000
+            </p>
+        </div>
+
+        <div class="cost-breakdown fade-in-up">
+            
+            <div class="cost-item">
+                <p style="color: var(--text-secondary); margin-bottom: 8px;">Design &amp; UX</p>
+                <p class="cost-value">$15,000 - $20,000</p>
+            </div>
+            
+            <div class="cost-item">
+                <p style="color: var(--text-secondary); margin-bottom: 8px;">Frontend Development</p>
+                <p class="cost-value">$25,000 - $35,000</p>
+            </div>
+            
+            <div class="cost-item">
+                <p style="color: var(--text-secondary); margin-bottom: 8px;">Backend Development</p>
+                <p class="cost-value">$30,000 - $45,000</p>
+            </div>
+            
+            <div class="cost-item">
+                <p style="color: var(--text-secondary); margin-bottom: 8px;">QA &amp; Testing</p>
+                <p class="cost-value">$10,000 - $15,000</p>
+            </div>
+            
+            <div class="cost-item">
+                <p style="color: var(--text-secondary); margin-bottom: 8px;">DevOps &amp; Launch</p>
+                <p class="cost-value">$5,000 - $5,000</p>
+            </div>
+            
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="section" style="text-align: center; padding: 40px;">
+        <p style="color: var(--text-secondary);">
+            Generated by Code Weaver Pro | January 17, 2026 at 02:28 PM
+        </p>
+    </footer>
+
+    <script>
+        
+        // Intersection Observer for fade-in animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.fade-in-up').forEach(el => observer.observe(el));
+
+        // Animated counter
+        function animateCounter(el, target, duration = 1500) {
+            const start = 0;
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = Math.floor(start + (target - start) * eased);
+                el.textContent = current.toLocaleString();
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        // Initialize counters when visible
+        const counterObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const target = parseInt(entry.target.dataset.target);
+                    animateCounter(entry.target, target);
+                    counterObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        document.querySelectorAll('[data-counter]').forEach(el => counterObserver.observe(el));
+
+        // Toggle functionality
+        function toggleView(btn, viewId) {
+            // Update buttons
+            btn.closest('.toggle-group').querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Update views
+            const container = document.getElementById(viewId + '-container');
+            container.querySelectorAll('.toggle-view').forEach(v => v.style.display = 'none');
+            document.getElementById(viewId).style.display = 'block';
+        }
+
+        // Expandable sections
+        document.querySelectorAll('.expandable').forEach(el => {
+            el.querySelector('.expandable-header')?.addEventListener('click', () => {
+                el.classList.toggle('open');
+            });
+        });
+
+        // Smooth scroll for nav links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+        
+
+        // Competitor Chart
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('competitorChart');
+            if (ctx) {
+                const competitors = [{&#34;name&#34;: &#34;Asana&#34;, &#34;strength&#34;: &#34;Enterprise features&#34;, &#34;weakness&#34;: &#34;Complex pricing&#34;}, {&#34;name&#34;: &#34;Trello&#34;, &#34;strength&#34;: &#34;Simple interface&#34;, &#34;weakness&#34;: &#34;Limited automation&#34;}, {&#34;name&#34;: &#34;Monday.com&#34;, &#34;strength&#34;: &#34;Customizable&#34;, &#34;weakness&#34;: &#34;Learning curve&#34;}];
+                new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Market Share', 'Features', 'UX', 'Pricing', 'Support'],
+                        datasets: competitors.map((c, i) => ({
+                            label: c.name,
+                            data: [Math.random() * 40 + 60, Math.random() * 40 + 60, Math.random() * 40 + 60, Math.random() * 40 + 60, Math.random() * 40 + 60],
+                            borderColor: ['#667eea', '#10b981', '#f59e0b'][i],
+                            backgroundColor: ['rgba(102, 126, 234, 0.2)', 'rgba(16, 185, 129, 0.2)', 'rgba(245, 158, 11, 0.2)'][i],
+                        }))
+                    },
+                    options: {
+                        scales: {
+                            r: {
+                                beginAtZero: true,
+                                max: 100,
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                angleLines: { color: 'rgba(255,255,255,0.1)' },
+                                pointLabels: { color: '#fff' }
+                            }
+                        },
+                        plugins: {
+                            legend: { labels: { color: '#fff' } }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

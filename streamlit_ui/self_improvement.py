@@ -329,89 +329,312 @@ def create_terminal_callback(terminal_placeholder: Any) -> Callable[[str, str], 
 def render_self_improvement() -> None:
     """Render the self-improvement interface"""
 
-    # Phase 26: Dark Mode Toggle with smooth transitions
-    if 'dark_mode' not in st.session_state:
-        st.session_state.dark_mode = True  # Default to dark mode
+    # Issue #7: Maintain unified dark theme for visual continuity
+    # Dark mode is now always active - no toggle to prevent theme fragmentation
+    st.session_state.dark_mode = True  # Always dark mode for consistency
 
-    # Theme toggle in sidebar
-    with st.sidebar:
-        st.markdown("---")
-        st.markdown("#### 🎨 Theme")
-
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("☀️ Light", use_container_width=True, type="secondary" if st.session_state.dark_mode else "primary"):
-                st.session_state.dark_mode = False
-                st.rerun()
-        with col2:
-            if st.button("🌙 Dark", use_container_width=True, type="primary" if st.session_state.dark_mode else "secondary"):
-                st.session_state.dark_mode = True
-                st.rerun()
-
-        st.caption(f"{'🌙 Dark mode active' if st.session_state.dark_mode else '☀️ Light mode active'}")
-
-    # Apply theme CSS with smooth transitions
-    theme_css = f"""
+    # Apply unified dark theme CSS with purple accents (Issue #7: Theme consistency)
+    theme_css = """
     <style>
-    /* Phase 26: Theme transition styles */
-    * {{
-        transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
-    }}
+    /* Unified dark theme for Self-Improve mode */
+    .stApp {
+        background-color: #0e1117;
+        color: #fafafa;
+    }
 
-    {'/* Dark mode styles */' if st.session_state.dark_mode else '/* Light mode styles */'}
-    .stApp {{
-        background-color: {'#0e1117' if st.session_state.dark_mode else '#ffffff'};
-        color: {'#fafafa' if st.session_state.dark_mode else '#262730'};
-    }}
+    .stMarkdown, .stText {
+        color: #fafafa;
+    }
 
-    .stMarkdown, .stText {{
-        color: {'#fafafa' if st.session_state.dark_mode else '#262730'};
-    }}
+    div[data-testid="stSidebar"] {
+        background-color: #1a1d29;
+    }
 
-    div[data-testid="stSidebar"] {{
-        background-color: {'#262730' if st.session_state.dark_mode else '#f0f2f6'};
-    }}
+    /* Primary buttons - Purple gradient for brand consistency */
+    .stButton > button[data-testid="stBaseButton-primary"],
+    button[data-testid="stBaseButton-primary"] {
+        min-height: 56px !important;
+        min-width: 200px !important;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        border: 2px solid rgba(102, 126, 234, 0.5) !important;
+        font-weight: 700;
+        font-size: 1.25rem;
+        padding: 18px 36px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+        transition: all 0.2s ease !important;
+    }
 
-    .stButton > button {{
-        background-color: {'#1f2937' if st.session_state.dark_mode else '#ffffff'};
-        color: {'#fafafa' if st.session_state.dark_mode else '#262730'};
-        border: 1px solid {'#404040' if st.session_state.dark_mode else '#e0e0e0'};
-    }}
+    .stButton > button[data-testid="stBaseButton-primary"]:hover {
+        background: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(102, 126, 234, 0.5);
+    }
 
-    .stButton > button:hover {{
-        background-color: {'#374151' if st.session_state.dark_mode else '#f9fafb'};
-        border-color: {'#00aaff' if st.session_state.dark_mode else '#0066cc'};
-    }}
+    /* Secondary buttons - Dark theme with purple accents */
+    .stButton > button[data-testid="stBaseButton-secondary"],
+    button[data-testid="stBaseButton-secondary"],
+    .stButton > button {
+        min-height: 44px !important;
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        color: #fafafa !important;
+        border: 1px solid rgba(102, 126, 234, 0.3) !important;
+        border-radius: 12px;
+        transition: all 0.2s ease !important;
+    }
 
+    .stButton > button[data-testid="stBaseButton-secondary"]:hover,
+    .stButton > button:hover {
+        background-color: rgba(102, 126, 234, 0.15) !important;
+        border-color: #667eea !important;
+        transform: translateY(-1px);
+    }
+
+    /* Focus states for accessibility */
+    .stButton > button:focus-visible {
+        outline: 3px solid #8b9eff !important;
+        outline-offset: 3px !important;
+        box-shadow: 0 0 0 6px rgba(139, 158, 255, 0.4) !important;
+    }
+
+    *:focus-visible {
+        outline: 3px solid #8b9eff !important;
+        outline-offset: 3px !important;
+        box-shadow: 0 0 0 6px rgba(139, 158, 255, 0.35) !important;
+    }
+
+    /* Mobile touch targets */
+    @media (max-width: 768px) {
+        .stButton > button {
+            min-height: 48px !important;
+            width: 100% !important;
+            margin-bottom: 16px !important;
+            padding: 16px 24px !important;
+        }
+    }
+
+    /* Reduced motion preference */
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+
+    /* Input fields - Dark theme */
     .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea {{
-        background-color: {'#1a1d29' if st.session_state.dark_mode else '#ffffff'};
-        color: {'#fafafa' if st.session_state.dark_mode else '#262730'};
-        border: 1px solid {'#404040' if st.session_state.dark_mode else '#e0e0e0'};
-    }}
+    .stTextArea > div > div > textarea {
+        background-color: rgba(255, 255, 255, 0.05);
+        color: #fafafa;
+        border: 1px solid rgba(102, 126, 234, 0.3);
+    }
 
-    code {{
-        background-color: {'#1a1d29' if st.session_state.dark_mode else '#f6f8fa'};
-        color: {'#00aaff' if st.session_state.dark_mode else '#0066cc'};
-    }}
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
 
-    .stExpander {{
-        background-color: {'#1a1d29' if st.session_state.dark_mode else '#f9fafb'};
-        border: 1px solid {'#404040' if st.session_state.dark_mode else '#e0e0e0'};
-    }}
+    code {
+        background-color: #1a1d29;
+        color: #667eea;
+    }
+
+    .stExpander {
+        background-color: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* ===== GRADIENT HEADERS (Match onboarding style) ===== */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes slideInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    /* Main page title (h2) */
+    .stMarkdown h2 {
+        font-size: 32px !important;
+        font-weight: 700 !important;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f64f59 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 16px !important;
+        animation: fadeInUp 0.6s ease-out;
+    }
+
+    /* Section headers (h3) */
+    .stMarkdown h3 {
+        font-size: 24px !important;
+        font-weight: 700 !important;
+        color: #e8eaf6 !important;
+        margin: 24px 0 16px 0 !important;
+        padding-left: 16px !important;
+        border-left: 4px solid;
+        border-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%) 1;
+        animation: slideInLeft 0.5s ease-out;
+    }
+
+    /* Subsection headers (h4) */
+    .stMarkdown h4 {
+        font-size: 18px !important;
+        font-weight: 600 !important;
+        color: #b8c1ec !important;
+        margin: 16px 0 12px 0 !important;
+        animation: fadeInUp 0.4s ease-out;
+    }
+
+    /* Card-like containers for sections */
+    .stExpander {
+        background: linear-gradient(135deg, rgba(30, 33, 57, 0.6) 0%, rgba(37, 40, 68, 0.6) 100%) !important;
+        border: 1px solid rgba(102, 126, 234, 0.2) !important;
+        border-radius: 12px !important;
+        margin: 8px 0 !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .stExpander:hover {
+        border-color: rgba(102, 126, 234, 0.4) !important;
+        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.15) !important;
+    }
+
+    /* Metric cards styling */
+    [data-testid="stMetric"] {
+        background: linear-gradient(135deg, rgba(30, 33, 57, 0.8) 0%, rgba(37, 40, 68, 0.8) 100%) !important;
+        border: 1px solid rgba(102, 126, 234, 0.3) !important;
+        border-radius: 12px !important;
+        padding: 16px !important;
+    }
     </style>
     """
     st.markdown(theme_css, unsafe_allow_html=True)
 
-    st.markdown("### 🔄 Meta Self-Improvement")
-    st.markdown("The system evaluates and improves its own code, UI/UX, and capabilities.")
+    # Enhanced Hero Section for Self-Improve Mode (purple theme for brand consistency)
+    st.markdown("""
+    <div class="self-improve-hero" style="
+        text-align: center;
+        padding: 24px 20px;
+        margin-bottom: 32px;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        border: 1px solid rgba(102, 126, 234, 0.3);
+        border-radius: 16px;
+    ">
+        <div style="font-size: 48px; margin-bottom: 12px;">🔄</div>
+        <h2 style="
+            font-size: 28px;
+            font-weight: 700;
+            color: #e8eaf6;
+            margin-bottom: 8px;
+        ">Meta Self-Improvement</h2>
+        <p style="
+            font-size: 16px;
+            color: #CBD5E1;
+            max-width: 500px;
+            margin: 0 auto;
+        ">
+            AI agents analyze and improve their own code, UI/UX, and capabilities.
+            Watch as the system evolves itself in real-time.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Feature cards explaining what each mode does (purple theme for brand consistency)
+    st.markdown("""
+    <div style="
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 32px;
+    ">
+        <div class="feature-card" style="
+            background: rgba(30, 33, 57, 0.6);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        ">
+            <span style="font-size: 32px;">🔍</span>
+            <h4 style="color: #e8eaf6; margin: 12px 0 8px; font-size: 15px;">Automated Analysis</h4>
+            <p style="color: #9ca3af; font-size: 13px; margin: 0;">
+                AI scans codebase for issues, bugs, and optimization opportunities
+            </p>
+        </div>
+        <div class="feature-card" style="
+            background: rgba(30, 33, 57, 0.6);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        ">
+            <span style="font-size: 32px;">🧪</span>
+            <h4 style="color: #e8eaf6; margin: 12px 0 8px; font-size: 15px;">Test-Driven Fixes</h4>
+            <p style="color: #9ca3af; font-size: 13px; margin: 0;">
+                Changes are validated with automated tests before applying
+            </p>
+        </div>
+        <div class="feature-card" style="
+            background: rgba(30, 33, 57, 0.6);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        ">
+            <span style="font-size: 32px;">📊</span>
+            <h4 style="color: #e8eaf6; margin: 12px 0 8px; font-size: 15px;">Quality Scoring</h4>
+            <p style="color: #9ca3af; font-size: 13px; margin: 0;">
+                Track improvements with objective quality metrics and scores
+            </p>
+        </div>
+        <div class="feature-card" style="
+            background: rgba(30, 33, 57, 0.6);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        ">
+            <span style="font-size: 32px;">🔄</span>
+            <h4 style="color: #e8eaf6; margin: 12px 0 8px; font-size: 15px;">Iterative Cycles</h4>
+            <p style="color: #9ca3af; font-size: 13px; margin: 0;">
+                Continuously improves until target quality score is reached
+            </p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     if not IMPROVER_AVAILABLE:
         st.error(f"⚠️ Self-improvement engine not available: {IMPORT_ERROR}")
         return
 
-    # Improvement mode selector
-    st.markdown("#### Select Improvement Mode")
+    # Improvement mode selector with section header (purple theme for brand consistency)
+    st.markdown("""
+    <div style="
+        border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+        padding-bottom: 12px;
+        margin-bottom: 20px;
+    ">
+        <h3 style="color: #e8eaf6; font-size: 18px; font-weight: 600; margin: 0;">
+            🎯 Select Improvement Mode
+        </h3>
+    </div>
+    """, unsafe_allow_html=True)
 
     mode_options = {
         "🎨 UI/UX": (ImprovementMode.UI_UX, "Make the interface more intuitive and user-friendly"),
@@ -909,6 +1132,10 @@ def run_iterative_mode(mode: str, target_score: float, target_files: Optional[Li
         terminal_callback(f"🚀 Starting iterative improvement with LangGraph", "info")
         terminal_callback(f"   Mode: {mode_str}", "info")
         terminal_callback(f"   Target score: {target_score}/10", "info")
+        if target_files:
+            terminal_callback(f"   Target files: {len(target_files)} specific files", "info")
+        else:
+            terminal_callback(f"   Target files: All files in scope", "info")
 
         progress_bar.progress(0.1, text="Running LangGraph workflow...")
 
@@ -917,7 +1144,8 @@ def run_iterative_mode(mode: str, target_score: float, target_files: Optional[Li
             mode=mode_str,
             target_score=target_score,
             initial_score=5.0,
-            suggest_enhancements=suggest_enhancements
+            suggest_enhancements=suggest_enhancements,
+            target_files=target_files
         )
 
         progress_bar.progress(1.0, text="Complete!")
@@ -1732,6 +1960,7 @@ def display_syntax_highlighted_diff(file_path: str, before_content: str, after_c
         from pygments import highlight
         from pygments.lexers import get_lexer_for_filename, TextLexer
         from pygments.formatters import HtmlFormatter
+        from pygments.util import ClassNotFound
         has_pygments = True
     except ImportError:
         has_pygments = False
@@ -1762,7 +1991,8 @@ def display_syntax_highlighted_diff(file_path: str, before_content: str, after_c
         try:
             lexer = get_lexer_for_filename(file_path)
             language = lexer.name
-        except:
+        except (ClassNotFound, ValueError):
+            # Unknown file type or extension - fallback to plain text
             lexer = TextLexer()
             language = "Text"
 

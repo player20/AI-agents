@@ -24,6 +24,7 @@ class ImprovementState(TypedDict):
     target_score: float
     mode: str
     suggest_enhancements: bool  # Enable Research/Ideas agents for feature suggestions
+    target_files: list  # Optional list of specific files to analyze
 
     # Results from current iteration
     issues_found: list
@@ -31,8 +32,9 @@ class ImprovementState(TypedDict):
     files_modified: list
 
     # History
-    total_issues_found: Annotated[int, operator.add]  # Accumulate across iterations
-    total_fixes_applied: Annotated[int, operator.add]  # Accumulate across iterations
+    # FIX BUG #3: Don't accumulate issues - track max seen in any iteration
+    total_issues_found: int  # Max issues found in any single iteration (not cumulative)
+    total_fixes_applied: Annotated[int, operator.add]  # Accumulate fixes (this makes sense)
     iteration_history: list
 
     # Control
@@ -68,17 +70,36 @@ def analyze_issues_node(state: ImprovementState) -> ImprovementState:
     mode = mode_map.get(state['mode'], ImprovementMode.UI_UX)
 
     # Analyze codebase (reuse existing logic)
-    files = improver._get_files_to_analyze(target_files=None, mode=mode)
-    screenshots = improver._capture_app_screenshots() if mode == ImprovementMode.UI_UX else []
+    target_files = state.get('target_files', None)
+    files = improver._get_files_to_analyze(target_files=target_files, mode=mode)
+
+    # Capture screenshots and extract components for UI/UX mode
+    screenshots = []
+    console_errors = []
+    performance_metrics = {}
+    if mode == ImprovementMode.UI_UX:
+        capture_result = improver._capture_app_screenshots()
+        screenshots = capture_result.get("screenshots", [])
+        console_errors = capture_result.get("console_errors", [])
+        performance_metrics = capture_result.get("performance_metrics", {})
+
     suggest_enhancements = state.get('suggest_enhancements', False)
-    issues = improver._identify_issues(files, mode, screenshots, suggest_enhancements)
+    issues = improver._identify_issues(
+        files, mode, screenshots, suggest_enhancements,
+        console_errors=console_errors,
+        performance_metrics=performance_metrics
+    )
 
     print(f"   Found {len(issues)} issues")
+
+    # FIX BUG #3: Track max issues seen, not cumulative sum
+    previous_max = state.get('total_issues_found', 0)
+    new_max = max(previous_max, len(issues))
 
     return {
         **state,
         'issues_found': issues,
-        'total_issues_found': len(issues)
+        'total_issues_found': new_max  # Track max, not sum
     }
 
 
@@ -152,35 +173,47 @@ def evaluate_quality_node(state: ImprovementState) -> ImprovementState:
     print(f"\n[EVALUATE] Iteration {state['iteration']}: Evaluating quality...")
 
     # Enhanced scoring with quality recognition and progress tracking
-    previous_score = state.get('current_score', 5.0)
+    previous_score = state.get('previous_score', 5.0)
     total_fixes_applied = state.get('total_fixes_applied', 0)
+    fixes_this_iteration = state.get('fixes_applied', 0)
 
-    # Count issues by severity (only UNFIXED issues should lower score)
+    # Count issues by severity
     high_priority = len([i for i in state['issues_found'] if i.get('severity') == 'HIGH'])
     medium_priority = len([i for i in state['issues_found'] if i.get('severity') == 'MEDIUM'])
     low_priority = len([i for i in state['issues_found'] if i.get('severity') == 'LOW'])
+    total_issues = len(state['issues_found'])
 
-    # Base score on total progress (fixes applied over time)
-    base_score = 5.0 + (total_fixes_applied * 0.5)  # Each fix permanently improves base
+    # FIX BUG #1: Score should reflect actual progress, not just issue detection
+    # Base score starts at 5.0, increases with fixes applied
+    base_score = 5.0 + (total_fixes_applied * 0.3)  # Each fix adds 0.3 to base
 
-    # Bonus for no HIGH priority issues
-    if high_priority == 0:
-        base_score = max(base_score, 8.0)  # No HIGH issues = at least 8/10
-        print(f"   ✅ No HIGH priority issues found!")
+    # CRITICAL FIX: Only give "no issues" bonus if we actually fixed things
+    # Don't inflate score just because detector didn't find HIGH issues
+    if high_priority == 0 and total_fixes_applied >= 5:
+        # Earned bonus: genuinely improved the codebase
+        base_score = max(base_score, 7.5)
+        print(f"   ✅ No HIGH priority issues and {total_fixes_applied} fixes applied!")
 
-    if high_priority == 0 and medium_priority <= 3:
-        base_score = max(base_score, 9.0)  # Minimal issues = 9/10
-        print(f"   🎉 Code quality is excellent!")
+    if high_priority == 0 and medium_priority <= 3 and total_fixes_applied >= 10:
+        # Excellent: many fixes and minimal issues remaining
+        base_score = max(base_score, 8.5)
+        print(f"   🎉 Code quality is excellent after {total_fixes_applied} fixes!")
 
-    # Deduct ONLY for genuinely problematic issues (less punitive)
-    # Most issues are already fixed, so we should be more forgiving
+    # CRITICAL FIX: If no fixes applied this iteration but issues exist, limit score increase
+    if fixes_this_iteration == 0 and total_issues > 0:
+        # Can't claim improvement without actually fixing anything
+        max_allowed_score = previous_score + 0.2  # Small grace for issue count changes
+        base_score = min(base_score, max_allowed_score)
+        print(f"   ⚠️ No fixes applied this iteration - score capped at {max_allowed_score:.1f}")
+
+    # Deduct for remaining issues (proportional to count)
     score = base_score
-    score -= min(high_priority, 3) * 0.3  # Cap deduction at 3 issues max
-    score -= min(medium_priority, 5) * 0.1  # Cap deduction at 5 issues max
-    score -= min(low_priority, 10) * 0.02  # Cap deduction at 10 issues max
+    score -= min(high_priority, 5) * 0.4   # HIGH issues are serious
+    score -= min(medium_priority, 10) * 0.15  # MEDIUM issues matter
+    score -= min(low_priority, 20) * 0.03  # LOW issues minor impact
 
-    # Cap at 10, but don't go below 3.0 if any fixes were applied
-    score = min(10.0, max(3.0 if total_fixes_applied > 0 else 0.0, score))
+    # Cap at 10, floor at 2.0 (never claim perfection without work)
+    score = min(10.0, max(2.0, score))
 
     # Track if we're stuck (no improvement)
     previous_score = state.get('previous_score', 5.0)
@@ -383,7 +416,8 @@ def run_iterative_improvement(
     mode: str = 'ui_ux',
     target_score: float = 9.0,
     initial_score: float = 5.0,
-    suggest_enhancements: bool = False
+    suggest_enhancements: bool = False,
+    target_files: list = None
 ) -> dict:
     """
     Run iterative self-improvement until quality threshold is met
@@ -393,6 +427,7 @@ def run_iterative_improvement(
         target_score: Stop when this score is reached (default: 9.0/10)
         initial_score: Starting score (default: 5.0/10)
         suggest_enhancements: Enable Research/Ideas agents for feature suggestions (default: False)
+        target_files: Optional list of specific files to analyze (default: None = all files)
 
     Returns:
         Final state with results and history
@@ -422,6 +457,7 @@ def run_iterative_improvement(
         'target_score': target_score,
         'mode': mode,
         'suggest_enhancements': suggest_enhancements,
+        'target_files': target_files,
         'issues_found': [],
         'fixes_applied': 0,
         'files_modified': [],
@@ -478,8 +514,21 @@ def run_iterative_improvement(
 # CLI interface for testing
 if __name__ == "__main__":
     import sys
+    from pathlib import Path
 
-    mode = sys.argv[1] if len(sys.argv) > 1 else 'ui_ux'
-    target = float(sys.argv[2]) if len(sys.argv) > 2 else 9.0
+    # Parse args
+    args = sys.argv[1:]
+    clear_cache = '--clear-cache' in args
+    args = [a for a in args if a != '--clear-cache']
+
+    mode = args[0] if len(args) > 0 else 'ui_ux'
+    target = float(args[1]) if len(args) > 1 else 9.0
+
+    # Clear cache if requested
+    if clear_cache:
+        from core.agent_cache import AgentCache
+        cache = AgentCache(Path(__file__).parent.parent, ttl_hours=24)
+        cleared = cache.clear_cache()
+        print(f"[CACHE] Cleared {cleared} cached entries")
 
     result = run_iterative_improvement(mode=mode, target_score=target)

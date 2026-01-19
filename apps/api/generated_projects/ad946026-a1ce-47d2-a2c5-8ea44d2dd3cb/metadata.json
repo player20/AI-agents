@@ -1,0 +1,72 @@
+{
+  "files": {
+    "package.json": {
+      "language": "json",
+      "size_bytes": 587,
+      "checksum": "237b45973b2d997cc0dfc03c8c0f19c6",
+      "updated_at": "2026-01-19T08:10:23.875582"
+    },
+    "tailwind.config.ts": {
+      "language": "typescript",
+      "size_bytes": 1385,
+      "checksum": "a6b7e1acc63b177e7cb12df16a03860e",
+      "updated_at": "2026-01-19T08:12:34.050623"
+    },
+    "src/app/layout.tsx": {
+      "language": "typescript",
+      "size_bytes": 616,
+      "checksum": "2e9a86a0794b47fcd33358c13ac6cd4f",
+      "updated_at": "2026-01-19T08:12:34.059035"
+    },
+    "src/app/page.tsx": {
+      "language": "typescript",
+      "size_bytes": 2795,
+      "checksum": "b2a91df7adadc563d159223861d0419f",
+      "updated_at": "2026-01-19T08:12:34.065232"
+    },
+    "src/app/globals.css": {
+      "language": "css",
+      "size_bytes": 813,
+      "checksum": "44984912492b8123dc6504152e279d0d",
+      "updated_at": "2026-01-19T08:12:34.072018"
+    },
+    "src/components/Header.tsx": {
+      "language": "typescript",
+      "size_bytes": 444,
+      "checksum": "e4d2b3b3d3ffa57f27fdcbbdfb32d9ef",
+      "updated_at": "2026-01-19T08:12:34.079433"
+    },
+    "src/components/TaskInput.tsx": {
+      "language": "typescript",
+      "size_bytes": 1576,
+      "checksum": "a000d08eccbf89a537f01576b2d00a9d",
+      "updated_at": "2026-01-19T08:12:34.086702"
+    },
+    "src/components/TaskList.tsx": {
+      "language": "typescript",
+      "size_bytes": 904,
+      "checksum": "976503c11a02b59c7cd9bbbb06aeef5a",
+      "updated_at": "2026-01-19T08:12:34.092881"
+    },
+    "src/components/TaskItem.tsx": {
+      "language": "typescript",
+      "size_bytes": 3750,
+      "checksum": "6626edcb04125041b2252b4fd2175f41",
+      "updated_at": "2026-01-19T08:12:34.100136"
+    },
+    "src/components/Footer.tsx": {
+      "language": "typescript",
+      "size_bytes": 278,
+      "checksum": "78220f76a0f7f5cd06565edaca7d46b3",
+      "updated_at": "2026-01-19T08:12:34.106596"
+    },
+    "src/lib/utils.ts": {
+      "language": "typescript",
+      "size_bytes": 553,
+      "checksum": "03f477d0b0ad7e24ef0ad712c15bc349",
+      "updated_at": "2026-01-19T08:12:34.113807"
+    }
+  },
+  "created_at": "2026-01-19T08:10:23.875582",
+  "updated_at": "2026-01-19T08:12:34.118556"
+}

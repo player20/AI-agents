@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zen Flow Yoga - Digital Vision</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Roboto:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #E84545;
+            --secondary: #FF6B6B;
+            --accent: #FFA502;
+            --dark: #0F172A;
+            --light: #F8FAFC;
+            --heading-font: 'Montserrat', sans-serif;
+            --body-font: 'Roboto', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--body-font);
+            background: linear-gradient(135deg, var(--dark) 0%, #1E293B 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 60px 20px 40px;
+        }
+
+        .header h1 {
+            font-family: var(--heading-font);
+            font-size: 48px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header .subtitle {
+            font-size: 20px;
+            color: #94A3B8;
+        }
+
+        .header .mood-badge {
+            display: inline-block;
+            margin-top: 16px;
+            padding: 8px 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            font-size: 14px;
+            color: var(--accent);
+        }
+
+        /* Design System Preview */
+        .design-system {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            padding: 20px;
+            flex-wrap: wrap;
+        }
+
+        .color-preview {
+            display: flex;
+            gap: 8px;
+        }
+
+        .color-swatch {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .font-preview {
+            text-align: center;
+        }
+
+        .font-preview .heading {
+            font-family: var(--heading-font);
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .font-preview .body {
+            font-family: var(--body-font);
+            font-size: 14px;
+            color: #94A3B8;
+        }
+
+        /* Navigation */
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 20px;
+            flex-wrap: wrap;
+            background: rgba(0,0,0,0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-tab {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: var(--body-font);
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .nav-tab:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .nav-tab.active {
+            background: var(--primary);
+        }
+
+        /* Screen Panel */
+        .screen-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        /* Phone Frame */
+        .phone-frame {
+            background: #000;
+            border-radius: 50px;
+            padding: 12px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+            position: relative;
+            width: 320px;
+        }
+
+        .phone-notch {
+            width: 150px;
+            height: 30px;
+            background: #000;
+            border-radius: 0 0 20px 20px;
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        .phone-content {
+            background: white;
+            border-radius: 40px;
+            min-height: 650px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Screen Info */
+        .screen-info {
+            margin-top: 24px;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .screen-info h3 {
+            font-family: var(--heading-font);
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .screen-info p {
+            color: #94A3B8;
+        }
+
+        /* Features Section */
+        .features-section {
+            padding: 60px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .features-section h2 {
+            font-family: var(--heading-font);
+            font-size: 32px;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .feature-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 24px;
+            position: relative;
+        }
+
+        .feature-priority {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .feature-card h4 {
+            font-family: var(--heading-font);
+            font-size: 18px;
+            margin-bottom: 8px;
+            margin-top: 8px;
+        }
+
+        .feature-card p {
+            color: #94A3B8;
+            font-size: 14px;
+        }
+
+        /* Deliberation Log */
+        .deliberation-section {
+            padding: 60px 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .deliberation-section h2 {
+            font-family: var(--heading-font);
+            font-size: 28px;
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .thought {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .agent-name {
+            font-size: 12px;
+            color: var(--primary);
+            font-weight: 600;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .thought p {
+            color: #CBD5E1;
+            font-size: 14px;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 40px;
+            color: #64748B;
+            font-size: 12px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Screen-specific styles */
+        .app-header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            padding: 60px 20px 30px;
+            color: white;
+        }
+
+        .app-header h1 {
+            font-family: var(--heading-font);
+            font-size: 24px;
+        }
+
+        .app-content {
+            padding: 20px;
+        }
+
+        .app-card {
+            background: #F8FAFC;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .app-card-title {
+            font-family: var(--heading-font);
+            font-size: 16px;
+            color: #1E293B;
+            margin-bottom: 4px;
+        }
+
+        .app-card-desc {
+            font-size: 13px;
+            color: #64748B;
+        }
+
+        .app-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-family: var(--body-font);
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+
+        .app-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-around;
+            padding: 16px;
+            background: white;
+            border-top: 1px solid #E2E8F0;
+        }
+
+        .app-nav-item {
+            text-align: center;
+            color: #94A3B8;
+            font-size: 11px;
+        }
+
+        .app-nav-item.active {
+            color: var(--primary);
+        }
+
+        .app-nav-icon {
+            width: 24px;
+            height: 24px;
+            background: currentColor;
+            border-radius: 6px;
+            margin: 0 auto 4px;
+            opacity: 0.5;
+        }
+
+        .app-nav-item.active .app-nav-icon {
+            opacity: 1;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 { font-size: 32px; }
+            .phone-frame { width: 280px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>Zen Flow Yoga</h1>
+        <p class="subtitle">Your Digital Future, Visualized</p>
+        <span class="mood-badge">Dynamic Design</span>
+    </header>
+
+    <div class="design-system">
+        <div class="color-preview">
+            <div class="color-swatch" style="background: #E84545" title="Primary"></div>
+            <div class="color-swatch" style="background: #FF6B6B" title="Secondary"></div>
+            <div class="color-swatch" style="background: #FFA502" title="Accent"></div>
+        </div>
+        <div class="font-preview">
+            <div class="heading">Montserrat</div>
+            <div class="body">Roboto</div>
+        </div>
+    </div>
+
+    <nav class="nav">
+        
+            <button class="nav-tab active" onclick="showScreen('home')" data-screen="home">
+                Home
+            </button>
+            
+            <button class="nav-tab " onclick="showScreen('classes')" data-screen="classes">
+                Classes
+            </button>
+            
+            <button class="nav-tab " onclick="showScreen('book-class')" data-screen="book-class">
+                Book Class
+            </button>
+            
+            <button class="nav-tab " onclick="showScreen('my-schedule')" data-screen="my-schedule">
+                My Schedule
+            </button>
+            
+            <button class="nav-tab " onclick="showScreen('progress')" data-screen="progress">
+                Progress
+            </button>
+            
+            <button class="nav-tab " onclick="showScreen('profile')" data-screen="profile">
+                Profile
+            </button>
+            
+    </nav>
+
+    <main>
+        
+            <div class="screen-panel" id="screen-home" style="display: block">
+                <div class="phone-frame">
+                    <div class="phone-notch"></div>
+                    <div class="phone-content">
+                        
+            <div class="app-header">
+                <h1>Welcome to<br>Zen Flow Yoga</h1>
+            </div>
+            <div class="app-content">
+                <div class="app-card">
+                    <div class="app-card-title">Quick Actions</div>
+                    <div class="app-card-desc">Get started with one tap</div>
+                </div>
+                <div class="app-card">
+                    <div class="app-card-title">Class Booking</div>
+                    <div class="app-card-desc">Book fitness classes instantly</div>
+                </div>
+                <div class="app-card">
+                    <div class="app-card-title">Workout Tracking</div>
+                    <div class="app-card-desc">Log exercises and progress</div>
+                </div>
+                <button class="app-btn">Get Started</button>
+            </div>
+            <nav class="app-nav">
+                <div class="app-nav-item active"><div class="app-nav-icon"></div>Home</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Browse</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Activity</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Profile</div>
+            </nav>
+            
+                    </div>
+                </div>
+                <div class="screen-info">
+                    <h3>Home</h3>
+                    <p>Book fitness classes instantly</p>
+                </div>
+            </div>
+            
+            <div class="screen-panel" id="screen-classes" style="display: none">
+                <div class="phone-frame">
+                    <div class="phone-notch"></div>
+                    <div class="phone-content">
+                        
+            <div style="padding: 60px 20px 20px;">
+                <h2 style="font-family: var(--heading-font); font-size: 24px; color: #1E293B; margin-bottom: 16px;">Classes</h2>
+                <input type="text" placeholder="Search..." style="width: 100%; padding: 14px; border: 1px solid #E2E8F0; border-radius: 12px; font-size: 16px; margin-bottom: 20px;">
+            </div>
+            <div class="app-content" style="padding-top: 0;">
+                <div class="app-card">
+                    <div class="app-card-title">Featured Item</div>
+                    <div class="app-card-desc">Top rated • Most popular</div>
+                </div>
+                <div class="app-card">
+                    <div class="app-card-title">Option 2</div>
+                    <div class="app-card-desc">Great choice for beginners</div>
+                </div>
+                <div class="app-card">
+                    <div class="app-card-title">Option 3</div>
+                    <div class="app-card-desc">Premium selection</div>
+                </div>
+                <div class="app-card">
+                    <div class="app-card-title">Option 4</div>
+                    <div class="app-card-desc">New arrival</div>
+                </div>
+            </div>
+            <nav class="app-nav">
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Home</div>
+                <div class="app-nav-item active"><div class="app-nav-icon"></div>Browse</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Activity</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Profile</div>
+            </nav>
+            
+                    </div>
+                </div>
+                <div class="screen-info">
+                    <h3>Classes</h3>
+                    <p>Log exercises and progress</p>
+                </div>
+            </div>
+            
+            <div class="screen-panel" id="screen-book-class" style="display: none">
+                <div class="phone-frame">
+                    <div class="phone-notch"></div>
+                    <div class="phone-content">
+                        
+            <div style="padding: 60px 20px 20px;">
+                <h2 style="font-family: var(--heading-font); font-size: 24px; color: #1E293B; margin-bottom: 16px;">Book Class</h2>
+                <input type="text" placeholder="Search..." style="width: 100%; padding: 14px; border: 1px solid #E2E8F0; border-radius: 12px; font-size: 16px; margin-bottom: 20px;">
+            </div>
+            <div class="app-content" style="padding-top: 0;">
+                <div class="app-card">
+                    <div class="app-card-title">Featured Item</div>
+                    <div class="app-card-desc">Top rated • Most popular</div>
+                </div>
+                <div class="app-card">
+                    <div class="app-card-title">Option 2</div>
+                    <div class="app-card-desc">Great choice for beginners</div>
+                </div>
+                <div class="app-card">
+                    <div class="app-card-title">Option 3</div>
+                    <div class="app-card-desc">Premium selection</div>
+                </div>
+                <div class="app-card">
+                    <div class="app-card-title">Option 4</div>
+                    <div class="app-card-desc">New arrival</div>
+                </div>
+            </div>
+            <nav class="app-nav">
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Home</div>
+                <div class="app-nav-item active"><div class="app-nav-icon"></div>Browse</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Activity</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Profile</div>
+            </nav>
+            
+                    </div>
+                </div>
+                <div class="screen-info">
+                    <h3>Book Class</h3>
+                    <p>Find and book personal trainers</p>
+                </div>
+            </div>
+            
+            <div class="screen-panel" id="screen-my-schedule" style="display: none">
+                <div class="phone-frame">
+                    <div class="phone-notch"></div>
+                    <div class="phone-content">
+                        
+            <div style="padding: 60px 20px 20px;">
+                <h2 style="font-family: var(--heading-font); font-size: 24px; color: #1E293B; margin-bottom: 20px;">My Schedule</h2>
+            </div>
+            <div class="app-content">
+                <div class="app-card">
+                    <div class="app-card-title">Membership Management</div>
+                    <div class="app-card-desc">View and manage membership</div>
+                </div>
+                <div class="app-card">
+                    <div class="app-card-title">Additional Info</div>
+                    <div class="app-card-desc">More details here</div>
+                </div>
+                <button class="app-btn">Take Action</button>
+            </div>
+            <nav class="app-nav">
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Home</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Browse</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Activity</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Profile</div>
+            </nav>
+            
+                    </div>
+                </div>
+                <div class="screen-info">
+                    <h3>My Schedule</h3>
+                    <p>View and manage membership</p>
+                </div>
+            </div>
+            
+            <div class="screen-panel" id="screen-progress" style="display: none">
+                <div class="phone-frame">
+                    <div class="phone-notch"></div>
+                    <div class="phone-content">
+                        
+            <div style="padding: 60px 20px 20px;">
+                <h2 style="font-family: var(--heading-font); font-size: 24px; color: #1E293B; margin-bottom: 20px;">Progress</h2>
+            </div>
+            <div class="app-content">
+                <div class="app-card">
+                    <div class="app-card-title">Progress Photos</div>
+                    <div class="app-card-desc">Track visual transformation</div>
+                </div>
+                <div class="app-card">
+                    <div class="app-card-title">Additional Info</div>
+                    <div class="app-card-desc">More details here</div>
+                </div>
+                <button class="app-btn">Take Action</button>
+            </div>
+            <nav class="app-nav">
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Home</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Browse</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Activity</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Profile</div>
+            </nav>
+            
+                    </div>
+                </div>
+                <div class="screen-info">
+                    <h3>Progress</h3>
+                    <p>Track visual transformation</p>
+                </div>
+            </div>
+            
+            <div class="screen-panel" id="screen-profile" style="display: none">
+                <div class="phone-frame">
+                    <div class="phone-notch"></div>
+                    <div class="phone-content">
+                        
+            <div style="padding: 60px 20px 20px; text-align: center;">
+                <div style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 50%; margin: 0 auto 16px;"></div>
+                <h2 style="font-family: var(--heading-font); font-size: 22px; color: #1E293B;">John Doe</h2>
+                <p style="color: #64748B; font-size: 14px;">Member since 2024</p>
+            </div>
+            <div class="app-content">
+                <div class="app-card">
+                    <div class="app-card-title">My Orders</div>
+                    <div class="app-card-desc">View order history</div>
+                </div>
+                <div class="app-card">
+                    <div class="app-card-title">Payment Methods</div>
+                    <div class="app-card-desc">Manage cards and accounts</div>
+                </div>
+                <div class="app-card">
+                    <div class="app-card-title">Notifications</div>
+                    <div class="app-card-desc">Customize alerts</div>
+                </div>
+                <div class="app-card">
+                    <div class="app-card-title">Help & Support</div>
+                    <div class="app-card-desc">FAQ and contact us</div>
+                </div>
+            </div>
+            <nav class="app-nav">
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Home</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Browse</div>
+                <div class="app-nav-item"><div class="app-nav-icon"></div>Activity</div>
+                <div class="app-nav-item active"><div class="app-nav-icon"></div>Profile</div>
+            </nav>
+            
+                    </div>
+                </div>
+                <div class="screen-info">
+                    <h3>Profile</h3>
+                    <p>Track meals and macros</p>
+                </div>
+            </div>
+            
+    </main>
+
+    <section class="features-section">
+        <h2>Core Features</h2>
+        <div class="features-grid">
+            
+            <div class="feature-card">
+                <div class="feature-priority" style="background: #E84545">
+                    HIGH
+                </div>
+                <h4>Class Booking</h4>
+                <p>Book fitness classes instantly</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-priority" style="background: #E84545">
+                    HIGH
+                </div>
+                <h4>Workout Tracking</h4>
+                <p>Log exercises and progress</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-priority" style="background: #FF6B6B">
+                    MEDIUM
+                </div>
+                <h4>Trainer Profiles</h4>
+                <p>Find and book personal trainers</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-priority" style="background: #E84545">
+                    HIGH
+                </div>
+                <h4>Membership Management</h4>
+                <p>View and manage membership</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-priority" style="background: #FF6B6B">
+                    MEDIUM
+                </div>
+                <h4>Progress Photos</h4>
+                <p>Track visual transformation</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-priority" style="background: #94A3B8">
+                    LOW
+                </div>
+                <h4>Nutrition Logging</h4>
+                <p>Track meals and macros</p>
+            </div>
+            
+        </div>
+    </section>
+
+    <section class="deliberation-section">
+        <h2>How We Got Here</h2>
+        <p style="text-align: center; color: #64748B; margin-bottom: 24px;">
+            AI agents analyzed your business and made these decisions:
+        </p>
+        
+                <div class="thought">
+                    <span class="agent-name">Research Agent</span>
+                    <p>This is a gym business</p>
+                </div>
+                
+                <div class="thought">
+                    <span class="agent-name">Research Agent</span>
+                    <p>These features are essential for competitive positioning</p>
+                </div>
+                
+                <div class="thought">
+                    <span class="agent-name">Research Agent</span>
+                    <p>Target users expect mobile-first, quick interactions</p>
+                </div>
+                
+                <div class="thought">
+                    <span class="agent-name">Strategy Agent</span>
+                    <p>MVP should include: Class Booking, Workout Tracking, Trainer Profiles</p>
+                </div>
+                
+                <div class="thought">
+                    <span class="agent-name">Strategy Agent</span>
+                    <p>Screens: Home > Classes > Book Class > My Schedule > Progress > Profile</p>
+                </div>
+                
+                <div class="thought">
+                    <span class="agent-name">Strategy Agent</span>
+                    <p>Focus on speed, simplicity, and delightful micro-interactions</p>
+                </div>
+                
+                <div class="thought">
+                    <span class="agent-name">Design Agent</span>
+                    <p>Selected 'energetic' palette: #E84545 primary</p>
+                </div>
+                
+                <div class="thought">
+                    <span class="agent-name">Design Agent</span>
+                    <p>Headings: Montserrat, Body: Roboto</p>
+                </div>
+                
+                <div class="thought">
+                    <span class="agent-name">Design Agent</span>
+                    <p>Design should feel: energetic, motivating, bold</p>
+                </div>
+                
+                <div class="thought">
+                    <span class="agent-name">Prototype Agent</span>
+                    <p>Prototype will include mobile frames and navigation</p>
+                </div>
+                
+                <div class="thought">
+                    <span class="agent-name">Prototype Agent</span>
+                    <p>Output: Interactive HTML file ready for client presentation</p>
+                </div>
+                
+    </section>
+
+    <footer class="footer">
+        <p>This prototype represents a vision for digitizing Zen Flow Yoga.</p>
+        <p>Generated by Business Digitizer | 2026-01-15</p>
+    </footer>
+
+    <script>
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen-panel').forEach(panel => {
+                panel.style.display = 'none';
+            });
+            document.getElementById('screen-' + screenId).style.display = 'flex';
+
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.screen === screenId) {
+                    tab.classList.add('active');
+                }
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const tabs = Array.from(document.querySelectorAll('.nav-tab'));
+            const activeTab = document.querySelector('.nav-tab.active');
+            const currentIndex = tabs.indexOf(activeTab);
+
+            if (e.key === 'ArrowRight' && currentIndex < tabs.length - 1) {
+                tabs[currentIndex + 1].click();
+            } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
+                tabs[currentIndex - 1].click();
+            }
+        });
+    </script>
+</body>
+</html>

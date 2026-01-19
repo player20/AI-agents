@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Results - [CLIENT NAME]</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #26a45a;
+            --primary-light: #e8f5e9;
+            --danger: #ff4757;
+            --warning: #ffa502;
+            --bg-dark: #0f0f23;
+            --bg-card: #1a1a2e;
+            --border: #333;
+            --text: #fff;
+            --text-muted: #888;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 40px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header .subtitle {
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            background: var(--primary);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        /* Navigation */
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 30px;
+            background: var(--bg-card);
+            padding: 8px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .nav-tab:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .nav-tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Sections */
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* Score Cards */
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+
+        .score-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .score-card .score {
+            font-size: 48px;
+            font-weight: 700;
+        }
+
+        .score-card .label {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .score-good { color: var(--primary); }
+        .score-ok { color: var(--warning); }
+        .score-bad { color: var(--danger); }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .card h2 {
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: var(--primary);
+        }
+
+        .card h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+        }
+
+        /* Before/After Comparison */
+        .comparison-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .comparison-panel {
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .comparison-header {
+            padding: 16px 20px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .comparison-header.before {
+            background: rgba(255, 71, 87, 0.2);
+            color: var(--danger);
+        }
+
+        .comparison-header.after {
+            background: rgba(38, 164, 90, 0.2);
+            color: var(--primary);
+        }
+
+        .phone-frame {
+            background: #000;
+            border-radius: 40px;
+            padding: 10px;
+            margin: 20px;
+            max-width: 320px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .phone-screen {
+            background: #fff;
+            border-radius: 32px;
+            height: 600px;
+            overflow: hidden;
+        }
+
+        .phone-screen img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: top;
+        }
+
+        .phone-screen iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Recommendations */
+        .recommendation {
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .recommendation.critical {
+            border-left-color: var(--danger);
+        }
+
+        .recommendation.high {
+            border-left-color: var(--warning);
+        }
+
+        .recommendation h4 {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .recommendation p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .priority-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .priority-critical { background: var(--danger); color: white; }
+        .priority-high { background: var(--warning); color: black; }
+        .priority-medium { background: var(--primary); color: white; }
+
+        /* Metrics Table */
+        .metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .metrics-table th,
+        .metrics-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .metrics-table th {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        /* Funnel */
+        .funnel {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .funnel-step {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .funnel-bar {
+            height: 40px;
+            background: linear-gradient(90deg, var(--primary) 0%, rgba(38,164,90,0.3) 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            color: white;
+            font-weight: 500;
+            transition: width 0.5s ease;
+        }
+
+        .funnel-label {
+            width: 150px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .funnel-percent {
+            width: 60px;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        /* Screenshots Gallery */
+        .screenshots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .screenshot-item {
+            background: var(--bg-card);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .screenshot-item img {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            object-position: top;
+        }
+
+        .screenshot-item .caption {
+            padding: 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Download Button */
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .download-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .score-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .comparison-container {
+                grid-template-columns: 1fr;
+            }
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <div>
+                    <h1>[CLIENT NAME] UX Audit</h1>
+                    <p class="subtitle">Prepared by [YOUR COMPANY] | [DATE]</p>
+                </div>
+                <div class="logo">A</div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showSection('overview')">Overview</button>
+            <button class="nav-tab" onclick="showSection('before-after')">Before / After</button>
+            <button class="nav-tab" onclick="showSection('recommendations')">Recommendations</button>
+            <button class="nav-tab" onclick="showSection('metrics')">Metrics</button>
+            <button class="nav-tab" onclick="showSection('screenshots')">Screenshots</button>
+            <button class="nav-tab" onclick="showSection('downloads')">Downloads</button>
+        </div>
+
+        <!-- Overview Section -->
+        <div id="overview" class="section active">
+            <div class="score-grid">
+                <div class="score-card">
+                    <div class="score score-ok">62</div>
+                    <div class="label">Performance</div>
+                </div>
+                <div class="score-card">
+                    <div class="score score-good">85</div>
+                    <div class="label">Accessibility</div>
+                </div>
+                <div class="score-card">
+                    <div class="score score-bad">45</div>
+                    <div class="label">Conversion Rate</div>
+                </div>
+                <div class="score-card">
+                    <div class="score score-good">78</div>
+                    <div class="label">SEO</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Executive Summary</h2>
+                <p style="color: var(--text-muted); margin-bottom: 16px;">
+                    We analyzed [CLIENT NAME]'s app and identified key opportunities to improve user conversion and retention.
+                    The main issues center around the signup flow, where we observed significant drop-offs.
+                </p>
+                <ul style="color: var(--text-muted); margin-left: 20px;">
+                    <li>73% of users drop off during profile completion</li>
+                    <li>Email verification flow causes 23% abandonment</li>
+                    <li>Mobile experience needs optimization</li>
+                    <li>No analytics SDK detected for tracking</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h2>User Funnel Analysis</h2>
+                <div class="funnel">
+                    <div class="funnel-step">
+                        <span class="funnel-label">Page Views</span>
+                        <div class="funnel-bar" style="width: 100%;">2,012</div>
+                        <span class="funnel-percent">100%</span>
+                    </div>
+                    <div class="funnel-step">
+                        <span class="funnel-label">Signups</span>
+                        <div class="funnel-bar" style="width: 77%;">1,543</div>
+                        <span class="funnel-percent">77%</span>
+                    </div>
+                    <div class="funnel-step">
+                        <span class="funnel-label">Email Verified</span>
+                        <div class="funnel-bar" style="width: 51%;">1,035</div>
+                        <span class="funnel-percent">51%</span>
+                    </div>
+                    <div class="funnel-step">
+                        <span class="funnel-label">Profile Complete</span>
+                        <div class="funnel-bar" style="width: 15%;">300</div>
+                        <span class="funnel-percent">15%</span>
+                    </div>
+                    <div class="funnel-step">
+                        <span class="funnel-label">First Action</span>
+                        <div class="funnel-bar" style="width: 1%;">19</div>
+                        <span class="funnel-percent">0.9%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Before/After Section -->
+        <div id="before-after" class="section">
+            <h2 style="margin-bottom: 20px;">Proposed Changes</h2>
+            <p style="color: var(--text-muted); margin-bottom: 30px;">
+                Compare the current experience with our proposed improvements. Click through the tabs to see different flows.
+            </p>
+
+            <div class="nav-tabs" style="margin-bottom: 20px;">
+                <button class="nav-tab active" onclick="showComparison('landing')">Landing</button>
+                <button class="nav-tab" onclick="showComparison('signup')">Signup</button>
+                <button class="nav-tab" onclick="showComparison('onboarding')">Onboarding</button>
+                <button class="nav-tab" onclick="showComparison('success')">Success</button>
+            </div>
+
+            <div class="comparison-container">
+                <div class="comparison-panel">
+                    <div class="comparison-header before">CURRENT</div>
+                    <div class="phone-frame">
+                        <div class="phone-screen" id="before-screen">
+                            <!-- Screenshot or iframe goes here -->
+                            <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: #f0f0f0; color: #666;">
+                                <p>Current Screenshot<br><small>Upload image or embed URL</small></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="comparison-panel">
+                    <div class="comparison-header after">PROPOSED</div>
+                    <div class="phone-frame">
+                        <div class="phone-screen" id="after-screen">
+                            <!-- Prototype iframe goes here -->
+                            <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: #e8f5e9; color: #26a45a;">
+                                <p>Proposed Design<br><small>Embed prototype HTML</small></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Key Changes in This View</h3>
+                <ul style="color: var(--text-muted); margin-left: 20px;">
+                    <li>Added role selection (CHARGE vs EARN) to clarify intent</li>
+                    <li>Visual map background shows charger availability</li>
+                    <li>Simplified value proposition</li>
+                    <li>Added social login options</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Recommendations Section -->
+        <div id="recommendations" class="section">
+            <h2 style="margin-bottom: 20px;">Prioritized Recommendations</h2>
+
+            <div class="recommendation critical">
+                <h4>
+                    <span class="priority-badge priority-critical">Critical</span>
+                    Fix Email Verification Flow
+                </h4>
+                <p>Users must manually return to app after verification. Implement auto-login via polling or deep links to reduce 23% drop-off.</p>
+            </div>
+
+            <div class="recommendation critical">
+                <h4>
+                    <span class="priority-badge priority-critical">Critical</span>
+                    Simplify Profile Form
+                </h4>
+                <p>Current form requires 12 fields. Reduce to 3 essential fields (name, email, phone) and defer the rest. Expected 40% improvement.</p>
+            </div>
+
+            <div class="recommendation high">
+                <h4>
+                    <span class="priority-badge priority-high">High</span>
+                    Add Progress Indicators
+                </h4>
+                <p>Users don't know how many steps remain. Add "Step 2 of 4" indicators to reduce abandonment anxiety.</p>
+            </div>
+
+            <div class="recommendation high">
+                <h4>
+                    <span class="priority-badge priority-high">High</span>
+                    Add Privacy Explanations
+                </h4>
+                <p>Users hesitate at DOB and Address fields. Add "🔒 Required by Stripe - never shared" to build trust.</p>
+            </div>
+
+            <div class="recommendation">
+                <h4>
+                    <span class="priority-badge priority-medium">Medium</span>
+                    Add Social Login
+                </h4>
+                <p>Implement Apple, Google, Facebook login to reduce signup friction. 1-tap signup vs typing credentials.</p>
+            </div>
+
+            <div class="recommendation">
+                <h4>
+                    <span class="priority-badge priority-medium">Medium</span>
+                    Install Analytics SDK
+                </h4>
+                <p>No tracking currently. Install PostHog for session replay, funnels, and heatmaps to enable data-driven decisions.</p>
+            </div>
+        </div>
+
+        <!-- Metrics Section -->
+        <div id="metrics" class="section">
+            <h2 style="margin-bottom: 20px;">Detailed Metrics</h2>
+
+            <div class="card">
+                <h3>Lighthouse Scores</h3>
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Page</th>
+                            <th>Performance</th>
+                            <th>Accessibility</th>
+                            <th>Best Practices</th>
+                            <th>SEO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Landing Page</td>
+                            <td class="score-ok">65</td>
+                            <td class="score-good">92</td>
+                            <td class="score-good">85</td>
+                            <td class="score-good">90</td>
+                        </tr>
+                        <tr>
+                            <td>Signup Page</td>
+                            <td class="score-ok">58</td>
+                            <td class="score-ok">78</td>
+                            <td class="score-good">85</td>
+                            <td class="score-ok">75</td>
+                        </tr>
+                        <tr>
+                            <td>Dashboard</td>
+                            <td class="score-bad">42</td>
+                            <td class="score-ok">70</td>
+                            <td class="score-ok">70</td>
+                            <td class="score-ok">65</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h3>Core Web Vitals</h3>
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                            <th>Target</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>First Contentful Paint (FCP)</td>
+                            <td>2.4s</td>
+                            <td>&lt; 1.8s</td>
+                            <td class="score-ok">Needs Work</td>
+                        </tr>
+                        <tr>
+                            <td>Largest Contentful Paint (LCP)</td>
+                            <td>4.2s</td>
+                            <td>&lt; 2.5s</td>
+                            <td class="score-bad">Poor</td>
+                        </tr>
+                        <tr>
+                            <td>Cumulative Layout Shift (CLS)</td>
+                            <td>0.05</td>
+                            <td>&lt; 0.1</td>
+                            <td class="score-good">Good</td>
+                        </tr>
+                        <tr>
+                            <td>Total Blocking Time (TBT)</td>
+                            <td>450ms</td>
+                            <td>&lt; 200ms</td>
+                            <td class="score-bad">Poor</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h3>Tech Stack Detected</h3>
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Technology</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Frontend</td><td>Angular 18, Ionic 8</td></tr>
+                        <tr><td>Mobile</td><td>Capacitor</td></tr>
+                        <tr><td>Backend</td><td>Node.js, Express</td></tr>
+                        <tr><td>Database</td><td>PostgreSQL (Supabase)</td></tr>
+                        <tr><td>Payment</td><td>Stripe</td></tr>
+                        <tr><td>Hosting</td><td>Azure, Render</td></tr>
+                        <tr><td>Analytics</td><td>None detected</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Screenshots Section -->
+        <div id="screenshots" class="section">
+            <h2 style="margin-bottom: 20px;">Captured Screenshots</h2>
+
+            <div class="screenshots-grid">
+                <div class="screenshot-item">
+                    <img src="placeholder.jpg" alt="Landing Page" onerror="this.style.background='#333';this.style.display='flex';this.style.alignItems='center';this.style.justifyContent='center';this.innerHTML='Landing Page';">
+                    <div class="caption">001 - Landing Page</div>
+                </div>
+                <div class="screenshot-item">
+                    <img src="placeholder.jpg" alt="Signup Form" onerror="this.style.background='#333';this.style.height='300px';this.innerHTML='Signup Form';">
+                    <div class="caption">002 - Signup Form</div>
+                </div>
+                <div class="screenshot-item">
+                    <img src="placeholder.jpg" alt="Email Verification" onerror="this.style.background='#333';this.style.height='300px';this.innerHTML='Email Verification';">
+                    <div class="caption">003 - Email Verification</div>
+                </div>
+                <div class="screenshot-item">
+                    <img src="placeholder.jpg" alt="Onboarding Step 1" onerror="this.style.background='#333';this.style.height='300px';this.innerHTML='Onboarding';">
+                    <div class="caption">004 - Onboarding Step 1</div>
+                </div>
+            </div>
+
+            <p style="color: var(--text-muted); margin-top: 20px; text-align: center;">
+                Replace placeholder images with actual screenshots from the audit capture.
+            </p>
+        </div>
+
+        <!-- Downloads Section -->
+        <div id="downloads" class="section">
+            <h2 style="margin-bottom: 20px;">Download Reports</h2>
+
+            <div class="card">
+                <h3>Available Downloads</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px;">
+                    <button class="download-btn">
+                        📄 Executive Summary (PDF)
+                    </button>
+                    <button class="download-btn">
+                        👩‍💻 Dev Handover (PDF)
+                    </button>
+                    <button class="download-btn">
+                        📊 Full Report (JSON)
+                    </button>
+                    <button class="download-btn">
+                        🖼️ Screenshots (ZIP)
+                    </button>
+                    <button class="download-btn">
+                        🎨 Prototype (HTML)
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Next Steps</h3>
+                <ol style="color: var(--text-muted); margin-left: 20px; line-height: 2;">
+                    <li>Review this audit with your team</li>
+                    <li>Schedule a 30-minute walkthrough call</li>
+                    <li>Prioritize recommendations for your roadmap</li>
+                    <li>Request implementation support if needed</li>
+                </ol>
+            </div>
+
+            <div class="card">
+                <h3>Contact</h3>
+                <p style="color: var(--text-muted);">
+                    Questions about this audit? Reach out to:<br>
+                    <strong style="color: var(--text);">[YOUR NAME]</strong><br>
+                    <a href="mailto:you@company.com" style="color: var(--primary);">you@company.com</a>
+                </p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Powered by <a href="#">Weaver Pro Audit Tools</a></p>
+            <p style="margin-top: 8px;">© 2026 [YOUR COMPANY]. All rights reserved.</p>
+        </div>
+    </div>
+
+    <script>
+        function showSection(sectionId) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            // Show selected section
+            document.getElementById(sectionId).classList.add('active');
+            // Update nav tabs
+            document.querySelectorAll('.nav-tabs .nav-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function showComparison(view) {
+            // Update comparison tabs
+            const tabs = event.target.parentElement.querySelectorAll('.nav-tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // In a real implementation, this would swap the screenshots/iframes
+            console.log('Showing comparison:', view);
+        }
+
+        // Initialize animations for funnel bars
+        document.addEventListener('DOMContentLoaded', () => {
+            const funnelBars = document.querySelectorAll('.funnel-bar');
+            funnelBars.forEach(bar => {
+                const width = bar.style.width;
+                bar.style.width = '0';
+                setTimeout(() => {
+                    bar.style.width = width;
+                }, 100);
+            });
+        });
+    </script>
+</body>
+</html>

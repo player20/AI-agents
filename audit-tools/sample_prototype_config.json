@@ -1,0 +1,96 @@
+{
+    "app_name": "SampleApp",
+    "client_name": "Demo Client",
+    "screens": [
+        {
+            "id": "landing",
+            "name": "Landing Page",
+            "before": {
+                "description": "Generic landing page with no clear direction for users",
+                "issues": [
+                    "No clear value proposition above the fold",
+                    "Missing social proof / testimonials",
+                    "CTA button is too small and uses generic text",
+                    "No indication of what happens after signup"
+                ],
+                "html": "<div style='padding:20px;background:#f5f5f5;min-height:600px'><h1 style='color:#333;font-size:24px'>Welcome to Our App</h1><p style='color:#666;margin:20px 0'>Sign up today.</p><button style='background:#999;color:white;padding:8px 16px;border:none;border-radius:4px'>Sign Up</button></div>"
+            },
+            "after": {
+                "description": "Clear value proposition with role selection and earnings preview",
+                "changes": [
+                    "Added compelling headline with specific benefit",
+                    "Added role selection (Guest/Host cards)",
+                    "Added earnings preview for hosts ($180-320/mo)",
+                    "Added trust badges and social proof"
+                ],
+                "html": "<div style='padding:20px;background:linear-gradient(135deg,#667eea,#764ba2);min-height:600px;color:white'><h1 style='font-size:28px;margin-bottom:8px'>Earn $180-320/month</h1><p style='opacity:0.9;margin-bottom:24px'>Share your EV charger with drivers nearby</p><div style='display:flex;gap:12px'><div style='flex:1;background:rgba(255,255,255,0.2);padding:16px;border-radius:12px;text-align:center'><div style='font-size:24px'>Find Chargers</div><small>Browse nearby spots</small></div><div style='flex:1;background:rgba(255,255,255,0.3);padding:16px;border-radius:12px;text-align:center;border:2px solid white'><div style='font-size:24px'>Earn Money</div><small>List your charger</small></div></div><p style='margin-top:24px;font-size:12px;opacity:0.8'>Trusted by 10,000+ EV owners</p></div>"
+            }
+        },
+        {
+            "id": "signup",
+            "name": "Sign Up Form",
+            "before": {
+                "description": "Standard signup form with minimal guidance",
+                "issues": [
+                    "No explanation why we need personal info",
+                    "No progress indicator for multi-step flow",
+                    "Privacy concerns not addressed",
+                    "Form feels impersonal and corporate"
+                ]
+            },
+            "after": {
+                "description": "Friendly signup with trust signals and progress",
+                "changes": [
+                    "Added step indicator (Step 1 of 3)",
+                    "Added privacy text under sensitive fields",
+                    "Added encouraging microcopy",
+                    "Added 'Why we need this' tooltips"
+                ]
+            }
+        },
+        {
+            "id": "profile",
+            "name": "Profile Setup",
+            "before": {
+                "description": "Long form requesting DOB and address without explanation",
+                "issues": [
+                    "Users drop off when asked for DOB",
+                    "Address field creates privacy concerns",
+                    "No explanation of how data is used",
+                    "Feels intrusive and unnecessary"
+                ]
+            },
+            "after": {
+                "description": "Contextual form with privacy reassurance",
+                "changes": [
+                    "Added: 'Required by Stripe for payouts - never shared publicly'",
+                    "Added: 'Your exact address is never shown to other users'",
+                    "Reordered fields: required first, optional clearly labeled",
+                    "Added friendly illustrations"
+                ]
+            }
+        },
+        {
+            "id": "success",
+            "name": "Success / Completion",
+            "before": {
+                "description": "Basic confirmation with no next steps",
+                "issues": [
+                    "User left wondering what to do next",
+                    "No celebration or positive reinforcement",
+                    "Missing share/referral opportunity",
+                    "No upsell or additional engagement"
+                ]
+            },
+            "after": {
+                "description": "Celebratory success with social sharing",
+                "changes": [
+                    "Added confetti animation and celebration",
+                    "Added 'Share with friends' button",
+                    "Added 'Add another location' prompt",
+                    "Added estimated first payout date"
+                ]
+            }
+        }
+    ]
+}

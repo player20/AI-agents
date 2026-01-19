@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Portal v1.0 - Modernization Audit</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a6fd6;
+            --secondary: #764ba2;
+            --accent: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg-dark: #1a1d29;
+            --bg-card: #2d3748;
+            --text-primary: #ffffff;
+            --text-secondary: #b8c4d4;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Header / Cover */
+        .report-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 80px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .report-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.5;
+        }
+
+        .report-header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .report-header .tagline {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            margin-bottom: 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 24px;
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Navigation */
+        .nav-sticky {
+            position: sticky;
+            top: 0;
+            background: rgba(26, 29, 41, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 16px 40px;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            justify-content: center;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        /* Sections */
+        .section {
+            padding: 80px 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.125rem;
+            margin-bottom: 40px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        /* Severity Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-high { background: var(--danger); }
+        .badge-medium { background: var(--warning); color: #000; }
+        .badge-low { background: var(--accent); }
+
+        /* Charts Container */
+        .chart-container {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .chart-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        /* Score Circles */
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .score-circle {
+            text-align: center;
+        }
+
+        .score-ring {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: conic-gradient(var(--primary) var(--score-percent), rgba(255,255,255,0.1) 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            position: relative;
+        }
+
+        .score-ring::before {
+            content: '';
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: var(--bg-dark);
+            border-radius: 50%;
+        }
+
+        .score-value {
+            position: relative;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .score-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Toggle Buttons */
+        .toggle-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px;
+            border-radius: 8px;
+            width: fit-content;
+        }
+
+        .toggle-btn {
+            padding: 10px 24px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Recommendations */
+        .recommendation {
+            display: flex;
+            gap: 16px;
+            padding: 20px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .recommendation-icon {
+            font-size: 1.5rem;
+        }
+
+        .recommendation-content {
+            flex: 1;
+        }
+
+        .recommendation-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .recommendation-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Issues List */
+        .issue-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--danger);
+        }
+
+        .issue-card.medium { border-left-color: var(--warning); }
+        .issue-card.low { border-left-color: var(--accent); }
+
+        .issue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .issue-category {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Expandable Sections */
+        .expandable {
+            cursor: pointer;
+        }
+
+        .expandable-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .expandable.open .expandable-content {
+            max-height: 1000px;
+        }
+
+        .expand-icon {
+            transition: transform 0.3s;
+        }
+
+        .expandable.open .expand-icon {
+            transform: rotate(180deg);
+        }
+
+        /* Animations */
+        .fade-in-up {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .fade-in-up.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Counter Animation */
+        @keyframes countUp {
+            from { opacity: 0; transform: scale(0.5); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .animate-count {
+            animation: countUp 0.6s ease forwards;
+        }
+
+        /* Print Styles */
+        @media print {
+            .nav-sticky { display: none; }
+            .no-print { display: none; }
+            body { background: white; color: black; }
+            .section { padding: 40px 20px; }
+            .page-break { page-break-before: always; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .report-header { padding: 60px 20px; }
+            .report-header h1 { font-size: 2rem; }
+            .section { padding: 40px 20px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .nav-links { flex-wrap: wrap; gap: 16px; }
+        }
+        
+
+        .tech-stack {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .tech-badge {
+            background: rgba(102, 126, 234, 0.2);
+            border: 1px solid var(--primary);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+
+        .tech-badge.old {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--danger);
+        }
+
+        .tech-badge.new {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--accent);
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .comparison-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .comparison-card.before {
+            border-left: 4px solid var(--danger);
+        }
+
+        .comparison-card.after {
+            border-left: 4px solid var(--accent);
+        }
+
+        .improvement-badge {
+            display: inline-block;
+            background: var(--accent);
+            color: #000;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .debt-meter {
+            height: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 16px 0;
+        }
+
+        .debt-fill {
+            height: 100%;
+            border-radius: 12px;
+            transition: width 1s ease;
+        }
+
+        .roadmap-phase {
+            position: relative;
+            padding: 24px;
+            padding-left: 60px;
+            margin-bottom: 24px;
+        }
+
+        .roadmap-phase::before {
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--primary), var(--secondary));
+        }
+
+        .phase-marker {
+            position: absolute;
+            left: 8px;
+            top: 24px;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        .risk-tag {
+            display: inline-block;
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin: 4px 4px 0 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="report-header">
+        <h1>Modernization Audit</h1>
+        <p class="tagline">Customer Portal v1.0 | LegacyCorp</p>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-number" style="color: #ef4444">35</span>
+                <span class="stat-label">Health Score</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">$18,000/month</span>
+                <span class="stat-label">Monthly Savings</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">14 months</span>
+                <span class="stat-label">Payback Period</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="nav-sticky">
+        <ul class="nav-links">
+            <li><a href="#stack">Tech Stack</a></li>
+            <li><a href="#debt">Tech Debt</a></li>
+            <li><a href="#comparison">Before/After</a></li>
+            <li><a href="#roadmap">Roadmap</a></li>
+            <li><a href="#roi">ROI</a></li>
+        </ul>
+    </nav>
+
+    <!-- Tech Stack -->
+    <section id="stack" class="section">
+        <h2 class="section-title fade-in-up">Technology Stack</h2>
+        <p class="section-subtitle fade-in-up">Current vs Proposed Architecture</p>
+
+        <div class="toggle-group fade-in-up">
+            <button class="toggle-btn active" onclick="toggleView(this, 'current-stack')">Current Stack</button>
+            <button class="toggle-btn" onclick="toggleView(this, 'proposed-stack')">Proposed Stack</button>
+        </div>
+
+        <div id="stack-container">
+            <div id="current-stack" class="toggle-view card fade-in-up">
+                <h3 class="card-title" style="color: var(--danger);">Current Stack (Legacy)</h3>
+                <div class="tech-stack">
+                    <span class="tech-badge old">jQuery 1.x</span><span class="tech-badge old">PHP 5.6</span><span class="tech-badge old">MySQL 5.5</span><span class="tech-badge old">Apache</span><span class="tech-badge old">Monolithic architecture</span>
+                </div>
+            </div>
+            <div id="proposed-stack" class="toggle-view card fade-in-up" style="display: none;">
+                <h3 class="card-title" style="color: var(--accent);">Proposed Stack (Modern)</h3>
+                <div class="tech-stack">
+                    <span class="tech-badge new">React 18</span><span class="tech-badge new">Node.js 20</span><span class="tech-badge new">PostgreSQL 16</span><span class="tech-badge new">Docker/K8s</span><span class="tech-badge new">Microservices</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tech Debt -->
+    <section id="debt" class="section">
+        <h2 class="section-title fade-in-up">Technical Debt Analysis</h2>
+        <p class="section-subtitle fade-in-up">Understanding the current system health</p>
+
+        <div class="card fade-in-up">
+            <h3 class="card-title">System Health Score</h3>
+            <div class="debt-meter">
+                <div class="debt-fill" style="width: 35%; background: linear-gradient(90deg, var(--danger), var(--warning), var(--accent));"></div>
+            </div>
+            <p style="text-align: center; font-size: 2rem; font-weight: 700;">35/100</p>
+        </div>
+
+        
+        <div class="issue-card critical fade-in-up">
+            <div class="issue-header">
+                <h3 class="card-title">Security Vulnerabilities</h3>
+                <span class="badge badge-high">critical</span>
+            </div>
+            <ul style="margin: 0; padding-left: 20px;">
+                <li>Unsupported PHP version</li><li>SQL injection risks</li><li>No HTTPS enforcement</li>
+            </ul>
+        </div>
+        
+        <div class="issue-card high fade-in-up">
+            <div class="issue-header">
+                <h3 class="card-title">Performance Bottlenecks</h3>
+                <span class="badge badge-high">high</span>
+            </div>
+            <ul style="margin: 0; padding-left: 20px;">
+                <li>No caching layer</li><li>Synchronous processing</li><li>Unoptimized queries</li>
+            </ul>
+        </div>
+        
+        <div class="issue-card medium fade-in-up">
+            <div class="issue-header">
+                <h3 class="card-title">Maintainability</h3>
+                <span class="badge badge-medium">medium</span>
+            </div>
+            <ul style="margin: 0; padding-left: 20px;">
+                <li>No test coverage</li><li>Mixed business logic</li><li>Poor documentation</li>
+            </ul>
+        </div>
+        
+    </section>
+
+    <!-- Before/After Comparison -->
+    <section id="comparison" class="section">
+        <h2 class="section-title fade-in-up">Before & After</h2>
+        <p class="section-subtitle fade-in-up">Expected improvements after modernization</p>
+
+        
+        <div class="card fade-in-up">
+            <h3 class="card-title">Page Load Time<span class="improvement-badge">86% faster</span></h3>
+            <div class="comparison-grid" style="margin-top: 16px;">
+                <div class="comparison-card before">
+                    <span style="color: var(--danger); font-weight: 600;">Before</span>
+                    <p style="font-size: 1.5rem; font-weight: 700; margin-top: 8px;">8.5s</p>
+                </div>
+                <div class="comparison-card after">
+                    <span style="color: var(--accent); font-weight: 600;">After</span>
+                    <p style="font-size: 1.5rem; font-weight: 700; margin-top: 8px;">1.2s</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card fade-in-up">
+            <h3 class="card-title">API Response<span class="improvement-badge">94% faster</span></h3>
+            <div class="comparison-grid" style="margin-top: 16px;">
+                <div class="comparison-card before">
+                    <span style="color: var(--danger); font-weight: 600;">Before</span>
+                    <p style="font-size: 1.5rem; font-weight: 700; margin-top: 8px;">2.1s</p>
+                </div>
+                <div class="comparison-card after">
+                    <span style="color: var(--accent); font-weight: 600;">After</span>
+                    <p style="font-size: 1.5rem; font-weight: 700; margin-top: 8px;">120ms</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card fade-in-up">
+            <h3 class="card-title">Uptime<span class="improvement-badge">2.45% increase</span></h3>
+            <div class="comparison-grid" style="margin-top: 16px;">
+                <div class="comparison-card before">
+                    <span style="color: var(--danger); font-weight: 600;">Before</span>
+                    <p style="font-size: 1.5rem; font-weight: 700; margin-top: 8px;">97.5%</p>
+                </div>
+                <div class="comparison-card after">
+                    <span style="color: var(--accent); font-weight: 600;">After</span>
+                    <p style="font-size: 1.5rem; font-weight: 700; margin-top: 8px;">99.95%</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card fade-in-up">
+            <h3 class="card-title">Deploy Frequency<span class="improvement-badge">30x more frequent</span></h3>
+            <div class="comparison-grid" style="margin-top: 16px;">
+                <div class="comparison-card before">
+                    <span style="color: var(--danger); font-weight: 600;">Before</span>
+                    <p style="font-size: 1.5rem; font-weight: 700; margin-top: 8px;">Monthly</p>
+                </div>
+                <div class="comparison-card after">
+                    <span style="color: var(--accent); font-weight: 600;">After</span>
+                    <p style="font-size: 1.5rem; font-weight: 700; margin-top: 8px;">Daily</p>
+                </div>
+            </div>
+        </div>
+        
+    </section>
+
+    <!-- Migration Roadmap -->
+    <section id="roadmap" class="section">
+        <h2 class="section-title fade-in-up">Migration Roadmap</h2>
+        <p class="section-subtitle fade-in-up">Phased approach to modernization</p>
+
+        
+        <div class="roadmap-phase fade-in-up">
+            <div class="phase-marker">1</div>
+            <div class="card" style="margin: 0;">
+                <h3 class="card-title">Phase 1: Foundation</h3>
+                <p style="color: var(--text-secondary);">Duration: 6 weeks</p>
+
+                <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 0.875rem; color: var(--accent);">Milestones</h4>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li>Set up new infrastructure</li><li>Create API gateway</li><li>Database migration plan</li>
+                </ul>
+
+                
+                <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 0.875rem; color: var(--danger);">Risks</h4>
+                <div><span class="risk-tag">⚠️ Data integrity during migration</span><span class="risk-tag">⚠️ Team learning curve</span></div>
+                
+            </div>
+        </div>
+        
+        <div class="roadmap-phase fade-in-up">
+            <div class="phase-marker">2</div>
+            <div class="card" style="margin: 0;">
+                <h3 class="card-title">Phase 2: Core Services</h3>
+                <p style="color: var(--text-secondary);">Duration: 10 weeks</p>
+
+                <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 0.875rem; color: var(--accent);">Milestones</h4>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li>Auth microservice</li><li>User management</li><li>Core business logic</li>
+                </ul>
+
+                
+                <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 0.875rem; color: var(--danger);">Risks</h4>
+                <div><span class="risk-tag">⚠️ API compatibility</span><span class="risk-tag">⚠️ Performance benchmarking</span></div>
+                
+            </div>
+        </div>
+        
+        <div class="roadmap-phase fade-in-up">
+            <div class="phase-marker">3</div>
+            <div class="card" style="margin: 0;">
+                <h3 class="card-title">Phase 3: Frontend</h3>
+                <p style="color: var(--text-secondary);">Duration: 8 weeks</p>
+
+                <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 0.875rem; color: var(--accent);">Milestones</h4>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li>React component library</li><li>New UI implementation</li><li>A/B testing</li>
+                </ul>
+
+                
+                <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 0.875rem; color: var(--danger);">Risks</h4>
+                <div><span class="risk-tag">⚠️ User adoption</span><span class="risk-tag">⚠️ Feature parity</span></div>
+                
+            </div>
+        </div>
+        
+        <div class="roadmap-phase fade-in-up">
+            <div class="phase-marker">4</div>
+            <div class="card" style="margin: 0;">
+                <h3 class="card-title">Phase 4: Cutover</h3>
+                <p style="color: var(--text-secondary);">Duration: 4 weeks</p>
+
+                <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 0.875rem; color: var(--accent);">Milestones</h4>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li>Final data migration</li><li>Traffic switch</li><li>Legacy decommission</li>
+                </ul>
+
+                
+                <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 0.875rem; color: var(--danger);">Risks</h4>
+                <div><span class="risk-tag">⚠️ Rollback planning</span><span class="risk-tag">⚠️ Zero-downtime switch</span></div>
+                
+            </div>
+        </div>
+        
+    </section>
+
+    <!-- ROI Projection -->
+    <section id="roi" class="section">
+        <h2 class="section-title fade-in-up">ROI Projection</h2>
+        <p class="section-subtitle fade-in-up">Financial impact of modernization</p>
+
+        <div class="stats-grid fade-in-up" style="margin-bottom: 40px;">
+            <div class="card" style="text-align: center;">
+                <p style="color: var(--text-secondary);">Current Monthly Cost</p>
+                <p style="font-size: 1.5rem; font-weight: 700; color: var(--danger);">$45,000/month</p>
+            </div>
+            <div class="card" style="text-align: center;">
+                <p style="color: var(--text-secondary);">Projected Savings</p>
+                <p style="font-size: 1.5rem; font-weight: 700; color: var(--accent);">$18,000/month/mo</p>
+            </div>
+            <div class="card" style="text-align: center;">
+                <p style="color: var(--text-secondary);">Payback Period</p>
+                <p style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">14 months</p>
+            </div>
+        </div>
+
+        <div class="chart-container fade-in-up">
+            <h3 class="chart-title">Cost Projection Over Time</h3>
+            <canvas id="roiChart" height="250"></canvas>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="section" style="text-align: center; padding: 40px;">
+        <p style="color: var(--text-secondary);">
+            Generated by Code Weaver Pro | January 17, 2026 at 02:28 PM
+        </p>
+    </footer>
+
+    <script>
+        
+        // Intersection Observer for fade-in animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.fade-in-up').forEach(el => observer.observe(el));
+
+        // Animated counter
+        function animateCounter(el, target, duration = 1500) {
+            const start = 0;
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = Math.floor(start + (target - start) * eased);
+                el.textContent = current.toLocaleString();
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        // Initialize counters when visible
+        const counterObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const target = parseInt(entry.target.dataset.target);
+                    animateCounter(entry.target, target);
+                    counterObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        document.querySelectorAll('[data-counter]').forEach(el => counterObserver.observe(el));
+
+        // Toggle functionality
+        function toggleView(btn, viewId) {
+            // Update buttons
+            btn.closest('.toggle-group').querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Update views
+            const container = document.getElementById(viewId + '-container');
+            container.querySelectorAll('.toggle-view').forEach(v => v.style.display = 'none');
+            document.getElementById(viewId).style.display = 'block';
+        }
+
+        // Expandable sections
+        document.querySelectorAll('.expandable').forEach(el => {
+            el.querySelector('.expandable-header')?.addEventListener('click', () => {
+                el.classList.toggle('open');
+            });
+        });
+
+        // Smooth scroll for nav links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+        
+
+        // ROI Chart
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('roiChart');
+            if (ctx) {
+                const roiData = {&#34;labels&#34;: [&#34;Q1&#34;, &#34;Q2&#34;, &#34;Q3&#34;, &#34;Q4&#34;, &#34;Q1 Y2&#34;, &#34;Q2 Y2&#34;], &#34;current&#34;: [45000, 46000, 47000, 48000, 49000, 50000], &#34;projected&#34;: [65000, 55000, 35000, 28000, 27000, 27000]};
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: roiData.labels,
+                        datasets: [
+                            {
+                                label: 'Current Costs',
+                                data: roiData.current,
+                                borderColor: '#ef4444',
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                            },
+                            {
+                                label: 'With Modernization',
+                                data: roiData.projected,
+                                borderColor: '#10b981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                            }
+                        ]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                ticks: {
+                                    callback: (value) => '$' + value.toLocaleString()
+                                }
+                            },
+                            x: { grid: { display: false } }
+                        },
+                        plugins: {
+                            legend: { labels: { color: '#fff' } },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => ctx.dataset.label + ': $' + ctx.raw.toLocaleString()
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

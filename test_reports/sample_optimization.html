@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechStartup Inc. - Optimization Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a6fd6;
+            --secondary: #764ba2;
+            --accent: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg-dark: #1a1d29;
+            --bg-card: #2d3748;
+            --text-primary: #ffffff;
+            --text-secondary: #b8c4d4;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Header / Cover */
+        .report-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 80px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .report-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.5;
+        }
+
+        .report-header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .report-header .tagline {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            margin-bottom: 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 24px;
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Navigation */
+        .nav-sticky {
+            position: sticky;
+            top: 0;
+            background: rgba(26, 29, 41, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 16px 40px;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            justify-content: center;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        /* Sections */
+        .section {
+            padding: 80px 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.125rem;
+            margin-bottom: 40px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        /* Severity Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-high { background: var(--danger); }
+        .badge-medium { background: var(--warning); color: #000; }
+        .badge-low { background: var(--accent); }
+
+        /* Charts Container */
+        .chart-container {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .chart-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        /* Score Circles */
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .score-circle {
+            text-align: center;
+        }
+
+        .score-ring {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: conic-gradient(var(--primary) var(--score-percent), rgba(255,255,255,0.1) 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            position: relative;
+        }
+
+        .score-ring::before {
+            content: '';
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: var(--bg-dark);
+            border-radius: 50%;
+        }
+
+        .score-value {
+            position: relative;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .score-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Toggle Buttons */
+        .toggle-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px;
+            border-radius: 8px;
+            width: fit-content;
+        }
+
+        .toggle-btn {
+            padding: 10px 24px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Recommendations */
+        .recommendation {
+            display: flex;
+            gap: 16px;
+            padding: 20px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .recommendation-icon {
+            font-size: 1.5rem;
+        }
+
+        .recommendation-content {
+            flex: 1;
+        }
+
+        .recommendation-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .recommendation-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Issues List */
+        .issue-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--danger);
+        }
+
+        .issue-card.medium { border-left-color: var(--warning); }
+        .issue-card.low { border-left-color: var(--accent); }
+
+        .issue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .issue-category {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Expandable Sections */
+        .expandable {
+            cursor: pointer;
+        }
+
+        .expandable-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .expandable.open .expandable-content {
+            max-height: 1000px;
+        }
+
+        .expand-icon {
+            transition: transform 0.3s;
+        }
+
+        .expandable.open .expand-icon {
+            transform: rotate(180deg);
+        }
+
+        /* Animations */
+        .fade-in-up {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .fade-in-up.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Counter Animation */
+        @keyframes countUp {
+            from { opacity: 0; transform: scale(0.5); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .animate-count {
+            animation: countUp 0.6s ease forwards;
+        }
+
+        /* Print Styles */
+        @media print {
+            .nav-sticky { display: none; }
+            .no-print { display: none; }
+            body { background: white; color: black; }
+            .section { padding: 40px 20px; }
+            .page-break { page-break-before: always; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .report-header { padding: 60px 20px; }
+            .report-header h1 { font-size: 2rem; }
+            .section { padding: 40px 20px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .nav-links { flex-wrap: wrap; gap: 16px; }
+        }
+        </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="report-header">
+        <h1>Optimization Analysis</h1>
+        <p class="tagline">TechStartup Inc. | https://example.com</p>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-number" data-counter data-target="84">0</span>
+                <span class="stat-label">Overall Score</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" data-counter data-target="3">0</span>
+                <span class="stat-label">Issues Found</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" data-counter data-target="3">0</span>
+                <span class="stat-label">Recommendations</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="nav-sticky">
+        <ul class="nav-links">
+            <li><a href="#scores">Scores</a></li>
+            <li><a href="#funnel">User Funnel</a></li>
+            <li><a href="#issues">Issues</a></li>
+            <li><a href="#recommendations">Recommendations</a></li>
+        </ul>
+    </nav>
+
+    <!-- Scores Section -->
+    <section id="scores" class="section">
+        <h2 class="section-title fade-in-up">Performance Scores</h2>
+        <p class="section-subtitle fade-in-up">Comprehensive analysis across key metrics</p>
+
+        <div class="score-grid fade-in-up">
+            
+            <div class="score-circle">
+                <div class="score-ring" style="--score-percent: 72%">
+                    <span class="score-value">72</span>
+                </div>
+                <span class="score-label">Performance</span>
+            </div>
+            
+            <div class="score-circle">
+                <div class="score-ring" style="--score-percent: 85%">
+                    <span class="score-value">85</span>
+                </div>
+                <span class="score-label">Accessibility</span>
+            </div>
+            
+            <div class="score-circle">
+                <div class="score-ring" style="--score-percent: 90%">
+                    <span class="score-value">90</span>
+                </div>
+                <span class="score-label">Seo</span>
+            </div>
+            
+            <div class="score-circle">
+                <div class="score-ring" style="--score-percent: 88%">
+                    <span class="score-value">88</span>
+                </div>
+                <span class="score-label">Best Practices</span>
+            </div>
+            
+            <div class="score-circle">
+                <div class="score-ring" style="--score-percent: 84%">
+                    <span class="score-value">84</span>
+                </div>
+                <span class="score-label">Overall</span>
+            </div>
+            
+        </div>
+
+        <div class="chart-container fade-in-up">
+            <h3 class="chart-title">Score Breakdown</h3>
+            <canvas id="scoresChart" height="200"></canvas>
+        </div>
+    </section>
+
+    <!-- Funnel Section -->
+    
+    <section id="funnel" class="section">
+        <h2 class="section-title fade-in-up">User Conversion Funnel</h2>
+        <p class="section-subtitle fade-in-up">Track where users drop off in your flow</p>
+
+        <div class="chart-container fade-in-up">
+            <canvas id="funnelChart" height="300"></canvas>
+        </div>
+    </section>
+    
+
+    <!-- Issues Section -->
+    <section id="issues" class="section">
+        <h2 class="section-title fade-in-up">Issues Found</h2>
+        <p class="section-subtitle fade-in-up">Prioritized list of improvements</p>
+
+        
+        <div class="issue-card high fade-in-up">
+            <div class="issue-header">
+                <div>
+                    <span class="issue-category">Performance</span>
+                    <h3 class="card-title">Large Contentful Paint (LCP) too slow</h3>
+                </div>
+                <span class="badge badge-high">high</span>
+            </div>
+            <p>LCP is 4.2s, which exceeds the recommended 2.5s threshold</p>
+            
+            <div class="recommendation-meta">
+                <span>💡 Optimize images, implement lazy loading, and consider CDN</span>
+            </div>
+            
+        </div>
+        
+        <div class="issue-card medium fade-in-up">
+            <div class="issue-header">
+                <div>
+                    <span class="issue-category">Accessibility</span>
+                    <h3 class="card-title">Missing alt text on images</h3>
+                </div>
+                <span class="badge badge-medium">medium</span>
+            </div>
+            <p>12 images are missing alt text attributes</p>
+            
+            <div class="recommendation-meta">
+                <span>💡 Add descriptive alt text to all images</span>
+            </div>
+            
+        </div>
+        
+        <div class="issue-card medium fade-in-up">
+            <div class="issue-header">
+                <div>
+                    <span class="issue-category">Mobile UX</span>
+                    <h3 class="card-title">Touch targets too small on mobile</h3>
+                </div>
+                <span class="badge badge-medium">medium</span>
+            </div>
+            <p>Several buttons are smaller than 44x44px</p>
+            
+            <div class="recommendation-meta">
+                <span>💡 Increase button sizes to meet WCAG guidelines</span>
+            </div>
+            
+        </div>
+        
+    </section>
+
+    <!-- Recommendations Section -->
+    <section id="recommendations" class="section">
+        <h2 class="section-title fade-in-up">Recommendations</h2>
+        <p class="section-subtitle fade-in-up">Prioritized actions to improve your application</p>
+
+        
+        <div class="recommendation fade-in-up">
+            <span class="recommendation-icon">
+                🚀
+            </span>
+            <div class="recommendation-content">
+                <h3 class="recommendation-title">Implement Image Optimization Pipeline</h3>
+                <p>Set up automatic image compression and WebP conversion</p>
+                <div class="recommendation-meta">
+                    <span>Impact: <strong>High</strong></span>
+                    <span>Effort: <strong>Medium</strong></span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="recommendation fade-in-up">
+            <span class="recommendation-icon">
+                ⚡
+            </span>
+            <div class="recommendation-content">
+                <h3 class="recommendation-title">Add Caching Headers</h3>
+                <p>Configure proper cache-control headers for static assets</p>
+                <div class="recommendation-meta">
+                    <span>Impact: <strong>Medium</strong></span>
+                    <span>Effort: <strong>Low</strong></span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="recommendation fade-in-up">
+            <span class="recommendation-icon">
+                ⚡
+            </span>
+            <div class="recommendation-content">
+                <h3 class="recommendation-title">Refactor CSS for Critical Path</h3>
+                <p>Inline critical CSS and defer non-critical styles</p>
+                <div class="recommendation-meta">
+                    <span>Impact: <strong>Medium</strong></span>
+                    <span>Effort: <strong>High</strong></span>
+                </div>
+            </div>
+        </div>
+        
+    </section>
+
+    <!-- Footer -->
+    <footer class="section" style="text-align: center; padding: 40px;">
+        <p style="color: var(--text-secondary);">
+            Generated by Code Weaver Pro | January 17, 2026 at 02:28 PM
+        </p>
+    </footer>
+
+    <script>
+        
+        // Intersection Observer for fade-in animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.fade-in-up').forEach(el => observer.observe(el));
+
+        // Animated counter
+        function animateCounter(el, target, duration = 1500) {
+            const start = 0;
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = Math.floor(start + (target - start) * eased);
+                el.textContent = current.toLocaleString();
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        // Initialize counters when visible
+        const counterObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const target = parseInt(entry.target.dataset.target);
+                    animateCounter(entry.target, target);
+                    counterObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        document.querySelectorAll('[data-counter]').forEach(el => counterObserver.observe(el));
+
+        // Toggle functionality
+        function toggleView(btn, viewId) {
+            // Update buttons
+            btn.closest('.toggle-group').querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Update views
+            const container = document.getElementById(viewId + '-container');
+            container.querySelectorAll('.toggle-view').forEach(v => v.style.display = 'none');
+            document.getElementById(viewId).style.display = 'block';
+        }
+
+        // Expandable sections
+        document.querySelectorAll('.expandable').forEach(el => {
+            el.querySelector('.expandable-header')?.addEventListener('click', () => {
+                el.classList.toggle('open');
+            });
+        });
+
+        // Smooth scroll for nav links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+        
+
+        // Initialize Charts
+        document.addEventListener('DOMContentLoaded', function() {
+            // Scores Chart
+            const scoresCtx = document.getElementById('scoresChart');
+            if (scoresCtx) {
+                const scoresData = {&#34;performance&#34;: 72, &#34;accessibility&#34;: 85, &#34;seo&#34;: 90, &#34;best_practices&#34;: 88, &#34;overall&#34;: 84};
+                new Chart(scoresCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(scoresData).map(k => k.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())),
+                        datasets: [{
+                            label: 'Score',
+                            data: Object.values(scoresData),
+                            backgroundColor: Object.values(scoresData).map(v =>
+                                v >= 80 ? '#10b981' : v >= 60 ? '#f59e0b' : '#ef4444'
+                            ),
+                            borderRadius: 8,
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        scales: {
+                            x: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } },
+                            y: { grid: { display: false } }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => ctx.raw + '/100'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Funnel Chart
+            const funnelCtx = document.getElementById('funnelChart');
+            if (funnelCtx) {
+                const funnelData = {&#34;labels&#34;: [&#34;Visitors&#34;, &#34;Signups&#34;, &#34;Active Users&#34;, &#34;Paid Customers&#34;], &#34;values&#34;: [10000, 2500, 800, 150]};
+                new Chart(funnelCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: funnelData.labels,
+                        datasets: [{
+                            label: 'Users',
+                            data: funnelData.values,
+                            backgroundColor: ['#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#3B82F6'],
+                            borderRadius: 8,
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } },
+                            x: { grid: { display: false } }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => ctx.raw.toLocaleString() + ' users'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
