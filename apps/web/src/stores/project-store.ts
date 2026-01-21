@@ -46,6 +46,8 @@ export interface AgentExecution {
   error?: string
 }
 
+export type ReportType = 'transformation_proposal' | 'ux_audit' | 'comprehensive'
+
 export interface Project {
   id: string
   name: string
@@ -55,6 +57,9 @@ export interface Project {
   createdAt: Date
   agents: AgentExecution[]
   generatedFiles?: Record<string, string>
+  // Business report data
+  reportHtml?: string
+  reportType?: ReportType
 }
 
 interface ProjectStore {
@@ -71,6 +76,7 @@ interface ProjectStore {
   addAgentExecution: (agent: AgentExecution) => void
   updateAgentExecution: (agentId: string, updates: Partial<AgentExecution>) => void
   setGeneratedFiles: (files: Record<string, string>) => void
+  setReport: (reportHtml: string, reportType: ReportType) => void
   reset: () => void
 }
 
@@ -92,6 +98,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       createdAt: new Date(),
       agents: [],
     }
+    console.log('[Store] createProject:', newProject.id, 'Platform:', platform)
     set((state) => ({
       currentProject: newProject,
       projects: [...state.projects, newProject],
@@ -99,15 +106,26 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   updateProjectStatus: (status) =>
-    set((state) => ({
-      currentProject: state.currentProject
-        ? { ...state.currentProject, status }
-        : null,
-    })),
+    set((state) => {
+      console.log('[Store] updateProjectStatus:', status, 'Project:', state.currentProject?.id)
+      return {
+        currentProject: state.currentProject
+          ? { ...state.currentProject, status }
+          : null,
+      }
+    }),
 
   addAgentExecution: (agent) =>
     set((state) => {
-      if (!state.currentProject) return { currentProject: null }
+      console.log('[Store] addAgentExecution called:', agent.name, 'Status:', agent.status)
+
+      if (!state.currentProject) {
+        console.warn('[Store] No currentProject, cannot add agent:', agent.name)
+        return { currentProject: null }
+      }
+
+      console.log('[Store] Current project ID:', state.currentProject.id)
+      console.log('[Store] Existing agents:', state.currentProject.agents.map(a => a.name))
 
       // Check if agent with same name already exists (prevent duplicates)
       const existingAgent = state.currentProject.agents.find(
@@ -115,6 +133,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       )
 
       if (existingAgent) {
+        console.log('[Store] Updating existing agent:', agent.name)
         // Update existing agent instead of adding duplicate
         return {
           currentProject: {
@@ -126,6 +145,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         }
       }
 
+      console.log('[Store] Adding new agent:', agent.name)
       // Add new agent
       return {
         currentProject: {
@@ -155,6 +175,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       // Save to localStorage for cross-tab access
       saveToLocalStorage(updatedProject)
       return { currentProject: updatedProject }
+    }),
+
+  setReport: (reportHtml, reportType) =>
+    set((state) => {
+      console.log('[Store] setReport:', reportType, 'HTML length:', reportHtml?.length)
+      return {
+        currentProject: state.currentProject
+          ? { ...state.currentProject, reportHtml, reportType }
+          : null,
+      }
     }),
 
   reset: () =>

@@ -154,10 +154,12 @@ WORKFLOW_CONFIGS: Dict[str, WorkflowConfig] = {
         name="Full Application",
         description="Complete application development with all specialized agents",
         agent_ids=WORKFLOW_SEQUENCES["full_app"],
-        estimated_duration_minutes=60,
+        estimated_duration_minutes=40,  # Reduced from 60 with better parallelization
         parallel_groups=[
-            ["Research", "Memory"],  # Can run together
-            ["BackendEngineer", "FrontendEngineer"],  # Can run together
+            ["Research", "Memory"],  # Can run together (context gathering)
+            ["Ideas", "Designs"],  # Can run together (independent creative tasks)
+            ["BackendEngineer", "FrontendEngineer"],  # Can run together (code generation)
+            ["QA", "SecurityEngineer"],  # Can run together (code review)
         ]
     ),
     "mvp_sprint": WorkflowConfig(
@@ -165,14 +167,20 @@ WORKFLOW_CONFIGS: Dict[str, WorkflowConfig] = {
         name="MVP Sprint",
         description="Quick prototype with essential agents only",
         agent_ids=WORKFLOW_SEQUENCES["mvp_sprint"],
-        estimated_duration_minutes=20,
+        estimated_duration_minutes=12,  # Reduced from 20 with parallelization
+        parallel_groups=[
+            ["Ideas", "Designs"],  # Can run together
+        ]
     ),
     "code_review": WorkflowConfig(
         type=WorkflowType.CODE_REVIEW,
         name="Code Review",
         description="Review existing code for quality and security",
         agent_ids=WORKFLOW_SEQUENCES["code_review"],
-        estimated_duration_minutes=15,
+        estimated_duration_minutes=10,  # Reduced with parallelization
+        parallel_groups=[
+            ["QA", "SecurityEngineer"],  # Can run together
+        ]
     ),
     "research_only": WorkflowConfig(
         type=WorkflowType.RESEARCH_ONLY,
@@ -193,15 +201,19 @@ WORKFLOW_CONFIGS: Dict[str, WorkflowConfig] = {
         name="Backend Only",
         description="Backend and API development",
         agent_ids=WORKFLOW_SEQUENCES["backend_only"],
-        estimated_duration_minutes=30,
+        estimated_duration_minutes=20,  # Reduced with parallelization
+        parallel_groups=[
+            ["QA", "SecurityEngineer"],  # Can run together
+        ]
     ),
     "mobile_app": WorkflowConfig(
         type=WorkflowType.MOBILE_APP,
         name="Mobile Application",
         description="iOS and Android mobile app development",
         agent_ids=WORKFLOW_SEQUENCES["mobile_app"],
-        estimated_duration_minutes=45,
+        estimated_duration_minutes=30,  # Reduced with better parallelization
         parallel_groups=[
+            ["Ideas", "Designs"],  # Can run together
             ["iOS", "Android"],  # Can develop both platforms together
         ]
     ),

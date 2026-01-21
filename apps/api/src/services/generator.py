@@ -4,6 +4,12 @@ Code Generator Service
 Handles the orchestration of AI agents for code generation.
 Uses the real agent orchestrator with LangGraph.
 Falls back to mock mode when orchestrator is unavailable.
+
+NEW: Uses template-first generation for reliability:
+1. Select template based on description
+2. AI customizes template (not generate from scratch)
+3. Validate output before returning
+4. Fall back to clean template if validation fails
 """
 import asyncio
 import os
@@ -20,8 +26,26 @@ from .orchestrator import (
 )
 from .file_storage import save_project_files
 from .agent_registry import get_registry, list_agents
+from .template_loader import get_template_loader
+from .template_customizer import (
+    TemplateCustomizer,
+    CustomizationRequest,
+    CustomizationMode,
+    BrandProfile,
+    get_template_customizer,
+)
+from .code_validator import validate_files, validate_and_fix, ValidationResult
+from .prototype_orchestrator import (
+    PrototypeOrchestrator,
+    PrototypeEvent,
+    PrototypeResult,
+    generate_prototype,
+)
 
 logger = logging.getLogger(__name__)
+
+# Environment flag for creative mode (5-agent pipeline)
+USE_CREATIVE_MODE = os.environ.get("USE_CREATIVE_MODE", "true").lower() == "true"
 
 
 # Environment flag to force mock mode
@@ -31,6 +55,13 @@ USE_MOCK_MODE = os.environ.get("USE_MOCK_AGENTS", "false").lower() == "true"
 class CodeGenerator:
     """
     Orchestrates the code generation process using AI agents.
+
+    Uses template-first approach for reliability:
+    1. Select best template based on user description
+    2. AI customizes only the content files (pages, components)
+    3. Protected files (configs) remain unchanged
+    4. Validate all output before returning
+    5. Fall back to clean template if validation fails
 
     Uses the real agent orchestrator with LangGraph for production.
     Falls back to mock mode for development or when APIs are unavailable.
@@ -45,6 +76,9 @@ class CodeGenerator:
         """
         self.event_callback = event_callback
         self._orchestrator: Optional[AgentOrchestrator] = None
+        self._template_customizer = get_template_customizer()
+        self._template_loader = get_template_loader()
+        self._prototype_orchestrator: Optional[PrototypeOrchestrator] = None
 
     def _get_orchestrator(self) -> AgentOrchestrator:
         """Get or create the orchestrator with event bridging"""
@@ -55,6 +89,74 @@ class CodeGenerator:
 
             self._orchestrator = AgentOrchestrator(event_callback=bridge_events)
         return self._orchestrator
+
+    def _get_prototype_orchestrator(self) -> PrototypeOrchestrator:
+        """Get or create the prototype orchestrator with event bridging"""
+        if self._prototype_orchestrator is None:
+            async def bridge_prototype_events(event: PrototypeEvent):
+                """Bridge prototype events to generation events"""
+                await self._handle_prototype_event(event)
+
+            self._prototype_orchestrator = PrototypeOrchestrator(event_callback=bridge_prototype_events)
+        return self._prototype_orchestrator
+
+    async def _handle_prototype_event(self, event: PrototypeEvent) -> None:
+        """Convert prototype orchestrator events to generation events"""
+        event_map = {
+            "agent_start": "agent_start",
+            "agent_complete": "agent_complete",
+            "status": "status",
+            "error": "error",
+            "clarification_required": "clarification_required",
+            "research_progress": "research_progress",
+        }
+
+        gen_type = event_map.get(event.type, "status")
+
+        # Handle special event types that pass through data
+        if event.type == "clarification_required":
+            gen_event = GenerationEvent(
+                type="clarification_required",
+                message=event.message,
+                progress=event.progress,
+                agent=event.agent,
+                agent_type="creative",
+                session_id=event.data.get("session_id") if event.data else None,
+                data=event.data,  # Pass through questions, industry, confidence
+            )
+            await self._emit_event(gen_event)
+            return
+
+        if event.type == "research_progress":
+            gen_event = GenerationEvent(
+                type="research_progress",
+                message=event.message,
+                progress=event.progress,
+                agent=event.agent,
+                data=event.data,
+            )
+            await self._emit_event(gen_event)
+            return
+
+        # Convert dict data to string for output field (GenerationEvent.output expects str)
+        output_str = None
+        if event.data:
+            domain = event.data.get("domain")
+            if domain:
+                # Extract a summary string from domain analysis
+                industry = domain.get("industry_display_name") or domain.get("industry", "")
+                output_str = f"Industry: {industry}" if industry else None
+
+        gen_event = GenerationEvent(
+            type=gen_type,
+            message=event.message,
+            progress=event.progress,
+            agent=event.agent,
+            agent_type="creative" if event.agent else None,
+            output=output_str,
+        )
+
+        await self._emit_event(gen_event)
 
     async def _handle_orchestrator_event(self, event: OrchestratorEvent) -> None:
         """Convert orchestrator events to generation events"""
@@ -112,6 +214,14 @@ class CodeGenerator:
             import uuid
             project_id = str(uuid.uuid4())
 
+        # Check if we should use creative mode (5-agent pipeline)
+        if USE_CREATIVE_MODE and (platform == Platform.WEB or platform == Platform.ALL):
+            logger.info("Using creative mode (5-agent pipeline) for generation")
+            try:
+                return await self._generate_with_prototype_orchestrator(description, platform, project_id)
+            except Exception as e:
+                logger.warning(f"Creative mode failed, falling back to standard: {e}")
+
         # Check if we should use mock mode
         if USE_MOCK_MODE or not self._should_use_orchestrator():
             logger.info("Using mock mode for generation")
@@ -119,10 +229,15 @@ class CodeGenerator:
 
         # Use real orchestrator
         try:
-            return await self._generate_with_orchestrator(description, platform, project_id)
+            files = await self._generate_with_orchestrator(description, platform, project_id)
+
+            # Validate and fix generated files
+            files = await self._validate_and_fix_files(files, description, project_id)
+
+            return files
         except Exception as e:
-            logger.warning(f"Orchestrator failed, falling back to mock: {e}")
-            return await self._generate_mock(description, platform, project_id)
+            logger.warning(f"Orchestrator failed, falling back to template: {e}")
+            return await self._generate_from_template(description, platform, project_id)
 
     def _should_use_orchestrator(self) -> bool:
         """Check if the real orchestrator should be used"""
@@ -207,13 +322,205 @@ class CodeGenerator:
 
         return files
 
+    async def _generate_with_prototype_orchestrator(
+        self,
+        description: str,
+        platform: Platform,
+        project_id: str,
+    ) -> Dict[str, str]:
+        """
+        Generate using the 5-agent creative prototype orchestrator.
+
+        This produces domain-specific prototypes that feel tailored to the
+        client's business, not generic templates.
+        """
+        await self._emit_event(GenerationEvent(
+            type="status",
+            message="Starting creative prototype generation...",
+            progress=0
+        ))
+
+        orchestrator = self._get_prototype_orchestrator()
+
+        # Run the creative pipeline
+        result: PrototypeResult = await orchestrator.generate(
+            description=description,
+            project_id=project_id,
+        )
+
+        # Log result
+        logger.info(f"Creative pipeline completed: success={result.success}, files={len(result.files)}")
+        if result.domain_analysis:
+            logger.info(f"Domain: {result.domain_analysis.get('industry_display_name', 'unknown')}")
+        if result.error:
+            logger.warning(f"Creative pipeline warning: {result.error}")
+
+        files = result.files
+
+        # Save files to storage
+        if files:
+            try:
+                await save_project_files(project_id, files)
+                logger.info(f"Saved {len(files)} files for project {project_id}")
+            except Exception as e:
+                logger.warning(f"Failed to save files to storage: {e}")
+
+        # Emit files event
+        logger.info(f"Emitting files event with {len(files)} files")
+        await self._emit_event(GenerationEvent(
+            type="files",
+            files=files,
+            progress=100
+        ))
+
+        # Emit complete event with rich metadata
+        summary = {
+            "filesGenerated": len(files),
+            "platform": platform.value,
+            "mode": "creative",
+            "durationMs": result.duration_ms,
+            "timestamp": datetime.now().isoformat()
+        }
+
+        if result.domain_analysis:
+            summary["industry"] = result.domain_analysis.get("industry_display_name")
+            summary["competitors"] = [
+                c.get("name") for c in result.domain_analysis.get("competitors", [])
+            ]
+
+        if result.architecture:
+            summary["pages"] = len(result.architecture.get("pages", []))
+            summary["appName"] = result.architecture.get("app_name")
+
+        logger.info("Emitting final complete event")
+        await self._emit_event(GenerationEvent(
+            type="complete",
+            message=f"Creative prototype ready for {result.domain_analysis.get('industry_display_name', 'your business')}!",
+            summary=summary
+        ))
+
+        return files
+
+    async def _validate_and_fix_files(
+        self,
+        files: Dict[str, str],
+        description: str,
+        project_id: str,
+    ) -> Dict[str, str]:
+        """
+        Validate generated files and fix issues.
+        Falls back to clean template if validation fails.
+        """
+        await self._emit_event(GenerationEvent(
+            type="status",
+            message="Validating generated code...",
+            progress=95
+        ))
+
+        # Try to fix issues
+        fixed_files, validation = validate_and_fix(files)
+
+        if validation.is_valid:
+            logger.info(f"Validation passed for project {project_id}")
+            return fixed_files
+
+        # Log validation errors
+        for error in validation.errors:
+            logger.warning(f"Validation error: {error.code} in {error.file_path}: {error.message}")
+
+        # Validation still failing after fixes - fall back to template
+        logger.warning(f"Validation failed with {len(validation.errors)} errors, falling back to template")
+
+        await self._emit_event(GenerationEvent(
+            type="status",
+            message="Applying template fallback for stability...",
+            progress=97
+        ))
+
+        # Get clean template based on description
+        template = self._template_loader.select_template(description)
+        if template:
+            template_files = self._template_loader.get_template_files_dict(template.id)
+            logger.info(f"Using fallback template: {template.id}")
+            return template_files
+
+        # If no template available, return what we have
+        logger.warning("No template available for fallback, returning fixed files")
+        return fixed_files
+
+    async def _generate_from_template(
+        self,
+        description: str,
+        platform: Platform,
+        project_id: str,
+    ) -> Dict[str, str]:
+        """
+        Generate using template-first approach.
+        Selects best template and returns it with brand applied.
+        """
+        await self._emit_event(GenerationEvent(
+            type="status",
+            message="Selecting best template...",
+            progress=10
+        ))
+
+        # Select template
+        template = self._template_loader.select_template(description)
+        if not template:
+            logger.warning("No templates available, falling back to mock")
+            return await self._generate_mock(description, platform, project_id)
+
+        logger.info(f"Selected template: {template.id} ({template.name})")
+
+        await self._emit_event(GenerationEvent(
+            type="status",
+            message=f"Using {template.name} template...",
+            progress=30
+        ))
+
+        # Get template files
+        files = self._template_loader.get_template_files_dict(template.id)
+
+        # Emit files event
+        await self._emit_event(GenerationEvent(
+            type="files",
+            files=files,
+            progress=100
+        ))
+
+        # Emit complete event
+        await self._emit_event(GenerationEvent(
+            type="complete",
+            message=f"Generated {template.name} from template!",
+            summary={
+                "filesGenerated": len(files),
+                "platform": platform.value,
+                "templateUsed": template.id,
+                "templateName": template.name,
+                "mode": "template",
+                "timestamp": datetime.now().isoformat()
+            }
+        ))
+
+        return files
+
     async def _generate_mock(
         self,
         description: str,
         platform: Platform,
         project_id: str,
     ) -> Dict[str, str]:
-        """Generate using mock agents (for development)"""
+        """
+        Generate using mock agents (for development).
+        Now uses templates when available for better reliability.
+        """
+        # Try template-first for web platform
+        if platform == Platform.WEB or platform == Platform.ALL:
+            template = self._template_loader.select_template(description)
+            if template:
+                logger.info(f"Mock mode using template: {template.id}")
+                return await self._generate_from_template(description, platform, project_id)
+
         # Get agents from registry or use fallback
         try:
             agents = list_agents()[:10]  # Use first 10 agents
@@ -265,10 +572,15 @@ class CodeGenerator:
         # Generate mock files
         files = self._generate_mock_files(description, platform)
 
+        # Validate mock files too
+        fixed_files, validation = validate_and_fix(files)
+        if not validation.is_valid:
+            logger.warning(f"Mock files had {len(validation.errors)} validation errors, auto-fixed")
+
         # Emit files event
         await self._emit_event(GenerationEvent(
             type="files",
-            files=files,
+            files=fixed_files,
             progress=100
         ))
 
@@ -277,7 +589,7 @@ class CodeGenerator:
             type="complete",
             message="Code generation complete!",
             summary={
-                "filesGenerated": len(files),
+                "filesGenerated": len(fixed_files),
                 "platform": platform.value,
                 "agents": len(agents),
                 "mode": "mock",
@@ -285,7 +597,7 @@ class CodeGenerator:
             }
         ))
 
-        return files
+        return fixed_files
 
     def _generate_mock_files(
         self,
@@ -326,36 +638,60 @@ class CodeGenerator:
     "lint": "next lint"
   }},
   "dependencies": {{
-    "next": "^14.0.0",
+    "next": "13.5.6",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "tailwindcss": "^3.4.0"
+    "react-dom": "^18.2.0"
   }},
   "devDependencies": {{
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
-    "typescript": "^5.3.0"
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.3.0",
+    "tailwindcss": "^3.4.0",
+    "postcss": "^8.4.0",
+    "autoprefixer": "^10.4.0"
   }}
 }}''',
-            "src/app/page.tsx": f'''import React from 'react'
+            "tsconfig.json": '''{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [{ "name": "next" }],
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}''',
+            "src/app/page.tsx": f''''use client'
 
 export default function Home() {{
   return (
-    <main className="min-h-screen p-8 bg-gradient-to-br from-slate-900 to-slate-800">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-white mb-4">
+    <main style={{{{ minHeight: '100vh', padding: '2rem', background: 'linear-gradient(to bottom right, #0f172a, #1e293b)', color: 'white' }}}} className="min-h-screen p-8 bg-gradient-to-br from-slate-900 to-slate-800">
+      <div style={{{{ maxWidth: '56rem', margin: '0 auto' }}}} className="max-w-4xl mx-auto">
+        <h1 style={{{{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '1rem' }}}} className="text-4xl font-bold text-white mb-4">
           {project_name}
         </h1>
-        <p className="text-slate-300 text-lg">
+        <p style={{{{ color: '#cbd5e1', fontSize: '1.125rem' }}}} className="text-slate-300 text-lg">
           {description[:200]}...
         </p>
 
-        <div className="mt-8 grid gap-4">
-          <div className="bg-slate-700/50 rounded-lg p-6 border border-slate-600">
-            <h2 className="text-xl font-semibold text-white mb-2">
+        <div style={{{{ marginTop: '2rem' }}}} className="mt-8 grid gap-4">
+          <div style={{{{ backgroundColor: 'rgba(51, 65, 85, 0.5)', borderRadius: '0.5rem', padding: '1.5rem', border: '1px solid #475569' }}}} className="bg-slate-700/50 rounded-lg p-6 border border-slate-600">
+            <h2 style={{{{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem' }}}} className="text-xl font-semibold text-white mb-2">
               Getting Started
             </h2>
-            <p className="text-slate-400">
+            <p style={{{{ color: '#94a3b8' }}}} className="text-slate-400">
               This app was generated by Code Weaver Pro using 52 AI agents.
             </p>
           </div>
@@ -420,6 +756,11 @@ module.exports = {
             "next.config.mjs": '''/** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // WebContainer compatibility - disable native SWC
+  experimental: {
+    forceSwcTransforms: true,
+  },
+  swcMinify: false,
 }
 
 export default nextConfig
@@ -429,6 +770,10 @@ export default nextConfig
     tailwindcss: {},
     autoprefixer: {},
   },
+}
+''',
+            ".babelrc": '''{
+  "presets": ["next/babel"]
 }
 ''',
             "README.md": f'''# {project_name}
@@ -450,7 +795,7 @@ Open [http://localhost:3000](http://localhost:3000) to view your app.
 
 ## Tech Stack
 
-- **Framework**: Next.js 14
+- **Framework**: Next.js 13.5.6
 - **Styling**: Tailwind CSS
 - **Language**: TypeScript
 

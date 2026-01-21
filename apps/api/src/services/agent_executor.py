@@ -193,12 +193,51 @@ class AgentExecutor:
         # Add platform-specific guidelines for Development agents
         if self.config.category == "Development" and context.platform == "web":
             parts.append("")
-            parts.append("## CRITICAL: Next.js Configuration Requirements")
-            parts.append("- ALWAYS use 'next.config.mjs' (NOT next.config.ts) - TypeScript config is not supported in WebContainer")
+            parts.append("## CRITICAL: Next.js Configuration Requirements for WebContainer")
+            parts.append("- MUST use Next.js version '13.5.6' (NOT 14.x) - version 14 has SWC issues in WebContainer")
+            parts.append("- ALWAYS use 'next.config.mjs' (NOT next.config.ts) - TypeScript config is not supported")
             parts.append("- ALWAYS use 'tailwind.config.js' (NOT tailwind.config.ts)")
             parts.append("- ALWAYS use 'postcss.config.js' (NOT postcss.config.mjs or .ts)")
+            parts.append("- ALWAYS include '.babelrc' with {\"presets\": [\"next/babel\"]} for WebContainer compatibility")
+            parts.append("- In next.config.mjs, set swcMinify: false (do NOT include experimental.appDir - it's default now)")
             parts.append("- Include autoprefixer in postcss.config.js")
-            parts.append("- Make sure package.json includes all required dependencies")
+            parts.append("- package.json dependencies MUST have: \"next\": \"13.5.6\" (exact version, no caret)")
+            parts.append("- NEVER use 'next/font' - it requires SWC which conflicts with Babel")
+            parts.append("- For fonts, use Google Fonts via <link> tag in layout.tsx head or @import in globals.css")
+            parts.append("")
+            parts.append("## React Server Components Rules (CRITICAL)")
+            parts.append("- Any file using React hooks (useState, useEffect, useContext, etc.) MUST have 'use client' at the very top")
+            parts.append("- Any file using browser APIs (window, document, localStorage) MUST have 'use client' at the top")
+            parts.append("- If page.tsx uses useState or any hook, add 'use client' as the FIRST line before any imports")
+            parts.append("- layout.tsx should stay as Server Component (no 'use client') - wrap children with client ErrorBoundary")
+            parts.append("- Components with onClick, onChange, or any event handlers MUST have 'use client'")
+            parts.append("- NEVER export 'metadata' from a 'use client' file - metadata exports only work in Server Components")
+            parts.append("- Use 'next/navigation' for useRouter, usePathname, useSearchParams (NOT 'next/router' which is for Pages Router)")
+            parts.append("")
+            parts.append("## Common Mistakes to Avoid")
+            parts.append("- NEVER use next/image - use regular <img> tags instead (next/image has WebContainer issues)")
+            parts.append("- NEVER access window, document, or localStorage at module level - only inside useEffect or event handlers")
+            parts.append("- ALWAYS include ALL imported packages in package.json dependencies before using them")
+            parts.append("- tsconfig.json MUST have: paths: { '@/*': ['./src/*'] } for @/ import aliases to work")
+            parts.append("- tsconfig.json MUST have: resolveJsonModule: true if importing JSON files")
+            parts.append("- NEVER mix Pages Router (pages/) with App Router (app/) - use App Router only")
+            parts.append("")
+            parts.append("## Tailwind CSS Rules")
+            parts.append("- ONLY use standard Tailwind classes (bg-blue-500, text-white, p-4, etc.)")
+            parts.append("- NEVER use shadcn/ui style classes like 'border-border', 'bg-background', 'text-foreground' unless defined in tailwind.config.js")
+            parts.append("- If using CSS variables, define them in globals.css AND extend them in tailwind.config.js")
+            parts.append("- globals.css should ONLY contain: @tailwind base; @tailwind components; @tailwind utilities; and optional @import for fonts")
+            parts.append("- DO NOT add @layer rules with undefined classes in globals.css")
+            parts.append("")
+            parts.append("## Error Handling Requirements (CRITICAL for visibility)")
+            parts.append("- Create src/components/ErrorBoundary.tsx with 'use client' directive containing an ErrorBoundary class component")
+            parts.append("- ErrorBoundary MUST render errors with high-contrast colors (red background #dc2626, white text, 20px padding, minHeight 100vh)")
+            parts.append("- In layout.tsx, import ErrorBoundary and wrap {children} with it (layout.tsx stays as Server Component)")
+            parts.append("- In layout.tsx <head>, add error reporting: <script dangerouslySetInnerHTML={{__html: `window.onerror=function(m){window.parent?.postMessage({type:'preview-error',message:m},'*')}`}} />")
+            parts.append("- page.tsx MUST have visible content even if Tailwind CSS fails to load (use inline styles as fallback)")
+            parts.append("- NEVER return null, undefined, or empty JSX from page components")
+            parts.append("- ALWAYS wrap main page content with: style={{ minHeight: '100vh', background: '#0f172a', color: 'white' }}")
+            parts.append("- Include both Tailwind classes AND inline style fallbacks for critical visibility")
 
         return "\n".join(parts)
 
@@ -319,11 +358,11 @@ class AgentExecutor:
         """
         Post-process agent output based on agent type.
 
-        Applies validation, security checks, and refinements.
+        Applies validation, security checks, test generation, and refinements.
         """
         agent_category = self.config.category
 
-        # Quality agents: validate code
+        # Quality agents: validate code and generate tests
         if agent_category == "Quality" and self.config.id in ["QA", "SecurityEngineer"]:
             try:
                 from ..ai.code_validation import validate_code
@@ -336,8 +375,54 @@ class AgentExecutor:
             except ImportError:
                 logger.debug("Code validation module not available")
 
-        # Development agents: run basic syntax checks
+            # Generate tests for QA agent
+            if self.config.id == "QA":
+                try:
+                    from ..ai.test_generator import TestGenerator, TestFramework
+                    test_gen = TestGenerator()
+                    for file in files:
+                        if file.language.value in ["python", "typescript", "javascript"]:
+                            try:
+                                test_suite = test_gen.generate_tests(
+                                    file.content,
+                                    file.language.value,
+                                    coverage_target=0.8,
+                                    include_edge_cases=True
+                                )
+                                # Generate test file
+                                framework = TestFramework.PYTEST if file.language.value == "python" else TestFramework.VITEST
+                                test_code = test_suite.to_code(framework, file.language.value)
+                                if test_code:
+                                    # Add test file to output
+                                    test_path = self._get_test_path(file.path, file.language.value)
+                                    files.append(CodeFile(
+                                        path=test_path,
+                                        content=test_code,
+                                        language=file.language,
+                                        description=f"Auto-generated tests for {file.path}"
+                                    ))
+                                    logger.info(f"Generated test file: {test_path}")
+                            except Exception as e:
+                                logger.warning(f"Test generation failed for {file.path}: {e}")
+                except ImportError:
+                    logger.debug("Test generator module not available")
+
+        # Development agents: run validation and syntax checks
         if agent_category == "Development":
+            try:
+                from ..ai.code_validation import CodeValidationPipeline
+                validator = CodeValidationPipeline()
+                for file in files:
+                    try:
+                        result = await validator.validate(file.content, file.language.value)
+                        if result.issues:
+                            logger.warning(f"Validation issues in {file.path}: {len(result.issues)} issues")
+                    except Exception as e:
+                        logger.debug(f"Validation skipped for {file.path}: {e}")
+            except ImportError:
+                logger.debug("Code validation pipeline not available")
+
+            # Basic syntax checks as fallback
             for file in files:
                 if file.language.value == "python":
                     try:
@@ -352,6 +437,19 @@ class AgentExecutor:
                 output.suggestions.append("Verification complete")
 
         return output, files
+
+    def _get_test_path(self, source_path: str, language: str) -> str:
+        """Generate test file path from source file path"""
+        import os
+        dir_name = os.path.dirname(source_path)
+        base_name = os.path.basename(source_path)
+        name, ext = os.path.splitext(base_name)
+
+        if language == "python":
+            return os.path.join(dir_name, f"test_{name}{ext}")
+        else:
+            # JavaScript/TypeScript: use .test.ts/.test.js pattern
+            return os.path.join(dir_name, f"{name}.test{ext}")
 
     async def execute_with_streaming(
         self,

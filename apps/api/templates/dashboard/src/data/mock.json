@@ -1,0 +1,115 @@
+{
+  "stats": [
+    {
+      "title": "Total Revenue",
+      "value": "$48,352",
+      "change": "+12.5%",
+      "changeType": "increase",
+      "icon": "DollarSign"
+    },
+    {
+      "title": "Active Users",
+      "value": "2,420",
+      "change": "+8.2%",
+      "changeType": "increase",
+      "icon": "Users"
+    },
+    {
+      "title": "Conversion Rate",
+      "value": "3.24%",
+      "change": "-2.1%",
+      "changeType": "decrease",
+      "icon": "TrendingUp"
+    },
+    {
+      "title": "Avg. Session",
+      "value": "4m 32s",
+      "change": "+18.7%",
+      "changeType": "increase",
+      "icon": "Clock"
+    }
+  ],
+  "users": [
+    {
+      "id": "1",
+      "name": "Sarah Chen",
+      "email": "sarah.chen@company.com",
+      "role": "Product Manager",
+      "status": "Active",
+      "lastActive": "2 minutes ago",
+      "avatar": "SC"
+    },
+    {
+      "id": "2",
+      "name": "Marcus Johnson",
+      "email": "marcus.j@company.com",
+      "role": "Senior Developer",
+      "status": "Active",
+      "lastActive": "15 minutes ago",
+      "avatar": "MJ"
+    },
+    {
+      "id": "3",
+      "name": "Emily Rodriguez",
+      "email": "emily.r@company.com",
+      "role": "UX Designer",
+      "status": "Pending",
+      "lastActive": "1 hour ago",
+      "avatar": "ER"
+    },
+    {
+      "id": "4",
+      "name": "David Kim",
+      "email": "david.kim@company.com",
+      "role": "Marketing Lead",
+      "status": "Active",
+      "lastActive": "3 hours ago",
+      "avatar": "DK"
+    },
+    {
+      "id": "5",
+      "name": "Jessica Taylor",
+      "email": "jessica.t@company.com",
+      "role": "Sales Manager",
+      "status": "Inactive",
+      "lastActive": "2 days ago",
+      "avatar": "JT"
+    }
+  ],
+  "chartData": {
+    "labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+    "datasets": [
+      {
+        "label": "Revenue",
+        "data": [12000, 19000, 15000, 25000, 22000, 30000]
+      },
+      {
+        "label": "Users",
+        "data": [1200, 1400, 1300, 1700, 1900, 2100]
+      }
+    ]
+  },
+  "recentActivity": [
+    {
+      "id": "1",
+      "user": "Sarah Chen",
+      "action": "created a new project",
+      "target": "Q4 Marketing Campaign",
+      "time": "5 minutes ago"
+    },
+    {
+      "id": "2",
+      "user": "Marcus Johnson",
+      "action": "deployed to production",
+      "target": "v2.4.0",
+      "time": "1 hour ago"
+    },
+    {
+      "id": "3",
+      "user": "Emily Rodriguez",
+      "action": "updated design specs",
+      "target": "Mobile App Redesign",
+      "time": "2 hours ago"
+    }
+  ]
+}

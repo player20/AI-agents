@@ -91,7 +91,19 @@ class AgentExecutionResponse(BaseModel):
 # WebSocket Event Models
 class GenerationEvent(BaseModel):
     """Events sent over WebSocket during generation"""
-    type: Literal["status", "agent_start", "agent_complete", "agent_error", "parallel_start", "files", "complete", "error"]
+    type: Literal[
+        "status",
+        "agent_start",
+        "agent_complete",
+        "agent_error",
+        "parallel_start",
+        "files",
+        "complete",
+        "error",
+        "clarification_required",  # User needs to answer questions
+        "research_progress",        # Web research progress
+        "report_complete",          # Business report is ready
+    ]
     message: Optional[str] = None
     agent: Optional[str] = None
     agent_type: Optional[str] = None
@@ -101,3 +113,6 @@ class GenerationEvent(BaseModel):
     files: Optional[Dict[str, str]] = None
     progress: Optional[int] = None
     summary: Optional[Dict[str, Any]] = None
+    # Clarification event fields
+    session_id: Optional[str] = None  # For clarification sessions
+    data: Optional[Dict[str, Any]] = None  # For custom event data (questions, etc.)

@@ -56,15 +56,30 @@ class CodeFile(BaseModel):
 
 class ProjectStructure(BaseModel):
     """Complete project structure with all files"""
-    name: str = Field(description="Project name")
-    description: str = Field(description="Project description")
+    name: str = Field(description="Project name (lowercase, hyphenated)")
+    description: str = Field(description="Brief project description")
     files: List[CodeFile] = Field(
-        description="All project files - MUST include at least 3 files for a complete project",
-        min_length=1  # Ensure at least one file is generated
+        description="All project files - MUST include at least 5 files for a complete project: package.json, config files, layout, page, and components",
+        min_length=3  # Ensure minimum viable project
     )
-    entry_point: Optional[str] = Field(default=None, description="Main entry file")
-    dependencies: Dict[str, str] = Field(default_factory=dict, description="Package dependencies with versions")
-    scripts: Dict[str, str] = Field(default_factory=dict, description="Available scripts/commands")
+    entry_point: Optional[str] = Field(default="src/app/page.tsx", description="Main entry file")
+    dependencies: Dict[str, str] = Field(
+        default_factory=lambda: {
+            "next": "13.5.6",
+            "react": "^18.2.0",
+            "react-dom": "^18.2.0",
+            "tailwindcss": "^3.4.0"
+        },
+        description="Package dependencies with versions"
+    )
+    scripts: Dict[str, str] = Field(
+        default_factory=lambda: {
+            "dev": "next dev",
+            "build": "next build",
+            "start": "next start"
+        },
+        description="Available scripts/commands"
+    )
 
 
 class CodeChange(BaseModel):
@@ -425,14 +440,73 @@ async def generate_project(
 
     system = f"""You are an expert software architect. Generate a complete, production-ready
     {platform} project using {language}. Include all necessary files with full implementations.
-    Follow best practices for the language and platform."""
+    Follow best practices for the language and platform.
+
+    CRITICAL REQUIREMENTS FOR WEB PROJECTS (WebContainer compatibility):
+    - MUST use Next.js version '13.5.6' exactly (NOT 14.x) - version 14 has SWC binary issues
+    - package.json MUST have: "next": "13.5.6" (exact version, no caret ^)
+    - Use 'next.config.mjs' (NOT next.config.ts) - TypeScript config is NOT supported
+    - Use 'tailwind.config.js' (NOT tailwind.config.ts)
+    - Use 'postcss.config.js' with tailwindcss and autoprefixer plugins
+    - MUST include '.babelrc' file with {{"presets": ["next/babel"]}} for WebContainer
+    - In next.config.mjs, set swcMinify: false and reactStrictMode: true (do NOT use experimental.appDir)
+    - NEVER use 'next/font' - it requires SWC which conflicts with Babel
+    - For fonts, use Google Fonts via <link> tag in layout.tsx or @import in globals.css
+    - Include ALL necessary dependencies in package.json
+    - Use modern React patterns (hooks, functional components)
+    - Include proper TypeScript types
+    - Add loading states and error handling
+    - Use Tailwind CSS for styling
+
+    FILE REQUIREMENTS:
+    - Generate at least 5-10 files for a complete project
+    - MUST include: package.json, tsconfig.json, next.config.mjs, tailwind.config.js, postcss.config.js, .babelrc
+    - Include: layout, pages, components
+    - All code must be complete and runnable (no placeholders or TODOs)
+    - Follow component-based architecture
+    - Use semantic HTML and accessibility best practices
+
+    REACT SERVER COMPONENTS RULES (CRITICAL - prevents compilation errors):
+    - Any file using React hooks (useState, useEffect, useContext, useRef, etc.) MUST have 'use client' as the FIRST line
+    - Any file using browser APIs (window, document, localStorage) MUST have 'use client' at the top
+    - If page.tsx uses useState or any hook, add 'use client' BEFORE any imports
+    - layout.tsx should stay as Server Component (no 'use client') - wrap children with client ErrorBoundary
+    - Components with onClick, onChange, onSubmit, or any event handlers MUST have 'use client'
+    - NEVER export 'metadata' from a 'use client' file - metadata only works in Server Components
+    - Use 'next/navigation' for useRouter, usePathname, useSearchParams (NOT 'next/router')
+
+    COMMON BUILD ERRORS TO AVOID:
+    - NEVER use next/image - use regular <img> tags (next/image has WebContainer issues)
+    - NEVER access window/document/localStorage at module level - only inside useEffect
+    - ALWAYS list ALL imported packages in package.json dependencies
+    - tsconfig.json MUST have paths: {{ "@/*": ["./src/*"] }} for @/ imports to work
+    - tsconfig.json MUST have resolveJsonModule: true for JSON imports
+    - NEVER mix Pages Router (pages/) with App Router (app/) - use App Router only
+    - Ensure lucide-react icons are imported correctly: import {{ IconName }} from 'lucide-react'
+
+    TAILWIND CSS RULES (CRITICAL - prevents PostCSS errors):
+    - ONLY use standard Tailwind classes (bg-blue-500, text-white, p-4, rounded-lg, etc.)
+    - NEVER use shadcn/ui classes like 'border-border', 'bg-background', 'text-foreground', 'bg-muted'
+    - globals.css MUST be simple: @tailwind base; @tailwind components; @tailwind utilities; and optional font @import
+    - DO NOT add custom @layer base rules with undefined CSS variables
+    - tailwind.config.js should only extend theme, not reference undefined variables
+
+    ERROR HANDLING REQUIREMENTS (CRITICAL for preview visibility):
+    - Create src/components/ErrorBoundary.tsx with 'use client' at the top, containing an ErrorBoundary class component
+    - ErrorBoundary MUST render errors with high-contrast colors: red background (#dc2626), white text, 20px padding, minHeight 100vh
+    - In layout.tsx (Server Component), import ErrorBoundary and wrap {{children}} with it
+    - In layout.tsx <head>, add error reporting script: <script dangerouslySetInnerHTML={{{{__html: `window.onerror=function(m){{window.parent?.postMessage({{type:'preview-error',message:m}},'*')}}`}}}} />
+    - page.tsx MUST have visible content even if Tailwind CSS fails (use inline styles as fallback)
+    - NEVER return null, undefined, or empty JSX from page components
+    - ALWAYS wrap main page content with inline style fallback: style={{{{ minHeight: '100vh', background: '#0f172a', color: 'white' }}}}
+    - Include BOTH Tailwind classes AND inline style fallbacks for critical visibility"""
 
     return await client.generate(
         response_model=ProjectStructure,
         system=system,
         messages=[{
             "role": "user",
-            "content": f"Create a project: {description}"
+            "content": f"Create a complete, production-ready project: {description}"
         }]
     )
 

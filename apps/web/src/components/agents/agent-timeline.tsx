@@ -62,7 +62,53 @@ function AgentCard({ agent }: { agent: AgentExecution }) {
 export function AgentTimeline() {
   const { currentProject } = useProjectStore()
 
-  if (!currentProject || currentProject.agents.length === 0) {
+  // Don't render anything if no project
+  if (!currentProject) {
+    return null
+  }
+
+  // Show loading state when generating but no agents yet
+  if (currentProject.status === 'generating' && currentProject.agents.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <Bot className="h-5 w-5" />
+            <span>Agent Progress</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Starting agents...</span>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Also show loading state during planning phase
+  if (currentProject.status === 'planning' && currentProject.agents.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <Bot className="h-5 w-5" />
+            <span>Agent Progress</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Analyzing your request...</span>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Hide if no agents and not in active state
+  if (currentProject.agents.length === 0) {
     return null
   }
 
