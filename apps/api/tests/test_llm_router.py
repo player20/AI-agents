@@ -46,11 +46,12 @@ class TestMockProvider:
     @pytest.mark.asyncio
     async def test_generate_code_request(self, mock_provider):
         """Test that code-related requests return code-like responses"""
-        messages = [LLMMessage(role="user", content="Write a Python function")]
+        # MockProvider looks for "code" or "implement" keywords
+        messages = [LLMMessage(role="user", content="Write some code to implement this")]
         response = await mock_provider.generate(messages)
 
         # Should contain code markers
-        assert "```" in response.content or "def " in response.content
+        assert "```" in response.content or "function" in response.content
 
     @pytest.mark.asyncio
     async def test_generate_analysis_request(self, mock_provider):
@@ -81,8 +82,9 @@ class TestMockProvider:
         response = await mock_provider.generate(messages)
 
         assert response.usage is not None
-        assert response.usage.get("prompt_tokens", 0) > 0
-        assert response.usage.get("completion_tokens", 0) > 0
+        # MockProvider uses input_tokens and output_tokens
+        assert response.usage.get("input_tokens", 0) > 0
+        assert response.usage.get("output_tokens", 0) > 0
 
 
 class TestLLMRouter:
@@ -160,7 +162,8 @@ class TestLLMRouter:
             await router_with_mock.generate(messages)
 
         stats = router_with_mock.get_stats()
-        assert stats.total_requests >= 3
+        # get_stats() returns a dict
+        assert stats["total_requests"] >= 3
 
     def test_provider_priority(self):
         """Test that providers are ordered by priority"""
@@ -191,20 +194,26 @@ class TestAnthropicProvider:
         """Test generate with mocked Anthropic client"""
         provider = AnthropicProvider(api_key="test-key")
 
-        # Mock the client
+        # Mock the client (provider uses _client and lazy loads via _get_client)
         mock_response = MagicMock()
         mock_response.content = [MagicMock(text="Hello, world!")]
-        mock_response.model = "claude-3-5-sonnet-20241022"
+        mock_response.model = "claude-sonnet-4-20250514"
         mock_response.usage = MagicMock(
             input_tokens=10,
             output_tokens=5
         )
+        mock_response.stop_reason = "end_turn"
 
-        with patch.object(provider, 'client') as mock_client:
-            mock_client.messages.create = AsyncMock(return_value=mock_response)
+        mock_client = MagicMock()
+        # The client uses AsyncAnthropic, so messages.create is async
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
 
+        with patch.object(provider, '_get_client', return_value=mock_client):
             messages = [LLMMessage(role="user", content="Hello")]
-            # Note: This would need the client to be async, adjust based on actual implementation
+            response = await provider.generate(messages)
+
+            assert response is not None
+            assert response.content == "Hello, world!"
 
 
 class TestOpenAIProvider:

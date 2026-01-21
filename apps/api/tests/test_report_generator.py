@@ -12,8 +12,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from datetime import datetime
 
-import sys
-sys.path.insert(0, str(__file__).replace("tests/test_report_generator.py", "src"))
+# Note: conftest.py sets up the Python path correctly
 
 
 # ============================================================================
